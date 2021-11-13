@@ -1,27 +1,34 @@
+use schemars::JsonSchema;
+use serde::{Deserialize, Serialize};
+
 use cosmwasm_std::{
     debug_print, to_binary, Api, Binary, Env, Extern, HandleResponse, InitResponse, Querier,
-    StdError, StdResult, Storage, CanonicalAddr,
+    StdError, StdResult, Storage, HumanAddr
 };
-use std::collections::HashMap;
-/**CountResponse,**/ 
-use crate::msg::{HandleMsg, InitMsg, QueryMsg};
+
+
+
+use crate::msg::{FileResponse, HandleMsg, InitMsg, QueryMsg};
 
 use crate::state::{config, config_read, State};
-use crate::backend::{Folder, File, WrappedAddress, traverse_folders, get_folder, build_child, build_file, move_file, move_folder, remove_file, remove_folder, print_file, print_folder, make_file, make_folder, add_folder, add_file};
+use crate::backend::{create_file, save_folder, load_folder, save_file, load_file, load_readonly_file, write_folder, read_folder, make_folder, make_file, Folder, File};
 
 pub fn init<S: Storage, A: Api, Q: Querier>(
     deps: &mut Extern<S, A, Q>,
     env: Env,
     msg: InitMsg,
 ) -> StdResult<InitResponse> {
+
+    let ha = deps.api.human_address(&deps.api.canonical_address(&env.message.sender)?)?;
+
     let state = State {
-        home_folders: HashMap::<WrappedAddress, Folder>::new(),
-        api_keys: HashMap::<WrappedAddress, String>::new(),
-        owner: deps.api.canonical_address(&env.message.sender)? as WrappedAddress,
+        owner: ha.clone(),
     };
 
     config(&mut deps.storage).save(&state)?;
+       
 
+    debug_print!("Contract was initialized by {}", env.message.sender);
     debug_print!("Contract was initialized by {}", env.message.sender);
 
     Ok(InitResponse::default())
@@ -36,7 +43,7 @@ pub fn handle<S: Storage, A: Api, Q: Querier>(
     match msg {
         HandleMsg::InitAddress { seed_phrase } => try_init(deps, env, seed_phrase),
         // HandleMsg::CreateFolder { name, path } => try_create_folder(deps, env, name, path),
-        // HandleMsg::CreateFile { name, path } => try_create_file(deps, env, name, path),
+        HandleMsg::CreateFile { name, contents, path } => try_create_file(deps, env, name, contents, path),
     }
 }
 
@@ -45,16 +52,47 @@ pub fn try_init<S: Storage, A: Api, Q: Querier>(
     env: Env,
     seed_phrase: String,
 ) -> StdResult<HandleResponse> {
-    let sender_address_raw = deps.api.canonical_address(&env.message.sender)? as WrappedAddress;
-    config(&mut deps.storage).update(|mut state| {
 
-        state.api_keys.insert(sender_address_raw, seed_phrase);
-        state.home_folders.insert(sender_address_raw, make_folder("home", sender_address_raw));
+    let ha = deps.api.human_address(&deps.api.canonical_address(&env.message.sender)?)?;
+    let mut adr = String::from(ha.clone().as_str());
 
-        Ok(state)
-    })?;
+    let folder = make_folder(&adr, &adr);
 
-    debug_print("address init success");
+    adr.push_str("/");
+
+    save_folder(&mut deps.storage, adr, folder);
+
+    Ok(HandleResponse::default())
+}
+
+pub fn try_create_file<S: Storage, A: Api, Q: Querier>(
+    deps: &mut Extern<S, A, Q>,
+    env: Env,
+    name: String,
+    contents: String,
+    path: String,
+) -> StdResult<HandleResponse> {
+
+    let ha = deps.api.human_address(&deps.api.canonical_address(&env.message.sender)?)?;
+    debug_print!("Attempting to create folder for account: {}", ha.clone());
+
+    let mut adr = String::from(ha.clone().as_str());
+
+
+    let mut p = adr.clone();
+    p.push_str(&path);
+
+    let mut l = load_folder(&mut deps.storage, p.clone());
+
+
+    create_file(&mut deps.storage, &mut l, p.clone(), name, contents);
+
+    save_folder(&mut deps.storage, p.clone(), l);
+
+
+    debug_print!("create file success");
+
+
     Ok(HandleResponse::default())
 }
 
@@ -68,7 +106,7 @@ pub fn try_init<S: Storage, A: Api, Q: Querier>(
 //         Ok(state)
 //     })?;
 
-//     debug_print("count incremented successfully");
+//     debug_print!("count incremented successfully");
 //     Ok(HandleResponse::default())
 // }
 
@@ -85,7 +123,7 @@ pub fn try_init<S: Storage, A: Api, Q: Querier>(
 //         state.count = count;
 //         Ok(state)
 //     })?;
-//     debug_print("count reset successfully");
+//     debug_print!("count reset successfully");
 //     Ok(HandleResponse::default())
 // }
 
@@ -94,14 +132,21 @@ pub fn query<S: Storage, A: Api, Q: Querier>(
     msg: QueryMsg,
 ) -> StdResult<Binary> {
     match msg {
-        // QueryMsg::GetCount {} => to_binary(&query_count(deps)?),
+        QueryMsg::GetFile { path, address } => to_binary(&query_file(deps, address, path)?),
     }
 }
 
-// fn query_count<S: Storage, A: Api, Q: Querier>(deps: &Extern<S, A, Q>) -> StdResult<CountResponse> {
-//     let state = config_read(&deps.storage).load()?;
-//     Ok(CountResponse { count: state.count })
-// }
+fn query_file<S: Storage, A: Api, Q: Querier>(deps: &Extern<S, A, Q>, address: String, path: String) -> StdResult<FileResponse> {
+
+    let mut adr = address.clone();
+
+    adr.push_str(&path);
+
+    let f = load_readonly_file(&deps.storage, adr);
+
+
+    Ok(FileResponse { file: f })
+}
 
 #[cfg(test)]
 mod tests {
@@ -113,63 +158,91 @@ mod tests {
     fn proper_initialization() {
         let mut deps = mock_dependencies(20, &[]);
 
-        let msg = InitMsg { count: 17 };
+        let msg = InitMsg {};
         let env = mock_env("creator", &coins(1000, "earth"));
 
         // we can just call .unwrap() to assert this was a success
         let res = init(&mut deps, env, msg).unwrap();
         assert_eq!(0, res.messages.len());
 
-        // it worked, let's query the state
-        let res = query(&deps, QueryMsg::GetCount {}).unwrap();
-        let value: CountResponse = from_binary(&res).unwrap();
-        assert_eq!(17, value.count);
     }
 
     #[test]
-    fn increment() {
+    fn init_test() {
         let mut deps = mock_dependencies(20, &coins(2, "token"));
 
-        let msg = InitMsg { count: 17 };
+        let msg = InitMsg {};
         let env = mock_env("creator", &coins(2, "token"));
         let _res = init(&mut deps, env, msg).unwrap();
 
-        // anyone can increment
         let env = mock_env("anyone", &coins(2, "token"));
-        let msg = HandleMsg::Increment {};
+        let msg = HandleMsg::InitAddress { seed_phrase: String::from("JACKAL IS ALIVE")};
+        let _res = handle(&mut deps, env, msg).unwrap();
+    }
+
+    #[test]
+    fn make_file_test() {
+        let mut deps = mock_dependencies(20, &coins(2, "token"));
+
+        let msg = InitMsg {};
+        let env = mock_env("creator", &coins(2, "token"));
+        let _res = init(&mut deps, env, msg).unwrap();
+
+        let env = mock_env("anyone", &coins(2, "token"));
+        let msg = HandleMsg::InitAddress { seed_phrase: String::from("JACKAL IS ALIVE")};
         let _res = handle(&mut deps, env, msg).unwrap();
 
-        // should increase counter by 1
-        let res = query(&deps, QueryMsg::GetCount {}).unwrap();
-        let value: CountResponse = from_binary(&res).unwrap();
-        assert_eq!(18, value.count);
+        let env = mock_env("anyone", &coins(2, "token"));
+        let msg = HandleMsg::CreateFile { name: String::from("test.txt"), contents: String::from("Hello World!"), path: String::from("/") };
+        let _res = handle(&mut deps, env, msg).unwrap();
     }
 
     #[test]
-    fn reset() {
+    fn get_file_test() {
         let mut deps = mock_dependencies(20, &coins(2, "token"));
 
-        let msg = InitMsg { count: 17 };
+        let msg = InitMsg {};
         let env = mock_env("creator", &coins(2, "token"));
         let _res = init(&mut deps, env, msg).unwrap();
 
-        // not anyone can reset
-        let unauth_env = mock_env("anyone", &coins(2, "token"));
-        let msg = HandleMsg::Reset { count: 5 };
-        let res = handle(&mut deps, unauth_env, msg);
-        match res {
-            Err(StdError::Unauthorized { .. }) => {}
-            _ => panic!("Must return unauthorized error"),
-        }
+        let env = mock_env("anyone", &coins(2, "token"));
+        let msg = HandleMsg::InitAddress { seed_phrase: String::from("JACKAL IS ALIVE")};
+        let _res = handle(&mut deps, env, msg).unwrap();
 
-        // only the original creator can reset the counter
-        let auth_env = mock_env("creator", &coins(2, "token"));
-        let msg = HandleMsg::Reset { count: 5 };
-        let _res = handle(&mut deps, auth_env, msg).unwrap();
+        let env = mock_env("anyone", &coins(2, "token"));
+        let msg = HandleMsg::CreateFile { name: String::from("test.txt"), contents: String::from("Hello World!"), path: String::from("/") };
+        let _res = handle(&mut deps, env, msg).unwrap();
 
-        // should now be 5
-        let res = query(&deps, QueryMsg::GetCount {}).unwrap();
-        let value: CountResponse = from_binary(&res).unwrap();
-        assert_eq!(5, value.count);
+        let res = query(&deps, QueryMsg::GetFile { address: String::from("anyone"), path: String::from("/test.txt") }).unwrap();
+        let value: FileResponse = from_binary(&res).unwrap();
+        assert_eq!(make_file("test.txt", "anyone", "Hello World!"), value.file);
     }
+
+    // #[test]
+    // fn reset() {
+    //     let mut deps = mock_dependencies(20, &coins(2, "token"));
+
+    //     let msg = InitMsg { count: 17 };
+    //     let env = mock_env("creator", &coins(2, "token"));
+    //     let _res = init(&mut deps, env, msg).unwrap();
+
+    //     // not anyone can reset
+    //     let unauth_env = mock_env("anyone", &coins(2, "token"));
+    //     let msg = HandleMsg::Reset { count: 5 };
+    //     let res = handle(&mut deps, unauth_env, msg);
+    //     match res {
+    //         Err(StdError::Unauthorized { .. }) => {}
+    //         _ => panic!("Must return unauthorized error"),
+    //     }
+
+    //     // only the original creator can reset the counter
+    //     let auth_env = mock_env("creator", &coins(2, "token"));
+    //     let msg = HandleMsg::Reset { count: 5 };
+    //     let _res = handle(&mut deps, auth_env, msg).unwrap();
+
+    //     // should now be 5
+    //     let res = query(&deps, QueryMsg::GetCount {}).unwrap();
+    //     let value: CountResponse = from_binary(&res).unwrap();
+    //     assert_eq!(5, value.count);
+    // }
 }

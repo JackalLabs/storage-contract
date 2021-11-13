@@ -1,5 +1,5 @@
 [package]
-name = "JACKAL"
+name = "jackal"
 version = "0.1.0"
 authors = ["Marston Connell"]
 edition = "2018"
@@ -17,7 +17,7 @@ crate-type = ["cdylib", "rlib"]
 
 [profile.release]
 opt-level = 3
-debug = false
+debug = true
 rpath = false
 lto = true
 debug-assertions = false

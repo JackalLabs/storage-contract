@@ -1,19 +1,20 @@
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
+
 use std::collections::HashMap;
 
-use cosmwasm_std::{CanonicalAddr, Storage};
+use cosmwasm_std::{Storage, HumanAddr};
 use cosmwasm_storage::{singleton, singleton_read, ReadonlySingleton, Singleton};
 
-use crate::backend::{Folder, File, WrappedAddress, traverse_folders, get_folder, build_child, build_file, move_file, move_folder, remove_file, remove_folder, print_file, print_folder, make_file, make_folder, add_folder, add_file};
+use crate::backend::{Folder, File};
 
 pub static CONFIG_KEY: &[u8] = b"config";
 
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
+static API_NAME: &str = "API";
+
+#[derive(Serialize, Deserialize, Clone, Debug, JsonSchema)]
 pub struct State {
-    pub home_folders: HashMap<WrappedAddress, Folder>,
-    pub api_keys: HashMap<WrappedAddress, String>,
-    pub owner: WrappedAddress,
+    pub owner: HumanAddr,
 }
 
 pub fn config<S: Storage>(storage: &mut S) -> Singleton<S, State> {

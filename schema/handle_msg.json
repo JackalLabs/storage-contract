@@ -1,0 +1,52 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "HandleMsg",
+  "anyOf": [
+    {
+      "type": "object",
+      "required": [
+        "init_address"
+      ],
+      "properties": {
+        "init_address": {
+          "type": "object",
+          "required": [
+            "seed_phrase"
+          ],
+          "properties": {
+            "seed_phrase": {
+              "type": "string"
+            }
+          }
+        }
+      }
+    },
+    {
+      "type": "object",
+      "required": [
+        "create_file"
+      ],
+      "properties": {
+        "create_file": {
+          "type": "object",
+          "required": [
+            "contents",
+            "name",
+            "path"
+          ],
+          "properties": {
+            "contents": {
+              "type": "string"
+            },
+            "name": {
+              "type": "string"
+            },
+            "path": {
+              "type": "string"
+            }
+          }
+        }
+      }
+    }
+  ]
+}
