@@ -4,6 +4,8 @@ use cosmwasm_std::StdResult;
 use cosmwasm_std::{ReadonlyStorage, Storage, HumanAddr, HandleResponse};
 use cosmwasm_storage::{singleton, singleton_read, bucket, bucket_read, ReadonlySingleton, Singleton, Bucket, ReadonlyBucket};
 
+use crate::ordered_set::{OrderedSet};
+
 static FOLDER_LOCATION: &[u8] = b"FOLDERS";
 static FILE_LOCATION: &[u8] = b"FILES";
 
@@ -12,14 +14,33 @@ static FILE_LOCATION: &[u8] = b"FILES";
 
 #[derive(Serialize, Deserialize, JsonSchema, Debug, Clone)]
 pub struct Folder{
-    child_folder_names: Vec<String>,
-    child_folders: Vec<Folder>,
-    files: Vec<String>,
+    child_folder_names: OrderedSet<String>,
+    files: OrderedSet<String>,
     name: String,
     owner: String,
 }
 
+impl Folder {
+    pub fn list_files(&self) -> Vec<String>{
+        let mut files: Vec<String> = Vec::new();
 
+        for i in 0..self.files.len() {
+            files.push(String::from(self.files.get(i).unwrap()));
+        }
+
+        return files;
+    }
+
+    pub fn list_folders(&self) -> Vec<String>{
+        let mut folders: Vec<String> = Vec::new();
+
+        for i in 0..self.child_folder_names.len() {
+            folders.push(String::from(self.child_folder_names.get(i).unwrap()));
+        }
+
+        return folders;
+    }
+}
 
 impl PartialEq<Folder> for Folder {
     fn eq(&self, other: &Folder) -> bool {
@@ -33,6 +54,10 @@ pub fn save_folder<'a, S: Storage>( store: &'a mut S, path: String, folder: Fold
 
 pub fn load_folder<'a, S: Storage>( store: &'a mut S, path: String) -> Folder{
     bucket(FOLDER_LOCATION, store).load(&path.as_bytes()).unwrap()
+}
+
+pub fn load_readonly_folder<'a, S: Storage>( store: &'a S, path: String) -> Folder{
+    bucket_read(FOLDER_LOCATION, store).load(&path.as_bytes()).unwrap()
 
 }
 
@@ -68,21 +93,23 @@ pub struct File{
     owner: String,
 }
 
-fn get_folder_from_path(root: &mut Folder, path: Vec<String>) -> &mut Folder{
+fn get_folder_from_path<'a, S: Storage>(store: &'a mut S, root: &'a mut Folder, path: Vec<String>) -> String{
 
     if path.len() > 1 {
 
-        let mut f = root;
+        let mut f = root.child_folder_names.clone();
+        let mut s = path[0].clone();
         
         for i in 1..path.len() {
-            for x in 0..f.child_folder_names.len() {
-                if f.child_folder_names[x] == path[i]  {
-                    f = f.child_folders.get_mut(x).unwrap();
+            for x in 0..f.len() {
+                if f.get(x).unwrap() == &path[i]  {
+                    f = load_folder(store, path[i].clone()).child_folder_names.clone();
+                    s = path[i].clone();
                 }
             }
         }
 
-        return f;
+        return s;
         
 
     }
@@ -90,14 +117,14 @@ fn get_folder_from_path(root: &mut Folder, path: Vec<String>) -> &mut Folder{
     if path.len() == 1 {
 
         for x in 0..root.child_folder_names.len() {
-            if root.child_folder_names[x] == path[0]  {
-                return root.child_folders.get_mut(x).unwrap();
+            if root.child_folder_names.get(x).unwrap() == &path[0]  {
+                return path[0].clone();
             }
         }
 
     }
 
-    return root;
+    return path[0].clone();
 
 
 }
@@ -136,6 +163,24 @@ pub fn create_file<'a, S: Storage>(store: &'a mut S, root: &mut Folder, path: St
 
 }
 
+pub fn create_folder<'a, S: Storage>(store: &'a mut S, root: &mut Folder, path: String, name: String) {
+
+    let folder = make_folder(&name, "");
+
+    add_folder(store, root, path, folder);
+
+}
+
+pub fn add_folder<'a, S: Storage>(store: &'a mut S, parent : &mut Folder, path: String, mut child: Folder){
+    child.owner = parent.owner.clone();
+    let mut p = path.clone();
+    p.push_str(&child.name);
+    p.push('/');
+
+    parent.child_folder_names.push(p.clone());
+
+    save_folder(store, p.clone(), child);
+}
 
 pub fn add_file<'a, S: Storage>(store: &'a mut S, parent : &mut Folder, path: String, mut child: File){
     child.owner = parent.owner.clone();
@@ -158,9 +203,8 @@ pub fn add_file<'a, S: Storage>(store: &'a mut S, parent : &mut Folder, path: St
 
 pub fn make_folder(name: &str, owner: &str) -> Folder{
     Folder {
-        child_folders: Vec::<Folder>::new(),
-        child_folder_names: Vec::<String>::new(),
-        files: Vec::<String>::new(),
+        child_folder_names: OrderedSet::<String>::new(),
+        files: OrderedSet::<String>::new(),
         name: String::from(name),
         owner: String::from(owner),
     }
