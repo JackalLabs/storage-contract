@@ -24,8 +24,7 @@ cargo schema //Generating the schemas to interact with deployed contract
 
 Creating a folder at the root directory:
 ```
-secretcli tx compute execute $CONTRACT '{"create_folder": {"name": "folder", "path":"/"}}' --fro
-m a --keyring-backend test
+secretcli tx compute execute $CONTRACT '{"create_folder": {"name": "folder", "path":"/"}}' --from a --keyring-backend test
 ```
 
 Creating a file at the root directory:
