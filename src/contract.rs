@@ -1,5 +1,6 @@
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
+use std::fs::read_to_string;
 
 use cosmwasm_std::{
     debug_print, to_binary, Api, Binary, Env, Extern, HandleResponse, InitResponse, Querier,
@@ -128,6 +129,8 @@ pub fn try_create_folder<S: Storage, A: Api, Q: Querier>(
 
     Ok(HandleResponse::default())
 }
+
+
 
 // pub fn try_increment<S: Storage, A: Api, Q: Querier>(
 //     deps: &mut Extern<S, A, Q>,
@@ -313,6 +316,63 @@ mod tests {
         let res = query(&deps, QueryMsg::GetFolderContents { address: String::from("anyone"), path: String::from("/") }).unwrap();
         let value: FolderContentsResponse = from_binary(&res).unwrap();
         assert_eq!(value.files, vec!["anyone/test2.txt"]);
+        assert_eq!(value.folders, vec!["anyone/new_folder/"]);
+
+        let res = query(&deps, QueryMsg::GetFolderContents { address: String::from("anyone"), path: String::from("/new_folder/") }).unwrap();
+        let value: FolderContentsResponse = from_binary(&res).unwrap();
+        assert_eq!(value.files, vec!["anyone/new_folder/test.txt"]);
+        assert_eq!(value.folders, Vec::<String>::new());
+    }
+
+    #[test]
+    fn big_files_test() {
+        let mut deps = mock_dependencies(20, &coins(2, "token"));
+
+        let msg = InitMsg {};
+        let env = mock_env("creator", &coins(2, "token"));
+        let _res = init(&mut deps, env, msg).unwrap();
+
+        let env = mock_env("anyone", &coins(2, "token"));
+        let msg = HandleMsg::InitAddress { seed_phrase: String::from("JACKAL IS ALIVE")};
+        let _res = handle(&mut deps, env, msg).unwrap();
+
+        let env = mock_env("anyone", &coins(2, "token"));
+        let msg = HandleMsg::CreateFolder { name: String::from("new_folder"), path: String::from("/") };
+        let _res = handle(&mut deps, env, msg).unwrap();
+
+        let env = mock_env("anyone", &coins(2, "token"));
+        let msg = HandleMsg::CreateFile { name: String::from("test.txt"), contents: String::from("Hello World!"), path: String::from("/new_folder/") };
+        let _res = handle(&mut deps, env, msg).unwrap();
+
+        let env = mock_env("anyone", &coins(2, "token"));
+        let msg = HandleMsg::CreateFile { name: String::from("test2.txt"), contents: String::from("Hello World!"), path: String::from("/") };
+        let _res = handle(&mut deps, env, msg).unwrap();
+
+        let fcont : String = read_to_string("eth.txt").unwrap();
+
+
+        for i in 0..100 {
+            let mut nm: String = i.to_string();
+            nm.push_str(".png");
+
+            let env = mock_env("anyone", &coins(2, "token"));
+            let msg = HandleMsg::CreateFile { name: String::from(nm), contents: fcont.clone(), path: String::from("/") };
+            let _res = handle(&mut deps, env, msg).unwrap();
+        }
+        
+
+        let res = query(&deps, QueryMsg::GetFile { address: String::from("anyone"), path: String::from("/99.png") }).unwrap();
+        let value: FileResponse = from_binary(&res).unwrap();
+        assert_eq!(value.file.get_contents(), fcont.clone());
+
+
+
+        let res = query(&deps, QueryMsg::GetFolderContents { address: String::from("anyone"), path: String::from("/") }).unwrap();
+        let value: FolderContentsResponse = from_binary(&res).unwrap();
+
+        println!("{:?}", value.files);
+
+
         assert_eq!(value.folders, vec!["anyone/new_folder/"]);
 
         let res = query(&deps, QueryMsg::GetFolderContents { address: String::from("anyone"), path: String::from("/new_folder/") }).unwrap();

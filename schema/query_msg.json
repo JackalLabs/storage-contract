@@ -24,6 +24,29 @@
           }
         }
       }
+    },
+    {
+      "type": "object",
+      "required": [
+        "get_folder_contents"
+      ],
+      "properties": {
+        "get_folder_contents": {
+          "type": "object",
+          "required": [
+            "address",
+            "path"
+          ],
+          "properties": {
+            "address": {
+              "type": "string"
+            },
+            "path": {
+              "type": "string"
+            }
+          }
+        }
+      }
     }
   ]
 }

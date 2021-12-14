@@ -47,6 +47,29 @@
           }
         }
       }
+    },
+    {
+      "type": "object",
+      "required": [
+        "create_folder"
+      ],
+      "properties": {
+        "create_folder": {
+          "type": "object",
+          "required": [
+            "name",
+            "path"
+          ],
+          "properties": {
+            "name": {
+              "type": "string"
+            },
+            "path": {
+              "type": "string"
+            }
+          }
+        }
+      }
     }
   ]
 }

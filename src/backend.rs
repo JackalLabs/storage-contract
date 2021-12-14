@@ -93,6 +93,12 @@ pub struct File{
     owner: String,
 }
 
+impl File {
+    pub fn get_contents(&self) -> &str {
+        &self.contents
+    }
+}
+
 fn get_folder_from_path<'a, S: Storage>(store: &'a mut S, root: &'a mut Folder, path: Vec<String>) -> String{
 
     if path.len() > 1 {
