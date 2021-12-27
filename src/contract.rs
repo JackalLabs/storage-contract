@@ -347,4 +347,56 @@ mod tests {
         assert_eq!(value.folders, Vec::<String>::new());
     }
 
+    #[test]
+    fn duplicated_folder_test() {
+        let mut deps = mock_dependencies(20, &coins(2, "token"));
+
+        let msg = InitMsg {};
+        let env = mock_env("creator", &coins(2, "token"));
+        let _res = init(&mut deps, env, msg).unwrap();
+
+        let env = mock_env("anyone", &coins(2, "token"));
+        let msg = HandleMsg::InitAddress { seed_phrase: String::from("JACKAL IS ALIVE")};
+        let _res = handle(&mut deps, env, msg).unwrap();
+
+        // create original copy
+        let env = mock_env("anyone", &coins(2, "token"));
+        let msg = HandleMsg::CreateFolder { name: String::from("test_folder"), path: String::from("/") };
+        let _res = handle(&mut deps, env, msg).unwrap();
+
+        let env = mock_env("anyone", &coins(2, "token"));
+        let msg = HandleMsg::CreateFile { name: String::from("test_file_one.txt"), contents: String::from("Hello Hello!!!"), path: String::from("/test_folder/") };
+        let _res = handle(&mut deps, env, msg).unwrap();
+
+        // create duplicated copy
+        let env = mock_env("anyone", &coins(2, "token"));
+        let msg = HandleMsg::CreateFolder { name: String::from("test_folder"), path: String::from("/") };
+        let _res = handle(&mut deps, env, msg).unwrap();
+
+        let env = mock_env("anyone", &coins(2, "token"));
+        let msg = HandleMsg::CreateFile { name: String::from("test_file_two.txt"), contents: String::from("Sup dude!!!"), path: String::from("/test_folder/") };
+        let _res = handle(&mut deps, env, msg).unwrap();
+        
+        let env = mock_env("anyone", &coins(2, "token"));
+        let msg = HandleMsg::CreateFile { name: String::from("u_cant_see_me.txt"), contents: String::from("Hello World!"), path: String::from("/test_folder/") };
+        let _res = handle(&mut deps, env, msg).unwrap();
+
+        let res = query(&deps, QueryMsg::GetFolderContents { address: String::from("anyone"), path: String::from("/") }).unwrap();
+        let value: FolderContentsResponse = from_binary(&res).unwrap();
+        println!("Querying /");
+        println!("Folders: {:?}", value.folders);
+        println!("Files: {:?}", value.files);
+
+        let res = query(&deps, QueryMsg::GetFolderContents { address: String::from("anyone"), path: String::from("/test_folder/") }).unwrap();
+        let value: FolderContentsResponse = from_binary(&res).unwrap();
+        println!("Querying /test_folder/");
+        println!("Folders: {:?}", value.folders);
+        println!("Files: {:?}", value.files);
+
+        let res = query(&deps, QueryMsg::GetFile { address: String::from("anyone"), path: String::from("/test_folder/test_file_one.txt") }).unwrap();
+        let value: FileResponse = from_binary(&res).unwrap();
+        println!("GetFile test_file_one: {:?}", value);
+
+    }
+
 }
