@@ -20,6 +20,7 @@ pub enum HandleMsg {
     // CreateFolder { name : String, path: Vec<String> },
     CreateFile { name: String, contents: String, path: String },
     CreateFolder {name : String, path: String},
+    TestCreateFolder {name : String, path: String, address: String},
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, JsonSchema)]
