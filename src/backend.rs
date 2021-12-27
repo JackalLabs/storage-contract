@@ -1,6 +1,6 @@
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
-use cosmwasm_std::StdResult;
+use cosmwasm_std::{StdResult, StdError};
 use cosmwasm_std::{ReadonlyStorage, Storage, HumanAddr, HandleResponse};
 use cosmwasm_storage::{singleton, singleton_read, bucket, bucket_read, ReadonlySingleton, Singleton, Bucket, ReadonlyBucket};
 
@@ -50,6 +50,15 @@ impl PartialEq<Folder> for Folder {
 
 pub fn save_folder<'a, S: Storage>( store: &'a mut S, path: String, folder: Folder ) {
     bucket(FOLDER_LOCATION, store).save(&path.as_bytes(), &folder);
+}
+
+pub fn folder_exists<'a, S: Storage>( store: &'a mut S, path: String) -> bool{
+    let f : Result<Folder, StdError> = bucket(FOLDER_LOCATION, store).load(&path.as_bytes());
+
+    match f {
+        Ok(_v) => {return true},
+        Err(_e) => return false,
+    };
 }
 
 pub fn load_folder<'a, S: Storage>( store: &'a mut S, path: String) -> Folder{
