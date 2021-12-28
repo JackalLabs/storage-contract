@@ -74,6 +74,15 @@ pub fn save_file<'a, S: Storage>( store: &'a mut S, path: String, folder: File )
     bucket(FILE_LOCATION, store).save(&path.as_bytes(), &folder);
 }
 
+pub fn file_exists<'a, S: Storage>( store: &'a mut S, path: String) -> bool{
+    let f : Result<File, StdError> = bucket(FILE_LOCATION, store).load(&path.as_bytes());
+
+    match f {
+        Ok(_v) => {return true},
+        Err(_e) => return false,
+    };
+}
+
 pub fn load_file<'a, S: Storage>( store: &'a mut S, path: String) -> File{
     bucket(FILE_LOCATION, store).load(&path.as_bytes()).unwrap()
 }

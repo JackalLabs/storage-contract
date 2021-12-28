@@ -13,7 +13,7 @@ use cosmwasm_std::{
 use crate::msg::{FolderContentsResponse, FileResponse, HandleMsg, InitMsg, QueryMsg};
 
 use crate::state::{config, config_read, State};
-use crate::backend::{create_file, create_folder, save_folder, load_folder, load_readonly_folder, save_file, load_file, load_readonly_file, write_folder, read_folder, make_folder, make_file, Folder, File, folder_exists};
+use crate::backend::{create_file, create_folder, save_folder, load_folder, load_readonly_folder, save_file, load_file, load_readonly_file, write_folder, read_folder, make_folder, make_file, Folder, File, folder_exists, file_exists};
 
 pub fn init<S: Storage, A: Api, Q: Querier>(
     deps: &mut Extern<S, A, Q>,
@@ -76,26 +76,33 @@ pub fn try_create_file<S: Storage, A: Api, Q: Querier>(
 ) -> StdResult<HandleResponse> {
 
     let ha = deps.api.human_address(&deps.api.canonical_address(&env.message.sender)?)?;
-    debug_print!("Attempting to create folder for account: {}", ha.clone());
+    debug_print!("Attempting to create file for account: {}", ha.clone());
 
-    let mut adr = String::from(ha.clone().as_str());
-
+    let adr = String::from(ha.clone().as_str());
 
     let mut p = adr.clone();
     p.push_str(&path);
 
     let mut l = load_folder(&mut deps.storage, p.clone());
 
+    let path_to_compare = &mut p.clone();
+    path_to_compare.push_str(&name);
 
-    create_file(&mut deps.storage, &mut l, p.clone(), name, contents);
+    let file_name_taken = file_exists(&mut deps.storage, path_to_compare.to_string());
 
-    save_folder(&mut deps.storage, p.clone(), l);
+    match file_name_taken{
+        false => {
+            create_file(&mut deps.storage, &mut l, p.clone(), name, contents);
+            save_folder(&mut deps.storage, p.clone(), l);
+            debug_print!("create file success");
+            Ok(HandleResponse::default())
+        }
+        true => {
+            let error_message = format!("File name '{}' has already been taken", name);
+            Err(StdError::generic_err(error_message))
+        },
+    }
 
-
-    debug_print!("create file success");
-
-
-    Ok(HandleResponse::default())
 }
 
 pub fn try_create_folder<S: Storage, A: Api, Q: Querier>(
@@ -128,7 +135,10 @@ pub fn try_create_folder<S: Storage, A: Api, Q: Querier>(
             debug_print!("create file success");
             Ok(HandleResponse::default())
         }
-        true => Err(StdError::generic_err("Folder name already taken".to_string())),
+        true => {
+            let error_message = format!("Folder name '{}' has already been taken", name);
+            Err(StdError::generic_err(error_message))
+        }
     }
 
 }
@@ -398,6 +408,51 @@ mod tests {
         println!("Files: {:?}", value.files);
 
         let res = query(&deps, QueryMsg::GetFile { address: String::from("anyone"), path: String::from("/test_folder/test_file_one.txt") }).unwrap();
+        let value: FileResponse = from_binary(&res).unwrap();
+        println!("GetFile test_file_one: {:?}", value);
+
+    }
+
+    #[test]
+    fn duplicated_file_test() {
+        let mut deps = mock_dependencies(20, &coins(2, "token"));
+
+        let msg = InitMsg {};
+        let env = mock_env("creator", &coins(2, "token"));
+        let _res = init(&mut deps, env, msg).unwrap();
+
+        let env = mock_env("anyone", &coins(2, "token"));
+        let msg = HandleMsg::InitAddress { seed_phrase: String::from("JACKAL IS ALIVE")};
+        let _res = handle(&mut deps, env, msg).unwrap();
+
+        // create original copy
+        let env = mock_env("anyone", &coins(2, "token"));
+        let msg = HandleMsg::CreateFolder { name: String::from("nice_folder"), path: String::from("/") };
+        let _res = handle(&mut deps, env, msg).unwrap();
+
+        let env = mock_env("anyone", &coins(2, "token"));
+        let msg = HandleMsg::CreateFile { name: String::from("test_file_one.txt"), contents: String::from("Hello Hello!!!"), path: String::from("/nice_folder/") };
+        let _res = handle(&mut deps, env, msg).unwrap();
+
+        // create duplicated copy
+        let env = mock_env("anyone", &coins(2, "token"));
+        let msg = HandleMsg::CreateFile { name: String::from("test_file_one.txt"), contents: String::from("Sup dude!!!"), path: String::from("/nice_folder/") };
+        let _res = handle(&mut deps, env, msg).unwrap();
+        
+
+        let res = query(&deps, QueryMsg::GetFolderContents { address: String::from("anyone"), path: String::from("/") }).unwrap();
+        let value: FolderContentsResponse = from_binary(&res).unwrap();
+        println!("Querying /");
+        println!("Folders: {:?}", value.folders);
+        println!("Files: {:?}", value.files);
+
+        let res = query(&deps, QueryMsg::GetFolderContents { address: String::from("anyone"), path: String::from("/nice_folder/") }).unwrap();
+        let value: FolderContentsResponse = from_binary(&res).unwrap();
+        println!("Querying /nice_folder/");
+        println!("Folders: {:?}", value.folders);
+        println!("Files: {:?}", value.files);
+
+        let res = query(&deps, QueryMsg::GetFile { address: String::from("anyone"), path: String::from("/nice_folder/test_file_one.txt") }).unwrap();
         let value: FileResponse = from_binary(&res).unwrap();
         println!("GetFile test_file_one: {:?}", value);
 
