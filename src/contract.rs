@@ -13,7 +13,7 @@ use cosmwasm_std::{
 use crate::msg::{FolderContentsResponse, FileResponse, HandleMsg, InitMsg, QueryMsg};
 
 use crate::state::{config, config_read, State};
-use crate::backend::{create_file, create_folder, save_folder, load_folder, load_readonly_folder, save_file, load_file, load_readonly_file, write_folder, read_folder, make_folder, make_file, Folder, File};
+use crate::backend::{create_file, create_folder, save_folder, load_folder, load_readonly_folder, save_file, load_file, load_readonly_file, write_folder, read_folder, make_folder, make_file, Folder, File, folder_exists};
 
 pub fn init<S: Storage, A: Api, Q: Querier>(
     deps: &mut Extern<S, A, Q>,
@@ -46,31 +46,6 @@ pub fn handle<S: Storage, A: Api, Q: Querier>(
         HandleMsg::InitAddress { seed_phrase } => try_init(deps, env, seed_phrase),
         HandleMsg::CreateFile { name, contents, path } => try_create_file(deps, env, name, contents, path),
         HandleMsg::CreateFolder { name, path } => try_create_folder(deps, env, name, path),
-        HandleMsg::TestCreateFolder { name, path , address} => {
-
-            let addy =&address;
-            println!("_____TestCreateFolder running_____");
-            let query_result =  query_folder_contents(deps, addy.to_string() , path.to_string())?.folders;
-
-            println!("QUERY RESULT: {:?}", query_result);
-
-            let name_to_compare = &mut address.clone();
-            name_to_compare.push('/');
-            name_to_compare.push_str(&name.to_string());
-            name_to_compare.push('/');
-
-            println!("Name to Compare: {:?}", name_to_compare);
-
-
-            if query_result.contains(&name_to_compare){
-                panic!("This folder name already exist");
-            } else {
-                println!("Good to go chief!");
-                try_create_folder(deps, env, name, path)
-            }
-            
-        },
-
     }
 }
 
@@ -135,22 +110,27 @@ pub fn try_create_folder<S: Storage, A: Api, Q: Querier>(
 
     let mut adr = String::from(ha.clone().as_str());
 
-
     let mut p = adr.clone();
     p.push_str(&path);
 
-
     let mut l = load_folder(&mut deps.storage, p.clone());
 
-    create_folder(&mut deps.storage, &mut l, p.clone(), name);
+    let path_to_compare = &mut p.clone();
+    path_to_compare.push_str(&name);
+    path_to_compare.push('/');
 
-    save_folder(&mut deps.storage, p.clone(), l);
+    let folder_name_taken = folder_exists(&mut deps.storage, path_to_compare.to_string());
 
+    match folder_name_taken{
+        false => {
+            create_folder(&mut deps.storage, &mut l, p.clone(), name);
+            save_folder(&mut deps.storage, p.clone(), l);
+            debug_print!("create file success");
+            Ok(HandleResponse::default())
+        }
+        true => Err(StdError::generic_err("Folder name already taken".to_string())),
+    }
 
-    debug_print!("create file success");
-
-
-    Ok(HandleResponse::default())
 }
 
 pub fn query<S: Storage, A: Api, Q: Querier>(
@@ -402,7 +382,7 @@ mod tests {
         let _res = handle(&mut deps, env, msg).unwrap();
         
         let env = mock_env("anyone", &coins(2, "token"));
-        let msg = HandleMsg::CreateFile { name: String::from("u_cant_see_me.txt"), contents: String::from("Hello World!"), path: String::from("/test_folder/") };
+        let msg = HandleMsg::CreateFile { name: String::from("test_file_three.txt"), contents: String::from("Hello World!"), path: String::from("/test_folder/") };
         let _res = handle(&mut deps, env, msg).unwrap();
 
         let res = query(&deps, QueryMsg::GetFolderContents { address: String::from("anyone"), path: String::from("/") }).unwrap();
@@ -421,32 +401,5 @@ mod tests {
         let value: FileResponse = from_binary(&res).unwrap();
         println!("GetFile test_file_one: {:?}", value);
 
-    }
-
-    #[test]
-    fn make_cool_folder_test() {
-        let mut deps = mock_dependencies(20, &coins(2, "token"));
-
-        let msg = InitMsg {};
-        let env = mock_env("creator", &coins(2, "token"));
-        let _res = init(&mut deps, env, msg).unwrap();
-
-        let env = mock_env("anyone", &coins(2, "token"));
-        let msg = HandleMsg::InitAddress { seed_phrase: String::from("JACKAL IS ALIVE")};
-        let _res = handle(&mut deps, env, msg).unwrap();
-
-        // Create 1st Folder & File
-        let env = mock_env("anyone", &coins(2, "token"));
-        let msg = HandleMsg::TestCreateFolder { name: String::from("cool_folder"), path: String::from("/"), address: String::from("anyone") };
-        let _res = handle(&mut deps, env, msg).unwrap();
-
-        let env = mock_env("anyone", &coins(2, "token"));
-        let msg = HandleMsg::CreateFile { name: String::from("test.txt"), contents: String::from("Hello World!"), path: String::from("/cool_folder/") };
-        let _res = handle(&mut deps, env, msg).unwrap();
-
-        // Create copied ver of Folder
-        let env = mock_env("anyone", &coins(2, "token"));
-        let msg = HandleMsg::TestCreateFolder { name: String::from("cool_folder"), path: String::from("/"), address: String::from("anyone") };
-        let _res = handle(&mut deps, env, msg).unwrap();
     }
 }
