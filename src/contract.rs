@@ -1,24 +1,24 @@
-use schemars::JsonSchema;
-use serde::{Deserialize, Serialize};
-use std::fs::read_to_string;
-use std::ptr::null;
+// use schemars::JsonSchema;
+// use serde::{Deserialize, Serialize};
+
+// use std::ptr::null;
 
 use cosmwasm_std::{
     debug_print, to_binary, Api, Binary, Env, Extern, HandleResponse, InitResponse, Querier,
-    StdError, StdResult, Storage, HumanAddr
+    StdError, StdResult, Storage
 };
 
 
 
 use crate::msg::{FolderContentsResponse, FileResponse, HandleMsg, InitMsg, QueryMsg};
 
-use crate::state::{config, config_read, State};
-use crate::backend::{create_file, create_folder, save_folder, load_folder, load_readonly_folder, save_file, load_file, load_readonly_file, write_folder, read_folder, make_folder, make_file, Folder, File, folder_exists, file_exists};
+use crate::state::{config, State};
+use crate::backend::{create_file, create_folder, save_folder, load_folder, load_readonly_folder, load_readonly_file, make_folder, folder_exists, file_exists};
 
 pub fn init<S: Storage, A: Api, Q: Querier>(
     deps: &mut Extern<S, A, Q>,
     env: Env,
-    msg: InitMsg,
+    _msg: InitMsg,
 ) -> StdResult<InitResponse> {
 
     let ha = deps.api.human_address(&deps.api.canonical_address(&env.message.sender)?)?;
@@ -52,7 +52,7 @@ pub fn handle<S: Storage, A: Api, Q: Querier>(
 pub fn try_init<S: Storage, A: Api, Q: Querier>(
     deps: &mut Extern<S, A, Q>,
     env: Env,
-    seed_phrase: String,
+    _seed_phrase: String,
 ) -> StdResult<HandleResponse> {
 
     let ha = deps.api.human_address(&deps.api.canonical_address(&env.message.sender)?)?;
@@ -115,7 +115,7 @@ pub fn try_create_folder<S: Storage, A: Api, Q: Querier>(
     let ha = deps.api.human_address(&deps.api.canonical_address(&env.message.sender)?)?;
     debug_print!("Attempting to create folder for account: {}", ha.clone());
 
-    let mut adr = String::from(ha.clone().as_str());
+    let adr = String::from(ha.clone().as_str());
 
     let mut p = adr.clone();
     p.push_str(&path);
@@ -182,7 +182,9 @@ fn query_folder_contents<S: Storage, A: Api, Q: Querier>(deps: &Extern<S, A, Q>,
 mod tests {
     use super::*;
     use cosmwasm_std::testing::{mock_dependencies, mock_env};
-    use cosmwasm_std::{coins, from_binary, StdError};
+    use cosmwasm_std::{coins, from_binary};
+    use std::fs::read_to_string;
+    use crate::backend::{make_file};
 
     #[test]
     fn proper_initialization() {

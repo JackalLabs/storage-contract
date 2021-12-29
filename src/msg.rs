@@ -1,11 +1,11 @@
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
-use cosmwasm_std::CanonicalAddr;
-use cosmwasm_std::HumanAddr;
+// use cosmwasm_std::CanonicalAddr;
+// use cosmwasm_std::HumanAddr;
 
-use std::collections::HashMap;
+// use std::collections::HashMap;
 
-use crate::backend::{Folder, File};
+use crate::backend::File;
 
 #[derive(Serialize, Deserialize, Clone, Debug, JsonSchema)]
 pub struct InitMsg {

@@ -1,16 +1,16 @@
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
-use std::collections::HashMap;
+// use std::collections::HashMap;
 
 use cosmwasm_std::{Storage, HumanAddr};
 use cosmwasm_storage::{singleton, singleton_read, ReadonlySingleton, Singleton};
 
-use crate::backend::{Folder, File};
+// use crate::backend::{Folder, File};
 
 pub static CONFIG_KEY: &[u8] = b"config";
 
-static API_NAME: &str = "API";
+// static API_NAME: &str = "API";
 
 #[derive(Serialize, Deserialize, Clone, Debug, JsonSchema)]
 pub struct State {

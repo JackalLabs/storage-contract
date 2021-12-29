@@ -28,7 +28,7 @@ impl<T: PartialEq + Sized> OrderedSet<T> {
 
     pub fn contains(&mut self, item: &T) -> bool {
         for i in 0..self.data.len() {
-            if(&self.data[i] == item){
+            if &self.data[i] == item{
                 return true;
             }
         }
