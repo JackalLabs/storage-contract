@@ -5,15 +5,13 @@
 
 use cosmwasm_std::{
     debug_print, to_binary, Api, Binary, Env, Extern, HandleResponse, InitResponse, Querier,
-    StdError, StdResult, Storage
+     StdResult, Storage
 };
 
-
-
-use crate::msg::{FolderContentsResponse, FileResponse, HandleMsg, InitMsg, QueryMsg};
+use crate::msg::{HandleMsg, InitMsg, QueryMsg};
 
 use crate::state::{config, State};
-use crate::backend::{create_file, create_folder, save_folder, load_folder, load_readonly_folder, load_readonly_file, make_folder, folder_exists, file_exists};
+use crate::backend::{query_file, query_folder_contents, try_create_folder, try_create_file, try_init, load_readonly_folder, load_readonly_file };
 
 pub fn init<S: Storage, A: Api, Q: Querier>(
     deps: &mut Extern<S, A, Q>,
@@ -29,13 +27,11 @@ pub fn init<S: Storage, A: Api, Q: Querier>(
 
     config(&mut deps.storage).save(&state)?;
        
-
     debug_print!("Contract was initialized by {}", env.message.sender);
     debug_print!("Contract was initialized by {}", env.message.sender);
 
     Ok(InitResponse::default())
 }
-
 
 pub fn handle<S: Storage, A: Api, Q: Querier>(
     deps: &mut Extern<S, A, Q>,
@@ -49,100 +45,6 @@ pub fn handle<S: Storage, A: Api, Q: Querier>(
     }
 }
 
-pub fn try_init<S: Storage, A: Api, Q: Querier>(
-    deps: &mut Extern<S, A, Q>,
-    env: Env,
-    _seed_phrase: String,
-) -> StdResult<HandleResponse> {
-
-    let ha = deps.api.human_address(&deps.api.canonical_address(&env.message.sender)?)?;
-    let mut adr = String::from(ha.clone().as_str());
-
-    let folder = make_folder(&adr, &adr);
-
-    adr.push_str("/");
-
-    save_folder(&mut deps.storage, adr, folder);
-
-    Ok(HandleResponse::default())
-}
-
-pub fn try_create_file<S: Storage, A: Api, Q: Querier>(
-    deps: &mut Extern<S, A, Q>,
-    env: Env,
-    name: String,
-    contents: String,
-    path: String,
-) -> StdResult<HandleResponse> {
-
-    let ha = deps.api.human_address(&deps.api.canonical_address(&env.message.sender)?)?;
-    debug_print!("Attempting to create file for account: {}", ha.clone());
-
-    let adr = String::from(ha.clone().as_str());
-
-    let mut p = adr.clone();
-    p.push_str(&path);
-
-    let mut l = load_folder(&mut deps.storage, p.clone());
-
-    let path_to_compare = &mut p.clone();
-    path_to_compare.push_str(&name);
-
-    let file_name_taken = file_exists(&mut deps.storage, path_to_compare.to_string());
-
-    match file_name_taken{
-        false => {
-            create_file(&mut deps.storage, &mut l, p.clone(), name, contents);
-            save_folder(&mut deps.storage, p.clone(), l);
-            debug_print!("create file success");
-            Ok(HandleResponse::default())
-        }
-        true => {
-            let error_message = format!("File name '{}' has already been taken", name);
-            Err(StdError::generic_err(error_message))
-        },
-    }
-
-}
-
-pub fn try_create_folder<S: Storage, A: Api, Q: Querier>(
-    deps: &mut Extern<S, A, Q>,
-    env: Env,
-    name: String,
-    path: String,
-) -> StdResult<HandleResponse> {
-
-    let ha = deps.api.human_address(&deps.api.canonical_address(&env.message.sender)?)?;
-    debug_print!("Attempting to create folder for account: {}", ha.clone());
-
-    let adr = String::from(ha.clone().as_str());
-
-    let mut p = adr.clone();
-    p.push_str(&path);
-
-    let mut l = load_folder(&mut deps.storage, p.clone());
-
-    let path_to_compare = &mut p.clone();
-    path_to_compare.push_str(&name);
-    path_to_compare.push('/');
-
-    let folder_name_taken = folder_exists(&mut deps.storage, path_to_compare.to_string());
-
-    match folder_name_taken{
-        false => {
-            create_folder(&mut deps.storage, &mut l, p.clone(), name);
-            save_folder(&mut deps.storage, p.clone(), l);
-            debug_print!("create file success");
-            Ok(HandleResponse::default())
-        }
-        true => {
-            let error_message = format!("Folder name '{}' has already been taken", name);
-            Err(StdError::generic_err(error_message))
-        }
-    }
-
-}
-
 pub fn query<S: Storage, A: Api, Q: Querier>(
     deps: &Extern<S, A, Q>,
     msg: QueryMsg,
@@ -153,31 +55,6 @@ pub fn query<S: Storage, A: Api, Q: Querier>(
     }
 }
 
-fn query_file<S: Storage, A: Api, Q: Querier>(deps: &Extern<S, A, Q>, address: String, path: String) -> StdResult<FileResponse> {
-
-    let mut adr = address.clone();
-
-    adr.push_str(&path);
-
-    let f = load_readonly_file(&deps.storage, adr);
-
-
-    Ok(FileResponse { file: f })
-}
-
-fn query_folder_contents<S: Storage, A: Api, Q: Querier>(deps: &Extern<S, A, Q>, address: String, path: String) -> StdResult<FolderContentsResponse> {
-
-    let mut adr = address.clone();
-
-    adr.push_str(&path);
-
-    let f = load_readonly_folder(&deps.storage, adr);
-
-
-
-    Ok(FolderContentsResponse { folders: f.list_folders(), files: f.list_files() })
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -185,6 +62,8 @@ mod tests {
     use cosmwasm_std::{coins, from_binary};
     use std::fs::read_to_string;
     use crate::backend::{make_file};
+    use crate::msg::{FolderContentsResponse, FileResponse};
+
 
     #[test]
     fn proper_initialization() {
@@ -386,7 +265,7 @@ mod tests {
 
         // create duplicated copy
         let env = mock_env("anyone", &coins(2, "token"));
-        let msg = HandleMsg::CreateFolder { name: String::from("test_folder"), path: String::from("/") };
+        let msg = HandleMsg::CreateFolder { name: String::from("test_folder1"), path: String::from("/") };
         let _res = handle(&mut deps, env, msg).unwrap();
 
         let env = mock_env("anyone", &coins(2, "token"));
@@ -433,7 +312,7 @@ mod tests {
         let _res = handle(&mut deps, env, msg).unwrap();
 
         let env = mock_env("anyone", &coins(2, "token"));
-        let msg = HandleMsg::CreateFile { name: String::from("test_file_one.txt"), contents: String::from("Hello Hello!!!"), path: String::from("/nice_folder/") };
+        let msg = HandleMsg::CreateFile { name: String::from("test_file_one1.txt"), contents: String::from("Hello Hello!!!"), path: String::from("/nice_folder/") };
         let _res = handle(&mut deps, env, msg).unwrap();
 
         // create duplicated copy

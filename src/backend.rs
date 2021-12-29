@@ -1,15 +1,34 @@
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
-use cosmwasm_std::{ StdError};
-use cosmwasm_std::{ReadonlyStorage, Storage};
+use cosmwasm_std::{debug_print,Env, Api, Querier, ReadonlyStorage, Storage, StdResult, StdError, Extern, HandleResponse};
 use cosmwasm_storage::{ bucket, bucket_read, Bucket, ReadonlyBucket};
 
 use crate::ordered_set::{OrderedSet};
+use crate::msg::{FileResponse, FolderContentsResponse};
 
 static FOLDER_LOCATION: &[u8] = b"FOLDERS";
 static FILE_LOCATION: &[u8] = b"FILES";
 
-// FOR FOLDER
+// HandleMsg::InitAddress
+pub fn try_init<S: Storage, A: Api, Q: Querier>(
+    deps: &mut Extern<S, A, Q>,
+    env: Env,
+    _seed_phrase: String,
+) -> StdResult<HandleResponse> {
+
+    let ha = deps.api.human_address(&deps.api.canonical_address(&env.message.sender)?)?;
+    let mut adr = String::from(ha.clone().as_str());
+
+    let folder = make_folder(&adr, &adr);
+
+    adr.push_str("/");
+
+    save_folder(&mut deps.storage, adr, folder);
+
+    Ok(HandleResponse::default())
+}
+
+// HandleMsg FOLDER 
 #[derive(Serialize, Deserialize, JsonSchema, Debug, Clone)]
 pub struct Folder{
     child_folder_names: OrderedSet<String>,
@@ -44,6 +63,44 @@ impl PartialEq<Folder> for Folder {
     fn eq(&self, other: &Folder) -> bool {
         self.name == other.name
     }
+}
+
+pub fn try_create_folder<S: Storage, A: Api, Q: Querier>(
+    deps: &mut Extern<S, A, Q>,
+    env: Env,
+    name: String,
+    path: String,
+) -> StdResult<HandleResponse> {
+
+    let ha = deps.api.human_address(&deps.api.canonical_address(&env.message.sender)?)?;
+    debug_print!("Attempting to create folder for account: {}", ha.clone());
+
+    let adr = String::from(ha.clone().as_str());
+
+    let mut p = adr.clone();
+    p.push_str(&path);
+
+    let mut l = load_folder(&mut deps.storage, p.clone());
+
+    let path_to_compare = &mut p.clone();
+    path_to_compare.push_str(&name);
+    path_to_compare.push('/');
+
+    let folder_name_taken = folder_exists(&mut deps.storage, path_to_compare.to_string());
+
+    match folder_name_taken{
+        false => {
+            create_folder(&mut deps.storage, &mut l, p.clone(), name);
+            save_folder(&mut deps.storage, p.clone(), l);
+            debug_print!("create file success");
+            Ok(HandleResponse::default())
+        }
+        true => {
+            let error_message = format!("Folder name '{}' has already been taken", name);
+            Err(StdError::generic_err(error_message))
+        }
+    }
+
 }
 
 pub fn create_folder<'a, S: Storage>(store: &'a mut S, root: &mut Folder, path: String, name: String) {
@@ -109,7 +166,7 @@ pub fn read_folder<'a, S: ReadonlyStorage>(
 }
 
 
-// FOR FILE
+// HandleMsg FILE
 #[derive(Serialize, Deserialize, JsonSchema, PartialEq, Debug, Clone)]
 pub struct File{
     contents: String,
@@ -121,6 +178,44 @@ impl File {
     pub fn get_contents(&self) -> &str {
         &self.contents
     }
+}
+
+pub fn try_create_file<S: Storage, A: Api, Q: Querier>(
+    deps: &mut Extern<S, A, Q>,
+    env: Env,
+    name: String,
+    contents: String,
+    path: String,
+) -> StdResult<HandleResponse> {
+
+    let ha = deps.api.human_address(&deps.api.canonical_address(&env.message.sender)?)?;
+    debug_print!("Attempting to create file for account: {}", ha.clone());
+
+    let adr = String::from(ha.clone().as_str());
+
+    let mut p = adr.clone();
+    p.push_str(&path);
+
+    let mut l = load_folder(&mut deps.storage, p.clone());
+
+    let path_to_compare = &mut p.clone();
+    path_to_compare.push_str(&name);
+
+    let file_name_taken = file_exists(&mut deps.storage, path_to_compare.to_string());
+
+    match file_name_taken{
+        false => {
+            create_file(&mut deps.storage, &mut l, p.clone(), name, contents);
+            save_folder(&mut deps.storage, p.clone(), l);
+            debug_print!("create file success");
+            Ok(HandleResponse::default())
+        }
+        true => {
+            let error_message = format!("File name '{}' has already been taken", name);
+            Err(StdError::generic_err(error_message))
+        },
+    }
+
 }
 
 pub fn create_file<'a, S: Storage>(store: &'a mut S, root: &mut Folder, path: String, name: String, contents: String) {
@@ -167,6 +262,33 @@ pub fn load_file<'a, S: Storage>( store: &'a mut S, path: String) -> File{
 
 pub fn load_readonly_file<'a, S: Storage>( store: &'a S, path: String ) -> File{
     bucket_read(FILE_LOCATION, store).load(&path.as_bytes()).unwrap()
+}
+
+// QueryMsg
+// is pub(super) safe to use?
+pub(super) fn query_file<S: Storage, A: Api, Q: Querier>(deps: &Extern<S, A, Q>, address: String, path: String) -> StdResult<FileResponse> {
+
+    let mut adr = address.clone();
+
+    adr.push_str(&path);
+
+    let f = load_readonly_file(&deps.storage, adr);
+
+
+    Ok(FileResponse { file: f })
+}
+
+pub(super) fn query_folder_contents<S: Storage, A: Api, Q: Querier>(deps: &Extern<S, A, Q>, address: String, path: String) -> StdResult<FolderContentsResponse> {
+
+    let mut adr = address.clone();
+
+    adr.push_str(&path);
+
+    let f = load_readonly_folder(&deps.storage, adr);
+
+
+
+    Ok(FolderContentsResponse { folders: f.list_folders(), files: f.list_files() })
 }
 
 
