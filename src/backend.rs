@@ -23,7 +23,7 @@ pub fn try_init<S: Storage, A: Api, Q: Querier>(
 
     adr.push_str("/");
 
-    save_folder(&mut deps.storage, adr, folder);
+    bucket_save_folder(&mut deps.storage, adr, folder);
 
     Ok(HandleResponse::default())
 }
@@ -65,6 +65,32 @@ impl PartialEq<Folder> for Folder {
     }
 }
 
+pub fn try_remove_folder<S: Storage, A: Api, Q: Querier>(
+    deps: &mut Extern<S, A, Q>,
+    env: Env,
+    name: String,
+    path: String,
+) -> StdResult<HandleResponse> {
+
+    let ha = deps.api.human_address(&deps.api.canonical_address(&env.message.sender)?)?;
+    debug_print!("Attempting to remove folder for account: {}", ha.clone());
+
+    let adr = String::from(ha.clone().as_str());
+
+    let mut p = adr.clone();
+    p.push_str(&path);
+    p.push_str(&name);
+    // p.push('/');
+
+    println!("path from backend: {}", p);
+
+    let loaded_from_bucket = bucket_load_folder(&mut deps.storage, String::from("anyone/"));
+    println!("BUCKET before: {:?}", loaded_from_bucket);
+
+    bucket_remove_folder(&mut deps.storage, String::from("/anyone/new_folder/"));
+    Ok(HandleResponse::default())
+}
+
 pub fn try_create_folder<S: Storage, A: Api, Q: Querier>(
     deps: &mut Extern<S, A, Q>,
     env: Env,
@@ -80,7 +106,8 @@ pub fn try_create_folder<S: Storage, A: Api, Q: Querier>(
     let mut p = adr.clone();
     p.push_str(&path);
 
-    let mut l = load_folder(&mut deps.storage, p.clone());
+    let mut l = bucket_load_folder(&mut deps.storage, p.clone());
+    println!("LOAD BUCKET: {:?}", l);
 
     let path_to_compare = &mut p.clone();
     path_to_compare.push_str(&name);
@@ -91,7 +118,7 @@ pub fn try_create_folder<S: Storage, A: Api, Q: Querier>(
     match folder_name_taken{
         false => {
             create_folder(&mut deps.storage, &mut l, p.clone(), name);
-            save_folder(&mut deps.storage, p.clone(), l);
+            bucket_save_folder(&mut deps.storage, p.clone(), l);
             debug_print!("create file success");
             Ok(HandleResponse::default())
         }
@@ -122,17 +149,23 @@ pub fn make_folder(name: &str, owner: &str) -> Folder{
 
 pub fn add_folder<'a, S: Storage>(store: &'a mut S, parent : &mut Folder, path: String, mut child: Folder){
     child.owner = parent.owner.clone();
-    let mut p = path.clone();
-    p.push_str(&child.name);
-    p.push('/');
 
-    parent.child_folder_names.push(p.clone());
+    // let mut child_path = path.clone();
+    // child_path.push_str(&child.name);
+    // child_path.push('/');
+    let child_path = format!("{}{}/",path,child.name);
 
-    save_folder(store, p.clone(), child);
+    parent.child_folder_names.push(child_path.clone());
+
+    bucket_save_folder(store, child_path.clone(), child);
 }
 
-pub fn save_folder<'a, S: Storage>( store: &'a mut S, path: String, folder: Folder ) {
+pub fn bucket_save_folder<'a, S: Storage>( store: &'a mut S, path: String, folder: Folder ) {
     bucket(FOLDER_LOCATION, store).save(&path.as_bytes(), &folder);
+}
+
+pub fn bucket_remove_folder<'a, S: Storage>( store: &'a mut S, path: String) {
+    bucket::<S, Folder>(FOLDER_LOCATION, store).remove(&path.as_bytes());
 }
 
 pub fn folder_exists<'a, S: Storage>( store: &'a mut S, path: String) -> bool{
@@ -144,7 +177,8 @@ pub fn folder_exists<'a, S: Storage>( store: &'a mut S, path: String) -> bool{
     };
 }
 
-pub fn load_folder<'a, S: Storage>( store: &'a mut S, path: String) -> Folder{
+// Rename to load_bucket?
+pub fn bucket_load_folder<'a, S: Storage>( store: &'a mut S, path: String) -> Folder{
     bucket(FOLDER_LOCATION, store).load(&path.as_bytes()).unwrap()
 }
 
@@ -180,6 +214,29 @@ impl File {
     }
 }
 
+pub fn try_remove_file<S: Storage, A: Api, Q: Querier>(
+    deps: &mut Extern<S, A, Q>,
+    env: Env,
+    name: String,
+    path: String,
+) -> StdResult<HandleResponse> {
+
+    let ha = deps.api.human_address(&deps.api.canonical_address(&env.message.sender)?)?;
+    debug_print!("Attempting to remove file for account: {}", ha.clone());
+
+    let adr = String::from(ha.clone().as_str());
+
+    let mut p = adr.clone();
+    p.push_str(&path);
+    p.push_str(&name);
+    p.push('/');
+
+    println!("path from backend: {}", p);
+
+    bucket_remove_file(&mut deps.storage, p.clone());
+    Ok(HandleResponse::default())
+}
+
 pub fn try_create_file<S: Storage, A: Api, Q: Querier>(
     deps: &mut Extern<S, A, Q>,
     env: Env,
@@ -196,7 +253,7 @@ pub fn try_create_file<S: Storage, A: Api, Q: Querier>(
     let mut p = adr.clone();
     p.push_str(&path);
 
-    let mut l = load_folder(&mut deps.storage, p.clone());
+    let mut l = bucket_load_folder(&mut deps.storage, p.clone());
 
     let path_to_compare = &mut p.clone();
     path_to_compare.push_str(&name);
@@ -206,7 +263,7 @@ pub fn try_create_file<S: Storage, A: Api, Q: Querier>(
     match file_name_taken{
         false => {
             create_file(&mut deps.storage, &mut l, p.clone(), name, contents);
-            save_folder(&mut deps.storage, p.clone(), l);
+            bucket_save_folder(&mut deps.storage, p.clone(), l);
             debug_print!("create file success");
             Ok(HandleResponse::default())
         }
@@ -240,11 +297,15 @@ pub fn add_file<'a, S: Storage>(store: &'a mut S, parent : &mut Folder, path: St
     p.push_str(&child.name);
 
     parent.files.push(p.clone());
-    save_file(store, p.clone(), child);
+    bucket_save_file(store, p.clone(), child);
 }
 
-pub fn save_file<'a, S: Storage>( store: &'a mut S, path: String, folder: File ) {
+pub fn bucket_save_file<'a, S: Storage>( store: &'a mut S, path: String, folder: File ) {
     bucket(FILE_LOCATION, store).save(&path.as_bytes(), &folder);
+}
+
+pub fn bucket_remove_file<'a, S: Storage>( store: &'a mut S, path: String) {
+    bucket::<S, File>(FILE_LOCATION, store).remove(&path.as_bytes());
 }
 
 pub fn file_exists<'a, S: Storage>( store: &'a mut S, path: String) -> bool{
@@ -256,7 +317,7 @@ pub fn file_exists<'a, S: Storage>( store: &'a mut S, path: String) -> bool{
     };
 }
 
-pub fn load_file<'a, S: Storage>( store: &'a mut S, path: String) -> File{
+pub fn bucket_load_file<'a, S: Storage>( store: &'a mut S, path: String) -> File{
     bucket(FILE_LOCATION, store).load(&path.as_bytes()).unwrap()
 }
 
@@ -266,7 +327,7 @@ pub fn load_readonly_file<'a, S: Storage>( store: &'a S, path: String ) -> File{
 
 // QueryMsg
 // is pub(super) safe to use?
-pub(super) fn query_file<S: Storage, A: Api, Q: Querier>(deps: &Extern<S, A, Q>, address: String, path: String) -> StdResult<FileResponse> {
+pub fn query_file<S: Storage, A: Api, Q: Querier>(deps: &Extern<S, A, Q>, address: String, path: String) -> StdResult<FileResponse> {
 
     let mut adr = address.clone();
 
@@ -278,7 +339,7 @@ pub(super) fn query_file<S: Storage, A: Api, Q: Querier>(deps: &Extern<S, A, Q>,
     Ok(FileResponse { file: f })
 }
 
-pub(super) fn query_folder_contents<S: Storage, A: Api, Q: Querier>(deps: &Extern<S, A, Q>, address: String, path: String) -> StdResult<FolderContentsResponse> {
+pub fn query_folder_contents<S: Storage, A: Api, Q: Querier>(deps: &Extern<S, A, Q>, address: String, path: String) -> StdResult<FolderContentsResponse> {
 
     let mut adr = address.clone();
 
@@ -304,7 +365,7 @@ fn get_folder_from_path<'a, S: Storage>(store: &'a mut S, root: &'a mut Folder, 
         for i in 1..path.len() {
             for x in 0..f.len() {
                 if f.get(x).unwrap() == &path[i]  {
-                    f = load_folder(store, path[i].clone()).child_folder_names.clone();
+                    f = bucket_load_folder(store, path[i].clone()).child_folder_names.clone();
                     s = path[i].clone();
                 }
             }

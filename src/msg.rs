@@ -17,9 +17,10 @@ pub struct InitMsg {
 #[serde(rename_all = "snake_case")]
 pub enum HandleMsg {
     InitAddress { seed_phrase: String },
-    // CreateFolder { name : String, path: Vec<String> },
     CreateFile { name: String, contents: String, path: String },
+    RemoveFile {name: String, path: String},
     CreateFolder {name : String, path: String},
+    RemoveFolder {name : String, path: String},
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, JsonSchema)]
