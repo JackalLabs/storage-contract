@@ -73,21 +73,32 @@ pub fn try_remove_folder<S: Storage, A: Api, Q: Querier>(
 ) -> StdResult<HandleResponse> {
 
     let ha = deps.api.human_address(&deps.api.canonical_address(&env.message.sender)?)?;
+
     debug_print!("Attempting to remove folder for account: {}", ha.clone());
 
     let adr = String::from(ha.clone().as_str());
 
-    let mut p = adr.clone();
-    p.push_str(&path);
-    p.push_str(&name);
-    // p.push('/');
+    let parent_path = format!("{}{}", adr, path);
 
-    println!("path from backend: {}", p);
+    let child_path = format!("{}{}{}/",adr, path, name);
 
-    let loaded_from_bucket = bucket_load_folder(&mut deps.storage, String::from("anyone/"));
-    println!("BUCKET before: {:?}", loaded_from_bucket);
+    // println!("parent_path from backend: {}", parent_path);
+    // println!("child_path from backend: {}", child_path);
 
-    bucket_remove_folder(&mut deps.storage, String::from("/anyone/new_folder/"));
+    // Load PARENT FOLDER from bucket
+    let mut load_from_bucket = bucket_load_folder(&mut deps.storage, parent_path.clone());
+    // println!("Load from bucket: {:?}", load_from_bucket);
+
+    // Remove CHILD FOLDER from PARENT FOLDER
+    load_from_bucket.child_folder_names.remove(child_path.clone());
+    // println!("here --- {:?}", load_from_bucket);
+
+    // SAVE new ver of PARENT FOLDER to bucket
+    bucket_save_folder(&mut deps.storage, parent_path, load_from_bucket);
+
+    // REMOVE CHILD FOLDER from bucket
+    bucket_remove_folder(&mut deps.storage, child_path);
+
     Ok(HandleResponse::default())
 }
 
@@ -107,7 +118,7 @@ pub fn try_create_folder<S: Storage, A: Api, Q: Querier>(
     p.push_str(&path);
 
     let mut l = bucket_load_folder(&mut deps.storage, p.clone());
-    println!("LOAD BUCKET: {:?}", l);
+    // println!("LOAD BUCKET before creating file: {:?}", l);
 
     let path_to_compare = &mut p.clone();
     path_to_compare.push_str(&name);

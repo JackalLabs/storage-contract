@@ -8,6 +8,7 @@ pub struct OrderedSet<T> {
 }
 
 
+
 impl<T: PartialEq + Sized> OrderedSet<T> {
     #[must_use]
     pub fn new() -> Self {
@@ -41,4 +42,12 @@ impl<T: PartialEq + Sized> OrderedSet<T> {
             self.data.push(item);
         }
     }
+
+    pub fn remove(&mut self, item: T) {
+        if self.contains(&item){
+            let index = self.data.iter().position(|x| *x == item).unwrap();
+            self.data.remove(index);
+        }
+    }
 }
+

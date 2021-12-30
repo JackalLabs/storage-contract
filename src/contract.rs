@@ -64,10 +64,10 @@ mod tests {
     use cosmwasm_std::testing::{mock_dependencies, mock_env};
     use cosmwasm_std::{coins, from_binary};
     use std::fs::read_to_string;
-    use crate::backend::{make_file, bucket_load_folder, bucket_remove_folder};
+    use crate::backend::{make_file};
     use crate::msg::{FolderContentsResponse, FileResponse};
 
-    // #[test]
+    #[test]
     fn remove_folder_test() {
         let mut deps = mock_dependencies(20, &coins(2, "token"));
 
@@ -84,22 +84,25 @@ mod tests {
         let msg = HandleMsg::CreateFolder { name: String::from("new_folder"), path: String::from("/") };
         let _res = handle(&mut deps, env, msg).unwrap();
 
-        let res = query(&deps, QueryMsg::GetFolderContents { address: String::from("anyone"), path: String::from("/") }).unwrap();
-        let value: FolderContentsResponse = from_binary(&res).unwrap();
-        // println!("Folder Content before removal: {:?}", &value);
-
-        // Remove Folder
         let env = mock_env("anyone", &coins(2, "token"));
-        let msg = HandleMsg::RemoveFolder { name: String::from("new_folder"), path: String::from("/") };
+        let msg = HandleMsg::CreateFolder { name: String::from("u_cant_see_this_folder"), path: String::from("/") };
         let _res = handle(&mut deps, env, msg).unwrap();
 
         let res = query(&deps, QueryMsg::GetFolderContents { address: String::from("anyone"), path: String::from("/") }).unwrap();
         let value: FolderContentsResponse = from_binary(&res).unwrap();
-        // println!("Folder Content after removal: {:?}", &value);
-        bucket_remove_folder(&mut deps.storage, String::from("anyone/new_folder/"));
-        let l = bucket_load_folder(&mut deps.storage, String::from("anyone/"));
+        println!("Folder Content before removal: {:?}", &value);
 
-        println!("BUCKET after: {:?}", l);
+        // Remove Folder
+        let env = mock_env("anyone", &coins(2, "token"));
+        let msg = HandleMsg::RemoveFolder { name: String::from("u_cant_see_this_folder"), path: String::from("/") };
+        let _res = handle(&mut deps, env, msg).unwrap();
+
+        let res = query(&deps, QueryMsg::GetFolderContents { address: String::from("anyone"), path: String::from("/") }).unwrap();
+        let value: FolderContentsResponse = from_binary(&res).unwrap();
+        assert_eq!(value.folders, vec!["anyone/new_folder/"]);
+
+        println!("Folder Content after removal: {:?}", &value);
+
     }
 
     // #[test]
