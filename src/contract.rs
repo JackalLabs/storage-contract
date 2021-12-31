@@ -64,7 +64,7 @@ mod tests {
     use cosmwasm_std::testing::{mock_dependencies, mock_env};
     use cosmwasm_std::{coins, from_binary};
     use std::fs::read_to_string;
-    use crate::backend::{make_file};
+    use crate::backend::{make_file, bucket_load_file};
     use crate::msg::{FolderContentsResponse, FileResponse};
 
     #[test]
@@ -105,7 +105,7 @@ mod tests {
 
     }
 
-    // #[test]
+    #[test]
     fn remove_file_test() {
         let mut deps = mock_dependencies(20, &coins(2, "token"));
 
@@ -117,19 +117,39 @@ mod tests {
         let msg = HandleMsg::InitAddress { seed_phrase: String::from("JACKAL IS ALIVE")};
         let _res = handle(&mut deps, env, msg).unwrap();
 
-        // Create File
+        // Create Folder
+        let env = mock_env("anyone", &coins(2, "token"));
+        let msg = HandleMsg::CreateFolder { name: String::from("new_folder"), path: String::from("/") };
+        let _res = handle(&mut deps, env, msg).unwrap();
+
+        // Create File in root
         let env = mock_env("anyone", &coins(2, "token"));
         let msg = HandleMsg::CreateFile { name: String::from("test.txt"), contents: String::from("Hello World!"), path: String::from("/") };
         let _res = handle(&mut deps, env, msg).unwrap();
 
-        // Remove File
+        // Create File in new_folder
+        let env = mock_env("anyone", &coins(2, "token"));
+        let msg = HandleMsg::CreateFile { name: String::from("very_nice.txt"), contents: String::from("OK!"), path: String::from("/new_folder/") };
+        let _res = handle(&mut deps, env, msg).unwrap();
+
+        // Remove File in root
         let env = mock_env("anyone", &coins(2, "token"));
         let msg = HandleMsg::RemoveFile { name: String::from("test.txt"), path: String::from("/") };
         let _res = handle(&mut deps, env, msg).unwrap();
 
+        // Remove File in new_folder
+        // let env = mock_env("anyone", &coins(2, "token"));
+        // let msg = HandleMsg::RemoveFile { name: String::from("very_nice.txt"), path: String::from("/new_folder/") };
+        // let _res = handle(&mut deps, env, msg).unwrap();
+
         let res = query(&deps, QueryMsg::GetFolderContents { address: String::from("anyone"), path: String::from("/") }).unwrap();
         let value: FolderContentsResponse = from_binary(&res).unwrap();
-        println!("Files after removal: {:?}", &value);
+        println!("Files after removal in root: {:?}", &value.files);
+
+        let res = query(&deps, QueryMsg::GetFolderContents { address: String::from("anyone"), path: String::from("/new_folder/") }).unwrap();
+        let value: FolderContentsResponse = from_binary(&res).unwrap();
+        println!("Files after removal in new_folder: {:?}", &value.files);
+
     }
 
     #[test]

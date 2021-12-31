@@ -9,6 +9,11 @@ use crate::msg::{FileResponse, FolderContentsResponse};
 static FOLDER_LOCATION: &[u8] = b"FOLDERS";
 static FILE_LOCATION: &[u8] = b"FILES";
 
+// KEEP IN MIND!!!
+// Root Folder is user wallet address ex: "secret420rand0mwall3t6969/" is a root folder
+// FOLDER always ends with '/' ex: "secret420rand0mwall3t6969/meme_folder/"
+// FILE does NOT ends with '/' ex: "secret420rand0mwall3t6969/meme_folder/beautiful_pepe.jpeg"
+
 // HandleMsg::InitAddress
 pub fn try_init<S: Storage, A: Api, Q: Querier>(
     deps: &mut Extern<S, A, Q>,
@@ -233,18 +238,30 @@ pub fn try_remove_file<S: Storage, A: Api, Q: Querier>(
 ) -> StdResult<HandleResponse> {
 
     let ha = deps.api.human_address(&deps.api.canonical_address(&env.message.sender)?)?;
+
     debug_print!("Attempting to remove file for account: {}", ha.clone());
 
     let adr = String::from(ha.clone().as_str());
+    let parent_path = format!("{}{}", adr, path);
 
-    let mut p = adr.clone();
-    p.push_str(&path);
-    p.push_str(&name);
-    p.push('/');
+    let file_path = format!("{}{}{}",adr, path, name);
+    // println!("parent_path from backend: {}", parent_path);
+    // println!("file_path from backend: {}", file_path);
 
-    println!("path from backend: {}", p);
+    // Load PARENT FOLDER from bucket
+    let mut parent_from_bucket = bucket_load_folder(&mut deps.storage, parent_path.clone());
+    // println!("PARENT from bucket: {:?}", parent_from_bucket);
 
-    bucket_remove_file(&mut deps.storage, p.clone());
+    // Remove FILE from PARENT FOLDER
+    parent_from_bucket.files.remove(file_path.clone());
+    // println!("after remove --- {:?}", parent_from_bucket);
+
+    // SAVE new ver of PARENT FOLDER to bucket
+    bucket_save_folder(&mut deps.storage, parent_path, parent_from_bucket);
+
+    // REMOVE FILE from bucket
+    bucket_remove_file(&mut deps.storage, file_path.clone());
+
     Ok(HandleResponse::default())
 }
 
@@ -332,19 +349,18 @@ pub fn bucket_load_file<'a, S: Storage>( store: &'a mut S, path: String) -> File
     bucket(FILE_LOCATION, store).load(&path.as_bytes()).unwrap()
 }
 
-pub fn load_readonly_file<'a, S: Storage>( store: &'a S, path: String ) -> File{
+pub fn bucket_load_readonly_file<'a, S: Storage>( store: &'a S, path: String ) -> File{
     bucket_read(FILE_LOCATION, store).load(&path.as_bytes()).unwrap()
 }
 
 // QueryMsg
-// is pub(super) safe to use?
 pub fn query_file<S: Storage, A: Api, Q: Querier>(deps: &Extern<S, A, Q>, address: String, path: String) -> StdResult<FileResponse> {
 
     let mut adr = address.clone();
 
     adr.push_str(&path);
 
-    let f = load_readonly_file(&deps.storage, adr);
+    let f = bucket_load_readonly_file(&deps.storage, adr);
 
 
     Ok(FileResponse { file: f })
