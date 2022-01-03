@@ -28,9 +28,20 @@ pub fn try_init<S: Storage, A: Api, Q: Querier>(
 
     adr.push_str("/");
 
-    bucket_save_folder(&mut deps.storage, adr, folder);
+    let already_init = folder_exists(&mut deps.storage, adr.to_string());
+    
+    match already_init{
+        false => {
+            bucket_save_folder(&mut deps.storage, adr, folder);
+            debug_print!("init root folder success");
+            Ok(HandleResponse::default())
+        }
+        true => {
+            let error_message = format!("User has already been initiated");
+            Err(StdError::generic_err(error_message))
+        }
+    }
 
-    Ok(HandleResponse::default())
 }
 
 // HandleMsg FOLDER 

@@ -271,6 +271,11 @@ mod tests {
         let env = mock_env("anyone", &coins(2, "token"));
         let msg = HandleMsg::InitAddress { seed_phrase: String::from("JACKAL IS ALIVE")};
         let _res = handle(&mut deps, env, msg).unwrap();
+
+        // This should fail to prevent init again
+        // let env = mock_env("anyone", &coins(2, "token"));
+        // let msg = HandleMsg::InitAddress { seed_phrase: String::from("JACKAL IS ALIVE")};
+        // let _res = handle(&mut deps, env, msg).unwrap();
     }
 
     #[test]
