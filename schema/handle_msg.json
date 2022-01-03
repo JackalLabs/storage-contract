@@ -51,6 +51,56 @@
     {
       "type": "object",
       "required": [
+        "remove_file"
+      ],
+      "properties": {
+        "remove_file": {
+          "type": "object",
+          "required": [
+            "name",
+            "path"
+          ],
+          "properties": {
+            "name": {
+              "type": "string"
+            },
+            "path": {
+              "type": "string"
+            }
+          }
+        }
+      }
+    },
+    {
+      "type": "object",
+      "required": [
+        "move_file"
+      ],
+      "properties": {
+        "move_file": {
+          "type": "object",
+          "required": [
+            "name",
+            "new_path",
+            "old_path"
+          ],
+          "properties": {
+            "name": {
+              "type": "string"
+            },
+            "new_path": {
+              "type": "string"
+            },
+            "old_path": {
+              "type": "string"
+            }
+          }
+        }
+      }
+    },
+    {
+      "type": "object",
+      "required": [
         "create_folder"
       ],
       "properties": {
@@ -65,6 +115,56 @@
               "type": "string"
             },
             "path": {
+              "type": "string"
+            }
+          }
+        }
+      }
+    },
+    {
+      "type": "object",
+      "required": [
+        "remove_folder"
+      ],
+      "properties": {
+        "remove_folder": {
+          "type": "object",
+          "required": [
+            "name",
+            "path"
+          ],
+          "properties": {
+            "name": {
+              "type": "string"
+            },
+            "path": {
+              "type": "string"
+            }
+          }
+        }
+      }
+    },
+    {
+      "type": "object",
+      "required": [
+        "move_folder"
+      ],
+      "properties": {
+        "move_folder": {
+          "type": "object",
+          "required": [
+            "name",
+            "new_path",
+            "old_path"
+          ],
+          "properties": {
+            "name": {
+              "type": "string"
+            },
+            "new_path": {
+              "type": "string"
+            },
+            "old_path": {
               "type": "string"
             }
           }
