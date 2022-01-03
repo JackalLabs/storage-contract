@@ -19,8 +19,10 @@ pub enum HandleMsg {
     InitAddress { seed_phrase: String },
     CreateFile { name: String, contents: String, path: String },
     RemoveFile {name: String, path: String},
+    MoveFile {name: String, old_path: String, new_path: String},
     CreateFolder {name : String, path: String},
     RemoveFolder {name : String, path: String},
+    MoveFolder {name : String, old_path: String, new_path: String},
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, JsonSchema)]

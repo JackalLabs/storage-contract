@@ -11,7 +11,7 @@ use cosmwasm_std::{
 use crate::msg::{HandleMsg, InitMsg, QueryMsg};
 
 use crate::state::{config, State};
-use crate::backend::{query_file, query_folder_contents, try_create_folder, try_create_file, try_init, try_remove_folder, try_remove_file };
+use crate::backend::{query_file, query_folder_contents, try_create_folder, try_create_file, try_init, try_remove_folder, try_remove_file, try_move_folder, try_move_file};
 
 pub fn init<S: Storage, A: Api, Q: Querier>(
     deps: &mut Extern<S, A, Q>,
@@ -44,6 +44,8 @@ pub fn handle<S: Storage, A: Api, Q: Querier>(
         HandleMsg::CreateFolder { name, path } => try_create_folder(deps, env, name, path),
         HandleMsg::RemoveFolder { name, path } => try_remove_folder(deps, env, name, path),
         HandleMsg::RemoveFile { name, path } => try_remove_file(deps, env, name, path),
+        HandleMsg::MoveFolder { name, old_path, new_path } => try_move_folder(deps, env, name, old_path, new_path),
+        HandleMsg::MoveFile { name, old_path, new_path } => try_move_file(deps, env, name, old_path, new_path),
 
     }
 }
@@ -64,9 +66,102 @@ mod tests {
     use cosmwasm_std::testing::{mock_dependencies, mock_env};
     use cosmwasm_std::{coins, from_binary};
     use std::fs::read_to_string;
-    use crate::backend::{make_file, bucket_load_file};
+    use crate::backend::{make_file};
     use crate::msg::{FolderContentsResponse, FileResponse};
 
+    #[test]
+    fn move_file_test() {
+        let mut deps = mock_dependencies(20, &coins(2, "token"));
+
+        let msg = InitMsg {};
+        let env = mock_env("creator", &coins(2, "token"));
+        let _res = init(&mut deps, env, msg).unwrap();
+
+        let env = mock_env("anyone", &coins(2, "token"));
+        let msg = HandleMsg::InitAddress { seed_phrase: String::from("JACKAL IS ALIVE")};
+        let _res = handle(&mut deps, env, msg).unwrap();
+
+        // Create Folders
+        let env = mock_env("anyone", &coins(2, "token"));
+        let msg = HandleMsg::CreateFolder { name: String::from("meme_storage"), path: String::from("/") };
+        let _res = handle(&mut deps, env, msg).unwrap();
+
+        let env = mock_env("anyone", &coins(2, "token"));
+        let msg = HandleMsg::CreateFolder { name: String::from("sad_meme"), path: String::from("/meme_storage/") };
+        let _res = handle(&mut deps, env, msg).unwrap();
+
+        // Create File
+        let env = mock_env("anyone", &coins(2, "token"));
+        let msg = HandleMsg::CreateFile { name: String::from("pepe.jpeg"), contents: String::from("I'm sad"), path: String::from("/") };
+        let _res = handle(&mut deps, env, msg).unwrap();
+
+        let res = query(&deps, QueryMsg::GetFolderContents { address: String::from("anyone"), path: String::from("/") }).unwrap();
+        let value: FolderContentsResponse = from_binary(&res).unwrap();
+        println!("Folder Content BEFORE: {:?}", &value);
+
+        // Move File
+        let env = mock_env("anyone", &coins(2, "token"));
+        let msg = HandleMsg::MoveFile { name: String::from("pepe.jpeg"), old_path: String::from("/"), new_path: String::from("/meme_storage/sad_meme/") };
+        let _res = handle(&mut deps, env, msg).unwrap();
+
+        let res = query(&deps, QueryMsg::GetFolderContents { address: String::from("anyone"), path: String::from("/") }).unwrap();
+        let value: FolderContentsResponse = from_binary(&res).unwrap();
+        assert_eq!(value.folders, vec!["anyone/meme_storage/"]);
+        println!("Folder Content AFTER: {:?}", &value);
+
+        let res = query(&deps, QueryMsg::GetFolderContents { address: String::from("anyone"), path: String::from("/meme_storage/sad_meme/") }).unwrap();
+        let value: FolderContentsResponse = from_binary(&res).unwrap();
+        assert_eq!(value.files, vec!["anyone/meme_storage/sad_meme/pepe.jpeg"]);
+        println!("pepe.jpeg should be HERE: {:?}", &value);
+
+        let res = query(&deps, QueryMsg::GetFile { address: String::from("anyone"), path: String::from("/meme_storage/sad_meme/pepe.jpeg") }).unwrap();
+        let value: FileResponse = from_binary(&res).unwrap();
+        println!("contents HERE: {:?}", &value.file);
+        assert_eq!(make_file("pepe.jpeg", "anyone", "I'm sad"), value.file);
+
+    }
+
+    #[test]
+    fn move_folder_test() {
+        let mut deps = mock_dependencies(20, &coins(2, "token"));
+
+        let msg = InitMsg {};
+        let env = mock_env("creator", &coins(2, "token"));
+        let _res = init(&mut deps, env, msg).unwrap();
+
+        let env = mock_env("anyone", &coins(2, "token"));
+        let msg = HandleMsg::InitAddress { seed_phrase: String::from("JACKAL IS ALIVE")};
+        let _res = handle(&mut deps, env, msg).unwrap();
+
+        // Create Folders
+        let env = mock_env("anyone", &coins(2, "token"));
+        let msg = HandleMsg::CreateFolder { name: String::from("meme_storage"), path: String::from("/") };
+        let _res = handle(&mut deps, env, msg).unwrap();
+
+        let env = mock_env("anyone", &coins(2, "token"));
+        let msg = HandleMsg::CreateFolder { name: String::from("sad_meme"), path: String::from("/") };
+        let _res = handle(&mut deps, env, msg).unwrap();
+
+        let res = query(&deps, QueryMsg::GetFolderContents { address: String::from("anyone"), path: String::from("/") }).unwrap();
+        let value: FolderContentsResponse = from_binary(&res).unwrap();
+        println!("Folder Content BEFORE: {:?}", &value);
+
+        // Move Folder
+        let env = mock_env("anyone", &coins(2, "token"));
+        let msg = HandleMsg::MoveFolder { name: String::from("sad_meme"), old_path: String::from("/"), new_path: String::from("/meme_storage/") };
+        let _res = handle(&mut deps, env, msg).unwrap();
+
+        let res = query(&deps, QueryMsg::GetFolderContents { address: String::from("anyone"), path: String::from("/") }).unwrap();
+        let value: FolderContentsResponse = from_binary(&res).unwrap();
+        assert_eq!(value.folders, vec!["anyone/meme_storage/"]);
+        println!("Folder Content AFTER: {:?}", &value);
+
+        let res = query(&deps, QueryMsg::GetFolderContents { address: String::from("anyone"), path: String::from("/meme_storage/") }).unwrap();
+        let value: FolderContentsResponse = from_binary(&res).unwrap();
+        assert_eq!(value.folders, vec!["anyone/meme_storage/sad_meme/"]);
+        println!("sad_meme should be HERE: {:?}", &value);
+
+    }
     #[test]
     fn remove_folder_test() {
         let mut deps = mock_dependencies(20, &coins(2, "token"));

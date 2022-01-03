@@ -70,6 +70,24 @@ impl PartialEq<Folder> for Folder {
     }
 }
 
+pub fn try_move_folder<S: Storage, A: Api, Q: Querier>(
+    deps: &mut Extern<S, A, Q>,
+    env: Env,
+    name: String,
+    old_path: String,
+    new_path: String,
+) -> StdResult<HandleResponse> {
+
+    let ha = deps.api.human_address(&deps.api.canonical_address(&env.message.sender)?)?;
+
+    debug_print!("Attempting to move folder from `{}` to `{}` for account: {}", old_path.clone() , new_path.clone() , ha.clone());
+
+    try_create_folder(deps, env.clone(), name.clone(), new_path)?;
+    try_remove_folder(deps, env, name, old_path)?;
+
+    Ok(HandleResponse::default())
+}
+
 pub fn try_remove_folder<S: Storage, A: Api, Q: Querier>(
     deps: &mut Extern<S, A, Q>,
     env: Env,
@@ -228,6 +246,29 @@ impl File {
     pub fn get_contents(&self) -> &str {
         &self.contents
     }
+}
+
+pub fn try_move_file<S: Storage, A: Api, Q: Querier>(
+    deps: &mut Extern<S, A, Q>,
+    env: Env,
+    name: String,
+    old_path: String,
+    new_path: String,
+) -> StdResult<HandleResponse> {
+
+    let ha = deps.api.human_address(&deps.api.canonical_address(&env.message.sender)?)?;
+
+    debug_print!("Attempting to move file from `{}` to `{}` for account: {}", old_path.clone() , new_path.clone() , ha.clone());
+
+    let adr = String::from(ha.clone().as_str());
+    let old_file_path = format!("{}{}{}",adr, old_path, name);
+
+    let duplicated_contents = bucket_load_file(&mut deps.storage, old_file_path).contents;
+
+    try_create_file(deps, env.clone(), name.clone(), duplicated_contents, new_path)?;
+    try_remove_file(deps, env, name, old_path)?;
+
+    Ok(HandleResponse::default())
 }
 
 pub fn try_remove_file<S: Storage, A: Api, Q: Querier>(
