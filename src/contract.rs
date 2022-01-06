@@ -3,33 +3,30 @@
 
 // use std::ptr::null;
 
-use cosmwasm_std::{
-    debug_print, to_binary, Api, Binary, Env, Extern, HandleResponse, InitResponse, Querier,
-     StdResult, Storage
-};
+use cosmwasm_std::{debug_print, to_binary, Api, Binary, Env, Extern, HandleResponse, InitResponse, Querier, StdResult, Storage};
+use secret_toolkit::crypto::sha_256;
 
-use crate::msg::{HandleMsg, InitMsg, QueryMsg};
-
-use crate::state::{config, State};
+use crate::msg::{HandleMsg, InitMsg, QueryMsg, HandleAnswer};
+use crate::state::{ State, CONFIG_KEY, save, load, write_viewing_key};
 use crate::backend::{query_file, query_folder_contents, try_create_folder, try_create_file, try_init, try_remove_folder, try_remove_file, try_move_folder, try_move_file};
+use crate::viewing_key::ViewingKey;
 
 pub fn init<S: Storage, A: Api, Q: Querier>(
     deps: &mut Extern<S, A, Q>,
     env: Env,
-    _msg: InitMsg,
+    msg: InitMsg,
 ) -> StdResult<InitResponse> {
 
     let ha = deps.api.human_address(&deps.api.canonical_address(&env.message.sender)?)?;
 
-    let state = State {
+    let config = State {
         owner: ha.clone(),
+        prng_seed: sha_256(base64::encode(msg.prng_seed).as_bytes()).to_vec(), 
     };
 
-    config(&mut deps.storage).save(&state)?;
-       
-    debug_print!("Contract was initialized by {}", env.message.sender);
     debug_print!("Contract was initialized by {}", env.message.sender);
 
+    save(&mut deps.storage, CONFIG_KEY, &config)?;
     Ok(InitResponse::default())
 }
 
@@ -46,7 +43,8 @@ pub fn handle<S: Storage, A: Api, Q: Querier>(
         HandleMsg::RemoveFile { name, path } => try_remove_file(deps, env, name, path),
         HandleMsg::MoveFolder { name, old_path, new_path } => try_move_folder(deps, env, name, old_path, new_path),
         HandleMsg::MoveFile { name, old_path, new_path } => try_move_file(deps, env, name, old_path, new_path),
-
+        // HandleMsg::CreateViewingKey { entropy, .. } => try_create_viewing_key(deps, env, entropy),
+        HandleMsg::CreateViewingKey {entropy, ..} => todo!()
     }
 }
 
@@ -73,7 +71,7 @@ mod tests {
     fn move_file_test() {
         let mut deps = mock_dependencies(20, &coins(2, "token"));
 
-        let msg = InitMsg {};
+        let msg = InitMsg {prng_seed:String::from("lets init bro")};
         let env = mock_env("creator", &coins(2, "token"));
         let _res = init(&mut deps, env, msg).unwrap();
 
@@ -125,7 +123,7 @@ mod tests {
     fn move_folder_test() {
         let mut deps = mock_dependencies(20, &coins(2, "token"));
 
-        let msg = InitMsg {};
+        let msg = InitMsg {prng_seed:String::from("lets init bro")};
         let env = mock_env("creator", &coins(2, "token"));
         let _res = init(&mut deps, env, msg).unwrap();
 
@@ -166,7 +164,7 @@ mod tests {
     fn remove_folder_test() {
         let mut deps = mock_dependencies(20, &coins(2, "token"));
 
-        let msg = InitMsg {};
+        let msg = InitMsg {prng_seed:String::from("lets init bro")};
         let env = mock_env("creator", &coins(2, "token"));
         let _res = init(&mut deps, env, msg).unwrap();
 
@@ -204,7 +202,7 @@ mod tests {
     fn remove_file_test() {
         let mut deps = mock_dependencies(20, &coins(2, "token"));
 
-        let msg = InitMsg {};
+        let msg = InitMsg {prng_seed:String::from("lets init bro")};
         let env = mock_env("creator", &coins(2, "token"));
         let _res = init(&mut deps, env, msg).unwrap();
 
@@ -251,7 +249,7 @@ mod tests {
     fn proper_initialization() {
         let mut deps = mock_dependencies(20, &[]);
 
-        let msg = InitMsg {};
+        let msg = InitMsg { prng_seed:String::from("lets init bro")};
         let env = mock_env("creator", &coins(1000, "earth"));
 
         // we can just call .unwrap() to assert this was a success
@@ -264,7 +262,7 @@ mod tests {
     fn init_test() {
         let mut deps = mock_dependencies(20, &coins(2, "token"));
 
-        let msg = InitMsg {};
+        let msg = InitMsg {prng_seed:String::from("lets init bro")};
         let env = mock_env("creator", &coins(2, "token"));
         let _res = init(&mut deps, env, msg).unwrap();
 
@@ -282,7 +280,7 @@ mod tests {
     fn make_file_test() {
         let mut deps = mock_dependencies(20, &coins(2, "token"));
 
-        let msg = InitMsg {};
+        let msg = InitMsg {prng_seed:String::from("lets init bro")};
         let env = mock_env("creator", &coins(2, "token"));
         let _res = init(&mut deps, env, msg).unwrap();
 
@@ -299,7 +297,7 @@ mod tests {
     fn make_folder_test() {
         let mut deps = mock_dependencies(20, &coins(2, "token"));
 
-        let msg = InitMsg {};
+        let msg = InitMsg {prng_seed:String::from("lets init bro")};
         let env = mock_env("creator", &coins(2, "token"));
         let _res = init(&mut deps, env, msg).unwrap();
 
@@ -320,7 +318,7 @@ mod tests {
     fn get_file_test() {
         let mut deps = mock_dependencies(20, &coins(2, "token"));
 
-        let msg = InitMsg {};
+        let msg = InitMsg {prng_seed:String::from("lets init bro")};
         let env = mock_env("creator", &coins(2, "token"));
         let _res = init(&mut deps, env, msg).unwrap();
 
@@ -341,7 +339,7 @@ mod tests {
     fn get_folder_test() {
         let mut deps = mock_dependencies(20, &coins(2, "token"));
 
-        let msg = InitMsg {};
+        let msg = InitMsg {prng_seed:String::from("lets init bro")};
         let env = mock_env("creator", &coins(2, "token"));
         let _res = init(&mut deps, env, msg).unwrap();
 
@@ -376,7 +374,7 @@ mod tests {
     fn big_files_test() {
         let mut deps = mock_dependencies(20, &coins(2, "token"));
 
-        let msg = InitMsg {};
+        let msg = InitMsg {prng_seed:String::from("lets init bro")};
         let env = mock_env("creator", &coins(2, "token"));
         let _res = init(&mut deps, env, msg).unwrap();
 

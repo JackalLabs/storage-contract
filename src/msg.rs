@@ -5,12 +5,13 @@ use serde::{Deserialize, Serialize};
 
 // use std::collections::HashMap;
 
-use crate::backend::File;
+use crate::{backend::File, viewing_key::ViewingKey};
 
 #[derive(Serialize, Deserialize, Clone, Debug, JsonSchema)]
 pub struct InitMsg {
     // pub home_folders: HashMap<HumanAddr, Folder>,
     // pub api_keys: HashMap<HumanAddr, String>,
+    pub prng_seed: String,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, JsonSchema)]
@@ -23,6 +24,7 @@ pub enum HandleMsg {
     CreateFolder {name : String, path: String},
     RemoveFolder {name : String, path: String},
     MoveFolder {name : String, old_path: String, new_path: String},
+    CreateViewingKey {entropy: String, padding: Option<String>},
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, JsonSchema)]
@@ -32,6 +34,12 @@ pub enum QueryMsg {
     // GetCount {},
     GetFile { address: String, path: String },
     GetFolderContents {address: String, path: String},
+}
+
+#[derive(Serialize, Deserialize, JsonSchema, Debug)]
+#[serde(rename_all = "snake_case")]
+pub enum HandleAnswer {
+    CreateViewingKey {key: ViewingKey},
 }
 
 // We define a custom struct for each query response
