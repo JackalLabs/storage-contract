@@ -1,9 +1,6 @@
+use cosmwasm_std::HumanAddr;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
-// use cosmwasm_std::CanonicalAddr;
-// use cosmwasm_std::HumanAddr;
-
-// use std::collections::HashMap;
 
 use crate::{backend::File, viewing_key::ViewingKey};
 
@@ -32,8 +29,8 @@ pub enum HandleMsg {
 pub enum QueryMsg {
     // GetCount returns the current count as a json-encoded number
     // GetCount {},
-    GetFile { address: String, path: String },
-    GetFolderContents {address: String, path: String},
+    GetFile { address: HumanAddr, path: String, key: String },
+    GetFolderContents {address: HumanAddr, path: String, key: String},
 }
 
 #[derive(Serialize, Deserialize, JsonSchema, Debug)]
@@ -52,4 +49,14 @@ pub struct FileResponse {
 pub struct FolderContentsResponse {
     pub folders: Vec<String>,
     pub files: Vec<String>,
+}
+
+impl QueryMsg {
+    pub fn get_validation_params(&self) -> (Vec<&HumanAddr>, ViewingKey) {
+        match self {
+            Self::GetFile { address, key, .. } => (vec![address], ViewingKey(key.clone())),
+            Self::GetFolderContents { address, key, .. } => (vec![address], ViewingKey(key.clone())),
+            _ => panic!("This query type does not require authentication"),
+        }
+    }
 }
