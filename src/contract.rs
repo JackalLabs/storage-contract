@@ -7,7 +7,7 @@ use cosmwasm_std::{debug_print, to_binary, Api, Binary, Env, Extern, HandleRespo
 use secret_toolkit::crypto::sha_256;
 
 use crate::msg::{HandleMsg, InitMsg, QueryMsg, HandleAnswer};
-use crate::state::{ State, CONFIG_KEY, save, load, write_viewing_key};
+use crate::state::{ State, CONFIG_KEY, save, load, write_viewing_key, read_viewing_key};
 use crate::backend::{query_file, query_folder_contents, try_create_folder, try_create_file, try_init, try_remove_folder, try_remove_file, try_move_folder, try_move_file};
 use crate::viewing_key::ViewingKey;
 
@@ -43,8 +43,7 @@ pub fn handle<S: Storage, A: Api, Q: Querier>(
         HandleMsg::RemoveFile { name, path } => try_remove_file(deps, env, name, path),
         HandleMsg::MoveFolder { name, old_path, new_path } => try_move_folder(deps, env, name, old_path, new_path),
         HandleMsg::MoveFile { name, old_path, new_path } => try_move_file(deps, env, name, old_path, new_path),
-        // HandleMsg::CreateViewingKey { entropy, .. } => try_create_viewing_key(deps, env, entropy),
-        HandleMsg::CreateViewingKey {entropy, ..} => todo!()
+        HandleMsg::CreateViewingKey { entropy, .. } => try_create_viewing_key(deps, env, entropy),
     }
 }
 
@@ -58,14 +57,62 @@ pub fn query<S: Storage, A: Api, Q: Querier>(
     }
 }
 
+fn try_create_viewing_key<S: Storage, A: Api, Q: Querier>(
+    deps: &mut Extern<S, A, Q>,
+    env: Env,
+    entropy: String,
+) -> StdResult<HandleResponse> {
+    let config: State = load(&mut deps.storage, CONFIG_KEY)?;
+    let prng_seed = config.prng_seed;
+
+    let key = ViewingKey::new(&env, &prng_seed, (&entropy).as_ref());
+
+    let message_sender = deps.api.canonical_address(&env.message.sender)?;
+
+    write_viewing_key(&mut deps.storage, &message_sender, &key);
+
+    Ok(HandleResponse {
+        messages: vec![],
+        log: vec![],
+        data: Some(to_binary(&HandleAnswer::CreateViewingKey { 
+            key,
+        })?),
+    })
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
     use cosmwasm_std::testing::{mock_dependencies, mock_env};
-    use cosmwasm_std::{coins, from_binary};
+    use cosmwasm_std::{coins, from_binary, CanonicalAddr};
     use std::fs::read_to_string;
     use crate::backend::{make_file};
     use crate::msg::{FolderContentsResponse, FileResponse};
+
+
+    #[test]
+    fn test_create_viewing_key() {
+        let mut deps = mock_dependencies(20, &[]);
+
+        let msg = InitMsg {prng_seed:String::from("lets init bro")};
+        let env = mock_env("anyone", &[]);
+        let _res = init(&mut deps, env, msg).unwrap();
+
+        let env = mock_env("anyone", &[]);
+        let create_vk_msg = HandleMsg::CreateViewingKey {
+            entropy: "supbro".to_string(),
+            padding: None,
+        };
+        let handle_response = handle(&mut deps, env, create_vk_msg).unwrap();
+        
+        let vk = match from_binary(&handle_response.data.unwrap()).unwrap() {
+            HandleAnswer::CreateViewingKey { key } => {
+                println!("viewing key here: {}",key);
+                key
+            },
+            _ => panic!("Unexpected result from handle"),
+        };
+    }
 
     #[test]
     fn move_file_test() {
