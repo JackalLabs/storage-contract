@@ -27,8 +27,6 @@ pub enum HandleMsg {
 #[derive(Serialize, Deserialize, Clone, Debug, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum QueryMsg {
-    // GetCount returns the current count as a json-encoded number
-    // GetCount {},
     GetFile { address: HumanAddr, path: String, key: String },
     GetFolderContents {address: HumanAddr, path: String, key: String},
 }
@@ -36,7 +34,8 @@ pub enum QueryMsg {
 #[derive(Serialize, Deserialize, JsonSchema, Debug)]
 #[serde(rename_all = "snake_case")]
 pub enum HandleAnswer {
-    CreateViewingKey {key: ViewingKey},
+    DefaultAnswer { status:ResponseStatus},
+    CreateViewingKey { key: ViewingKey },
 }
 
 // We define a custom struct for each query response
@@ -56,7 +55,14 @@ impl QueryMsg {
         match self {
             Self::GetFile { address, key, .. } => (vec![address], ViewingKey(key.clone())),
             Self::GetFolderContents { address, key, .. } => (vec![address], ViewingKey(key.clone())),
-            _ => panic!("This query type does not require authentication"),
+            // _ => panic!("This query type does not require authentication"),
         }
     }
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum ResponseStatus {
+    Success,
+    Failure,
 }

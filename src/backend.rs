@@ -206,7 +206,12 @@ pub fn add_folder<'a, S: Storage>(store: &'a mut S, parent : &mut Folder, path: 
 }
 
 pub fn bucket_save_folder<'a, S: Storage>( store: &'a mut S, path: String, folder: Folder ) {
-    bucket(FOLDER_LOCATION, store).save(&path.as_bytes(), &folder);
+    let bucket_response = bucket(FOLDER_LOCATION, store).save(&path.as_bytes(), &folder);
+    match bucket_response {
+        Ok(bucket_response) => bucket_response,
+        Err(e) => panic!("Bucket Error: {}", e)
+    }
+
 }
 
 pub fn bucket_remove_folder<'a, S: Storage>( store: &'a mut S, path: String) {
@@ -380,7 +385,11 @@ pub fn add_file<'a, S: Storage>(store: &'a mut S, parent : &mut Folder, path: St
 }
 
 pub fn bucket_save_file<'a, S: Storage>( store: &'a mut S, path: String, folder: File ) {
-    bucket(FILE_LOCATION, store).save(&path.as_bytes(), &folder);
+    let bucket_response = bucket(FILE_LOCATION, store).save(&path.as_bytes(), &folder);
+    match bucket_response {
+        Ok(bucket_response) => bucket_response,
+        Err(e) => panic!("Bucket Error: {}", e)
+    }
 }
 
 pub fn bucket_remove_file<'a, S: Storage>( store: &'a mut S, path: String) {
@@ -421,7 +430,7 @@ pub fn query_file<S: Storage, A: Api, Q: Querier>(deps: &Extern<S, A, Q>, addres
     let query_path = format!("{}{}",adr,&path);
 
     let f = bucket_load_readonly_file(&deps.storage, query_path);
-    
+
     Ok(FileResponse { file: f })
 }
 
@@ -438,67 +447,67 @@ pub fn query_folder_contents<S: Storage, A: Api, Q: Querier>(deps: &Extern<S, A,
 
 // MISC.
 
-fn get_folder_from_path<'a, S: Storage>(store: &'a mut S, root: &'a mut Folder, path: Vec<String>) -> String{
+// fn get_folder_from_path<'a, S: Storage>(store: &'a mut S, root: &'a mut Folder, path: Vec<String>) -> String{
 
-    if path.len() > 1 {
+//     if path.len() > 1 {
 
-        let mut f = root.child_folder_names.clone();
-        let mut s = path[0].clone();
+//         let mut f = root.child_folder_names.clone();
+//         let mut s = path[0].clone();
         
-        for i in 1..path.len() {
-            for x in 0..f.len() {
-                if f.get(x).unwrap() == &path[i]  {
-                    f = bucket_load_folder(store, path[i].clone()).child_folder_names.clone();
-                    s = path[i].clone();
-                }
-            }
-        }
+//         for i in 1..path.len() {
+//             for x in 0..f.len() {
+//                 if f.get(x).unwrap() == &path[i]  {
+//                     f = bucket_load_folder(store, path[i].clone()).child_folder_names.clone();
+//                     s = path[i].clone();
+//                 }
+//             }
+//         }
 
-        return s;
+//         return s;
         
 
-    }
+//     }
 
-    if path.len() == 1 {
+//     if path.len() == 1 {
 
-        for x in 0..root.child_folder_names.len() {
-            if root.child_folder_names.get(x).unwrap() == &path[0]  {
-                return path[0].clone();
-            }
-        }
+//         for x in 0..root.child_folder_names.len() {
+//             if root.child_folder_names.get(x).unwrap() == &path[0]  {
+//                 return path[0].clone();
+//             }
+//         }
 
-    }
+//     }
 
-    return path[0].clone();
+//     return path[0].clone();
 
 
-}
+// }
 
-fn vec_to_string(path: Vec<String>) -> String {
-    let mut s: String = String::from(&path[0]);
-    if path.len() > 1 {
-        for i in 1..path.len()-1 {
-            s.push_str(&path[i]);
-        }
-    }
+// fn vec_to_string(path: Vec<String>) -> String {
+//     let mut s: String = String::from(&path[0]);
+//     if path.len() > 1 {
+//         for i in 1..path.len()-1 {
+//             s.push_str(&path[i]);
+//         }
+//     }
 
-    s
+//     s
 
-}
+// }
 
-fn path_to_vec(path: String) -> Vec<String> {
-    let split = path.split("/");
-    let vec: Vec<&str> = split.collect();
+// fn path_to_vec(path: String) -> Vec<String> {
+//     let split = path.split("/");
+//     let vec: Vec<&str> = split.collect();
 
-    let mut vec2: Vec<String> = Vec::new();
+//     let mut vec2: Vec<String> = Vec::new();
 
-    for i in 0..vec.len() {
-        vec2.push(String::from(vec[i]));
-    }
+//     for i in 0..vec.len() {
+//         vec2.push(String::from(vec[i]));
+//     }
 
-    vec2
+//     vec2
 
-}
+// }
 
 
 // pub fn add_folder(parent : &mut Folder, mut child: Folder){
