@@ -222,12 +222,11 @@ pub fn folder_exists<'a, S: Storage>( store: &'a mut S, path: String) -> bool{
     };
 }
 
-// Rename to load_bucket?
 pub fn bucket_load_folder<'a, S: Storage>( store: &'a mut S, path: String) -> Folder{
     bucket(FOLDER_LOCATION, store).load(&path.as_bytes()).unwrap()
 }
 
-pub fn load_readonly_folder<'a, S: Storage>( store: &'a S, path: String) -> Folder{
+pub fn bucket_load_readonly_folder<'a, S: Storage>( store: &'a S, path: String) -> Folder{
     bucket_read(FOLDER_LOCATION, store).load(&path.as_bytes()).unwrap()
 
 }
@@ -422,27 +421,18 @@ pub fn query_file<S: Storage, A: Api, Q: Querier>(deps: &Extern<S, A, Q>, addres
     let query_path = format!("{}{}",adr,&path);
 
     let f = bucket_load_readonly_file(&deps.storage, query_path);
-
-    // match f {
-    //     Some(f) => Ok(FileResponse { file: f }),
-    //     None => panic!("File not found")
-    // }
-
+    
     Ok(FileResponse { file: f })
 }
 
 pub fn query_folder_contents<S: Storage, A: Api, Q: Querier>(deps: &Extern<S, A, Q>, address: HumanAddr, path: String) -> StdResult<FolderContentsResponse> {
 
-    let mut adr = address.clone();
+    let adr = address.as_str();
+    let query_path = format!("{}{}",adr,&path);
 
-    // adr.push_str(&path);
+    let f = bucket_load_readonly_folder(&deps.storage, query_path);
 
-    // let f = load_readonly_folder(&deps.storage, adr);
-
-    println!("{}", adr);
-    Ok(FolderContentsResponse{folders: vec!["chicken".to_string()] , files: vec!["chicken".to_string()] })
-
-    // Ok(FolderContentsResponse { folders: f.list_folders(), files: f.list_files() })
+    Ok(FolderContentsResponse { folders: f.list_folders(), files: f.list_files() })
 }
 
 

@@ -187,6 +187,51 @@ mod tests {
 
     }
 
+    #[test]
+    fn test_query_folder_with_vk() {
+        let mut deps = mock_dependencies(20, &[]);
+
+        // Init
+        let msg = InitMsg {prng_seed:String::from("lets init bro")};
+        let env = mock_env("anyone", &[]);
+        let _res = init(&mut deps, env, msg).unwrap();
+
+        // Init Address
+        let env = mock_env("anyone", &[]);
+        let msg = HandleMsg::InitAddress { seed_phrase: String::from("JACKAL IS ALIVE")};
+        let _res = handle(&mut deps, env, msg).unwrap();
+
+        // Create Viewingkey
+        let env = mock_env("anyone", &[]);
+        let create_vk_msg = HandleMsg::CreateViewingKey {
+            entropy: "supbro".to_string(),
+            padding: None,
+        };
+        let handle_response = handle(&mut deps, env, create_vk_msg).unwrap();
+        let vk = match from_binary(&handle_response.data.unwrap()).unwrap() {
+            HandleAnswer::CreateViewingKey { key } => {
+                println!("viewing key here: {}",key);
+                key
+            },
+            _ => panic!("Unexpected result from handle"),
+        };
+
+        // Create Folders
+        let env = mock_env("anyone", &[]);
+        let msg = HandleMsg::CreateFolder { name: String::from("new_folder"), path: String::from("/") };
+        let _res = handle(&mut deps, env, msg).unwrap();
+
+        let env = mock_env("anyone", &[]);
+        let msg = HandleMsg::CreateFolder { name: String::from("cool_folder"), path: String::from("/") };
+        let _res = handle(&mut deps, env, msg).unwrap();
+
+        // Get Folder with viewing key
+        let query_res = query(&deps, QueryMsg::GetFolderContents { address: HumanAddr("anyone".to_string()), path: String::from("/"), key: vk.to_string() }).unwrap();
+        let value: FolderContentsResponse = from_binary(&query_res).unwrap();
+        println!("{:#?}", value);
+
+    }
+
     // #[test]
     // fn move_file_test() {
     //     let mut deps = mock_dependencies(20, &coins(2, "token"));
