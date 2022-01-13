@@ -1,5 +1,6 @@
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
+use serde_json::{json, Value};
 use cosmwasm_std::{debug_print,Env, Api, Querier, ReadonlyStorage, Storage, StdResult, StdError, Extern, HandleResponse, HumanAddr};
 use cosmwasm_storage::{ bucket, bucket_read, Bucket, ReadonlyBucket};
 
@@ -13,6 +14,32 @@ static FILE_LOCATION: &[u8] = b"FILES";
 // Root Folder is user wallet address ex: "secret420rand0mwall3t6969/" is a root folder
 // FOLDER always ends with '/' ex: "secret420rand0mwall3t6969/meme_folder/"
 // FILE does NOT ends with '/' ex: "secret420rand0mwall3t6969/meme_folder/beautiful_pepe.jpeg"
+
+#[derive(Serialize, Deserialize, JsonSchema, PartialEq, Debug, Clone)]
+pub struct TreeNode<T>{
+    pub name: String,
+    pub file_type: String,
+    pub children: Vec<T>
+}
+impl<T> TreeNode<T> {
+    pub fn new (name: String, file_type: String, children: Vec<T>) -> Self{
+        TreeNode{
+            name: name,
+            file_type: file_type,
+            children: children
+        }
+    }
+}
+
+//make json
+pub fn make_tree<T>() -> TreeNode<T> {
+    let root_folder =  TreeNode {
+            name: "root".to_string(),
+            file_type: "dir".to_string(),
+            children: vec![],
+        };
+    root_folder
+}
 
 // HandleMsg::InitAddress
 pub fn try_init<S: Storage, A: Api, Q: Querier>(

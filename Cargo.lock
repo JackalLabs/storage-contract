@@ -275,6 +275,7 @@ dependencies = [
  "schemars",
  "secret-toolkit",
  "serde",
+ "serde_json",
  "sha2 0.9.8",
  "snafu",
  "subtle 2.4.1",

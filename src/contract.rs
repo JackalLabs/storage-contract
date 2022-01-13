@@ -112,7 +112,7 @@ mod tests {
     use cosmwasm_std::testing::{mock_dependencies, mock_env};
     use cosmwasm_std::{coins, from_binary, HumanAddr};
     use std::fs::read_to_string;
-    use crate::backend::{make_file};
+    use crate::backend::{make_file, TreeNode, make_tree};
     use crate::msg::{FolderContentsResponse, FileResponse};
 
     fn init_for_test<S: Storage, A: Api, Q: Querier> (
@@ -138,7 +138,7 @@ mod tests {
         let handle_response = handle(deps, env, create_vk_msg).unwrap();
         let vk = match from_binary(&handle_response.data.unwrap()).unwrap() {
             HandleAnswer::CreateViewingKey { key } => {
-                println!("viewing key here: {}",key);
+                // println!("viewing key here: {}",key);
                 key
             },
             _ => panic!("Unexpected result from handle"),
@@ -146,6 +146,52 @@ mod tests {
         vk
     }
 
+    #[test]
+    fn test_json() {
+        let mut deps = mock_dependencies(20, &coins(2, "token"));
+        let vk = init_for_test(&mut deps);
+        // Create Folders
+        let env = mock_env("anyone", &coins(2, "token"));
+        let msg = HandleMsg::CreateFolder { name: String::from("happy_meme"), path: String::from("/") };
+        let _res = handle(&mut deps, env, msg).unwrap();
+
+        let env = mock_env("anyone", &coins(2, "token"));
+        let msg = HandleMsg::CreateFolder { name: String::from("sad_meme"), path: String::from("/") };
+        let _res = handle(&mut deps, env, msg).unwrap();
+
+        //query root
+        let res = query(&deps, QueryMsg::GetFolderContents { address: HumanAddr("anyone".to_string()), path: String::from("/"), key: vk.to_string() }).unwrap();
+        let value: FolderContentsResponse = from_binary(&res).unwrap();
+        let folders_from_root = &value.folders;
+        println!("Folder from root: {:?}", &folders_from_root);
+
+        let mut v= make_tree();
+
+        // query happy_meme & sad_meme
+        for folder in folders_from_root {
+            // println!("{}", folder);
+            // get folder's name from path
+            let split = folder.split_terminator('/');
+            let vec: Vec<&str> = split.collect();
+            let folder_name = &vec.last().unwrap();
+
+            // get proper path 
+            // !!! replace hardcoded "anyone" with address
+            let proper_path = folder.replace("anyone", "");
+
+            // calling query now
+            let res = query(&deps, QueryMsg::GetFolderContents { address: HumanAddr("anyone".to_string()), path: proper_path.to_string(), key: vk.to_string() }).unwrap();
+            let value: FolderContentsResponse = from_binary(&res).unwrap();
+            // let children_folders: FolderContentsResponse = from_binary(&res).unwrap().folders;
+            println!("Folder from {}: {:?}", folder_name, &value);
+            let new_node= TreeNode::new(folder_name.to_string(), "dir".to_string(), value.folders);
+            // println!("{:?}", tree);
+            v.children.push(new_node);
+        }
+
+        // v.children = *folders;
+        println!("{:#?}",v);
+    }
     #[test]
     fn test_create_viewing_key() {
         let mut deps = mock_dependencies(20, &[]);
@@ -165,7 +211,7 @@ mod tests {
         
         let _vk = match from_binary(&handle_response.data.unwrap()).unwrap() {
             HandleAnswer::CreateViewingKey { key } => {
-                println!("viewing key here: {}",key);
+                // println!("viewing key here: {}",key);
                 key
             },
             _ => panic!("Unexpected result from handle"),
