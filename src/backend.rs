@@ -51,7 +51,7 @@ pub fn try_init<S: Storage, A: Api, Q: Querier>(
     let ha = deps.api.human_address(&deps.api.canonical_address(&env.message.sender)?)?;
     let mut adr = String::from(ha.clone().as_str());
 
-    let folder = make_folder(&adr, &adr);
+    let folder = make_folder(&adr, &adr, &adr);
 
     adr.push_str("/");
 
@@ -74,6 +74,7 @@ pub fn try_init<S: Storage, A: Api, Q: Querier>(
 // HandleMsg FOLDER 
 #[derive(Serialize, Deserialize, JsonSchema, Debug, Clone)]
 pub struct Folder{
+    parent: String,
     child_folder_names: OrderedSet<String>,
     files: OrderedSet<String>,
     name: String,
@@ -100,6 +101,7 @@ impl Folder {
 
         return folders;
     }
+    
 }
 
 impl PartialEq<Folder> for Folder {
@@ -203,15 +205,15 @@ pub fn try_create_folder<S: Storage, A: Api, Q: Querier>(
 }
 
 pub fn create_folder<'a, S: Storage>(store: &'a mut S, root: &mut Folder, path: String, name: String) {
-
-    let folder = make_folder(&name, "");
+    let folder = make_folder(&name, &name, "");
 
     add_folder(store, root, path, folder);
 
 }
 
-pub fn make_folder(name: &str, owner: &str) -> Folder{
+pub fn make_folder(parent: &str,name: &str, owner: &str) -> Folder{
     Folder {
+        parent: String::from(parent),
         child_folder_names: OrderedSet::<String>::new(),
         files: OrderedSet::<String>::new(),
         name: String::from(name),
@@ -467,8 +469,9 @@ pub fn query_folder_contents<S: Storage, A: Api, Q: Querier>(deps: &Extern<S, A,
     let query_path = format!("{}{}",adr,&path);
 
     let f = bucket_load_readonly_folder(&deps.storage, query_path);
+    let parent = &f.parent;
 
-    Ok(FolderContentsResponse { folders: f.list_folders(), files: f.list_files() })
+    Ok(FolderContentsResponse { parent: parent.to_string(), folders: f.list_folders(), files: f.list_files() })
 }
 
 

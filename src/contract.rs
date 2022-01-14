@@ -243,17 +243,41 @@ mod tests {
 
         // Create Folders
         let env = mock_env("anyone", &[]);
+        let msg = HandleMsg::CreateFolder { name: String::from("a"), path: String::from("/") };
+        let _res = handle(&mut deps, env, msg).unwrap();
+
+        let env = mock_env("anyone", &[]);
         let msg = HandleMsg::CreateFolder { name: String::from("new_folder"), path: String::from("/") };
         let _res = handle(&mut deps, env, msg).unwrap();
 
         let env = mock_env("anyone", &[]);
-        let msg = HandleMsg::CreateFolder { name: String::from("cool_folder"), path: String::from("/") };
+        let msg = HandleMsg::CreateFolder { name: String::from("b"), path: String::from("/a/") };
+        let _res = handle(&mut deps, env, msg).unwrap();
+
+        let env = mock_env("anyone", &[]);
+        let msg = HandleMsg::CreateFolder { name: String::from("c"), path: String::from("/a/b/") };
+        let _res = handle(&mut deps, env, msg).unwrap();
+        
+        let env = mock_env("anyone", &[]);
+        let msg = HandleMsg::CreateFolder { name: String::from("d"), path: String::from("/a/b/c/") };
         let _res = handle(&mut deps, env, msg).unwrap();
 
         // Get Folder with viewing key
         let query_res = query(&deps, QueryMsg::GetFolderContents { address: HumanAddr("anyone".to_string()), path: String::from("/"), key: vk.to_string() }).unwrap();
         let value: FolderContentsResponse = from_binary(&query_res).unwrap();
-        println!("{:#?}", value);
+        println!("From /: {:#?}", value);
+
+        let query_res = query(&deps, QueryMsg::GetFolderContents { address: HumanAddr("anyone".to_string()), path: String::from("/a/"), key: vk.to_string() }).unwrap();
+        let value: FolderContentsResponse = from_binary(&query_res).unwrap();
+        println!("From /a/: {:#?}", value);
+
+        let query_res = query(&deps, QueryMsg::GetFolderContents { address: HumanAddr("anyone".to_string()), path: String::from("/a/b/"), key: vk.to_string() }).unwrap();
+        let value: FolderContentsResponse = from_binary(&query_res).unwrap();
+        println!("From /b/: {:#?}", value);
+
+        let query_res = query(&deps, QueryMsg::GetFolderContents { address: HumanAddr("anyone".to_string()), path: String::from("/a/b/c/"), key: vk.to_string() }).unwrap();
+        let value: FolderContentsResponse = from_binary(&query_res).unwrap();
+        println!("From /c/: {:#?}", value);
 
     }
 

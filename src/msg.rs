@@ -46,6 +46,7 @@ pub struct FileResponse {
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 pub struct FolderContentsResponse {
+    pub parent: String,
     pub folders: Vec<String>,
     pub files: Vec<String>,
 }
