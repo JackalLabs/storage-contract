@@ -112,7 +112,8 @@ mod tests {
     use cosmwasm_std::testing::{mock_dependencies, mock_env};
     use cosmwasm_std::{coins, from_binary, HumanAddr};
     use std::fs::read_to_string;
-    use crate::backend::{make_file, TreeNode, make_tree};
+    use std::collections::HashMap;
+    use crate::backend::{make_file, TreeNode, make_root_tree};
     use crate::msg::{FolderContentsResponse, FileResponse};
 
     fn init_for_test<S: Storage, A: Api, Q: Querier> (
@@ -146,34 +147,18 @@ mod tests {
         vk
     }
 
-    #[test]
-    fn test_json() {
-        let mut deps = mock_dependencies(20, &coins(2, "token"));
-        let vk = init_for_test(&mut deps);
-        // Create Folders
-        let env = mock_env("anyone", &coins(2, "token"));
-        let msg = HandleMsg::CreateFolder { name: String::from("happy_meme"), path: String::from("/") };
-        let _res = handle(&mut deps, env, msg).unwrap();
 
-        let env = mock_env("anyone", &coins(2, "token"));
-        let msg = HandleMsg::CreateFolder { name: String::from("sad_meme"), path: String::from("/") };
-        let _res = handle(&mut deps, env, msg).unwrap();
-
-        //query root
-        let res = query(&deps, QueryMsg::GetFolderContents { address: HumanAddr("anyone".to_string()), path: String::from("/"), key: vk.to_string() }).unwrap();
-        let value: FolderContentsResponse = from_binary(&res).unwrap();
-        let folders_from_root = &value.folders;
-        println!("Folder from root: {:?}", &folders_from_root);
-
-        let mut v= make_tree();
-
-        // query happy_meme & sad_meme
-        for folder in folders_from_root {
+    fn scan_folder<S: Storage, A: Api, Q: Querier> (
+        deps: &mut Extern<S, A, Q>,
+        folders_to_scan: Vec<String>,
+        vk: ViewingKey,
+    ) {
+        for folder in folders_to_scan {
             // println!("{}", folder);
             // get folder's name from path
             let split = folder.split_terminator('/');
             let vec: Vec<&str> = split.collect();
-            let folder_name = &vec.last().unwrap();
+            // let folder_name = &vec.last().unwrap();
 
             // get proper path 
             // !!! replace hardcoded "anyone" with address
@@ -182,15 +167,75 @@ mod tests {
             // calling query now
             let res = query(&deps, QueryMsg::GetFolderContents { address: HumanAddr("anyone".to_string()), path: proper_path.to_string(), key: vk.to_string() }).unwrap();
             let value: FolderContentsResponse = from_binary(&res).unwrap();
-            // let children_folders: FolderContentsResponse = from_binary(&res).unwrap().folders;
-            println!("Folder from {}: {:?}", folder_name, &value);
-            let new_node= TreeNode::new(folder_name.to_string(), "dir".to_string(), value.folders);
-            // println!("{:?}", tree);
-            v.children.push(new_node);
-        }
+            let folders_to_scan_next = &value.folders;
+            // println!("Folder from {}: {:?}", folder_name, &value);
 
-        // v.children = *folders;
-        println!("{:#?}",v);
+            let folder_is_empty = folders_to_scan_next.is_empty();
+
+            let mut cool_vec = vec![]; 
+            let mut hashie: HashMap<String, Vec<String>> = HashMap::new();
+
+            hashie.insert((&folder).to_string(), (&folders_to_scan_next).to_vec());
+            cool_vec.push(hashie);
+
+            println!("{:?}", cool_vec);
+            match folder_is_empty{
+                true => println!("nothing in here"),
+                false => {
+                    // continue loop
+                    scan_folder(deps, folders_to_scan_next.to_vec(), vk.clone());
+                },
+            }
+
+            // let new_node= TreeNode::new(parent.to_string(), folder_name.to_string(), "dir".to_string(), value.folders);
+        }
+    }
+
+    #[test]
+    fn test_json() {
+        let mut deps = mock_dependencies(20, &coins(2, "token"));
+        let vk = init_for_test(&mut deps);
+
+        // Create Folders
+        let env = mock_env("anyone", &[]);
+        let msg = HandleMsg::CreateFolder { name: String::from("a"), path: String::from("/") };
+        let _res = handle(&mut deps, env, msg).unwrap();
+
+        let env = mock_env("anyone", &[]);
+        let msg = HandleMsg::CreateFolder { name: String::from("empty_folder"), path: String::from("/") };
+        let _res = handle(&mut deps, env, msg).unwrap();
+
+        let env = mock_env("anyone", &[]);
+        let msg = HandleMsg::CreateFolder { name: String::from("b"), path: String::from("/a/") };
+        let _res = handle(&mut deps, env, msg).unwrap();
+
+        let env = mock_env("anyone", &[]);
+        let msg = HandleMsg::CreateFolder { name: String::from("d"), path: String::from("/a/") };
+        let _res = handle(&mut deps, env, msg).unwrap();
+
+        let env = mock_env("anyone", &[]);
+        let msg = HandleMsg::CreateFolder { name: String::from("c"), path: String::from("/a/b/") };
+        let _res = handle(&mut deps, env, msg).unwrap();
+        
+        let env = mock_env("anyone", &[]);
+        let msg = HandleMsg::CreateFolder { name: String::from("f"), path: String::from("/a/b/c/") };
+        let _res = handle(&mut deps, env, msg).unwrap();
+
+        let env = mock_env("anyone", &[]);
+        let msg = HandleMsg::CreateFolder { name: String::from("e"), path: String::from("/a/b/c/") };
+        let _res = handle(&mut deps, env, msg).unwrap();
+
+        // Get Root Folder
+        let query_res = query(&deps, QueryMsg::GetFolderContents { address: HumanAddr("anyone".to_string()), path: String::from("/"), key: vk.to_string() }).unwrap();
+        let value: FolderContentsResponse = from_binary(&query_res).unwrap();
+        let folders_from_root = &value.folders;
+
+        let big_vec: Vec<Vec<HashMap<String, Vec<String>>>> = vec![];
+        
+        println!("From /: {:#?}", value);
+
+        scan_folder(&mut deps, folders_from_root.to_vec(), vk);
+        
     }
     #[test]
     fn test_create_viewing_key() {

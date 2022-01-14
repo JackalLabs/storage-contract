@@ -17,23 +17,26 @@ static FILE_LOCATION: &[u8] = b"FILES";
 
 #[derive(Serialize, Deserialize, JsonSchema, PartialEq, Debug, Clone)]
 pub struct TreeNode<T>{
+    pub parent: String,
     pub name: String,
     pub file_type: String,
     pub children: Vec<T>
 }
 impl<T> TreeNode<T> {
-    pub fn new (name: String, file_type: String, children: Vec<T>) -> Self{
+    pub fn new (parent:String,name: String, file_type: String, children: Vec<T>) -> Self{
         TreeNode{
+            parent: parent,
             name: name,
             file_type: file_type,
-            children: children
+            children: children,
         }
     }
 }
 
 //make json
-pub fn make_tree<T>() -> TreeNode<T> {
+pub fn make_root_tree<T>() -> TreeNode<T> {
     let root_folder =  TreeNode {
+            parent: "this is root folder".to_string(),
             name: "root".to_string(),
             file_type: "dir".to_string(),
             children: vec![],
