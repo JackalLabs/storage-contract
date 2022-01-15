@@ -152,12 +152,12 @@ mod tests {
         deps: &mut Extern<S, A, Q>,
         folders_to_scan: Vec<String>,
         vk: ViewingKey,
-    ) {
+    ) -> Vec<HashMap<String, Vec<String>>> {
+        let mut temp_vec = vec![]; 
         for folder in folders_to_scan {
-            // println!("{}", folder);
             // get folder's name from path
-            let split = folder.split_terminator('/');
-            let vec: Vec<&str> = split.collect();
+            // let split = folder.split_terminator('/');
+            // let vec: Vec<&str> = split.collect();
             // let folder_name = &vec.last().unwrap();
 
             // get proper path 
@@ -172,23 +172,20 @@ mod tests {
 
             let folder_is_empty = folders_to_scan_next.is_empty();
 
-            let mut cool_vec = vec![]; 
             let mut hashie: HashMap<String, Vec<String>> = HashMap::new();
-
             hashie.insert((&folder).to_string(), (&folders_to_scan_next).to_vec());
-            cool_vec.push(hashie);
 
-            println!("{:?}", cool_vec);
-            match folder_is_empty{
-                true => println!("nothing in here"),
-                false => {
-                    // continue loop
-                    scan_folder(deps, folders_to_scan_next.to_vec(), vk.clone());
-                },
+            let _ = &temp_vec.push(hashie);
+
+            if !folder_is_empty{
+                // continue loop
+                let this = scan_folder(deps, folders_to_scan_next.to_vec(), vk.clone());
+                for each in this {
+                    let _ = &temp_vec.push(each);
+                }
             }
-
-            // let new_node= TreeNode::new(parent.to_string(), folder_name.to_string(), "dir".to_string(), value.folders);
         }
+         temp_vec
     }
 
     #[test]
@@ -229,14 +226,12 @@ mod tests {
         let query_res = query(&deps, QueryMsg::GetFolderContents { address: HumanAddr("anyone".to_string()), path: String::from("/"), key: vk.to_string() }).unwrap();
         let value: FolderContentsResponse = from_binary(&query_res).unwrap();
         let folders_from_root = &value.folders;
-
-        let big_vec: Vec<Vec<HashMap<String, Vec<String>>>> = vec![];
         
-        println!("From /: {:#?}", value);
+        let big_vec = scan_folder(&mut deps, folders_from_root.to_vec(), vk);
 
-        scan_folder(&mut deps, folders_from_root.to_vec(), vk);
-        
+        println!("FINAL BIG: {:#?}", big_vec);
     }
+    
     #[test]
     fn test_create_viewing_key() {
         let mut deps = mock_dependencies(20, &[]);
