@@ -52,6 +52,11 @@ pub struct FolderContentsResponse {
     pub files: Vec<String>,
 }
 
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
+pub struct BigTreeResponse {
+    pub data: String,
+}
+
 impl QueryMsg {
     pub fn get_validation_params(&self) -> (Vec<&HumanAddr>, ViewingKey) {
         match self {

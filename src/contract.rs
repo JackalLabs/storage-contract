@@ -76,7 +76,7 @@ fn authenticated_queries<S: Storage, A: Api, Q: Querier>(
             return match msg {
                 QueryMsg::GetFile { path, address, .. } => to_binary(&query_file(deps, address, path)?),
                 QueryMsg::GetFolderContents { path, address, .. } => to_binary(&query_folder_contents(deps, &address, path)?),
-                QueryMsg::GetBigTree { address, key, .. } =>to_binary(&query_big_tree(deps, address, key)),
+                QueryMsg::GetBigTree { address, key, .. } =>to_binary(&query_big_tree(deps, address, key)?),
             };
         }
     }
@@ -114,7 +114,7 @@ mod tests {
     use cosmwasm_std::{coins, from_binary, HumanAddr};
     use std::fs::read_to_string;
     use crate::backend::make_file;
-    use crate::msg::{FolderContentsResponse, FileResponse};
+    use crate::msg::{FolderContentsResponse, FileResponse, BigTreeResponse};
 
     fn init_for_test<S: Storage, A: Api, Q: Querier> (
         deps: &mut Extern<S, A, Q>
@@ -182,8 +182,14 @@ mod tests {
         let msg = HandleMsg::CreateFolder { name: String::from("e"), path: String::from("/a/b/c/") };
         let _res = handle(&mut deps, env, msg).unwrap();
 
+        let env = mock_env("anyone", &[]);
+        let msg = HandleMsg::CreateFolder { name: String::from("f"), path: String::from("/a/b/c/e/") };
+        let _res = handle(&mut deps, env, msg).unwrap();
+
         //Query Big Tree
-        let _query_res = query(&deps, QueryMsg::GetBigTree { address: HumanAddr("anyone".to_string()), path: String::from("/"), key: vk.to_string() }).unwrap();
+        let query_res = query(&deps, QueryMsg::GetBigTree { address: HumanAddr("anyone".to_string()), path: String::from("/"), key: vk.to_string() }).unwrap();
+        let result:BigTreeResponse = from_binary(&query_res).unwrap();
+        println!("{:#?}", &result.data);
 
     }
 

@@ -1,13 +1,13 @@
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
-// use serde_json::{json, Value};
+use serde_json::json;
 use std::collections::HashMap;
 use cosmwasm_std::{debug_print,Env, Api, Querier, ReadonlyStorage, Storage, StdResult, StdError, Extern, HandleResponse, HumanAddr};
 use cosmwasm_storage::{ bucket, bucket_read, Bucket, ReadonlyBucket};
 
 
 use crate::ordered_set::{OrderedSet};
-use crate::msg::{FileResponse, FolderContentsResponse};
+use crate::msg::{FileResponse, FolderContentsResponse, BigTreeResponse};
 // use crate::viewing_key::ViewingKey;
 
 static FOLDER_LOCATION: &[u8] = b"FOLDERS";
@@ -457,14 +457,14 @@ pub fn query_big_tree<S: Storage, A: Api, Q: Querier>(
     address: HumanAddr,
     key: String
 ) 
-// -> Vec<HashMap<String, Vec<String>>> 
+-> StdResult<BigTreeResponse>
 {
     let value = query_folder_contents(deps, &address, String::from("/")).unwrap();
     let folders_from_root = &value.folders;
     let big_vec = scan_folders(&deps, &address, folders_from_root.to_vec(), key);
-    println!("{:#?}", big_vec);
-    // big_vec
-    // What type are we returning here? (what type is big_vec)
+    let data = json!(big_vec).to_string();
+    
+    Ok(BigTreeResponse{ data })
 }
 
 
