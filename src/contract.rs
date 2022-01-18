@@ -8,7 +8,7 @@ use secret_toolkit::crypto::sha_256;
 
 use crate::msg::{HandleMsg, InitMsg, QueryMsg, HandleAnswer};
 use crate::state::{ State, CONFIG_KEY, save, load, write_viewing_key, read_viewing_key};
-use crate::backend::{query_file, query_folder_contents, try_create_folder, try_create_file, try_init, try_remove_folder, try_remove_file, try_move_folder, try_move_file};
+use crate::backend::{query_file, query_folder_contents, try_create_folder, try_create_file, try_init, try_remove_folder, try_remove_file, try_move_folder, try_move_file, query_big_tree};
 use crate::viewing_key::{ViewingKey, VIEWING_KEY_SIZE};
 
 pub fn init<S: Storage, A: Api, Q: Querier>(
@@ -75,7 +75,8 @@ fn authenticated_queries<S: Storage, A: Api, Q: Querier>(
 
             return match msg {
                 QueryMsg::GetFile { path, address, .. } => to_binary(&query_file(deps, address, path)?),
-                QueryMsg::GetFolderContents { path, address, .. } => to_binary(&query_folder_contents(deps, address, path)?),
+                QueryMsg::GetFolderContents { path, address, .. } => to_binary(&query_folder_contents(deps, &address, path)?),
+                QueryMsg::GetBigTree { address, key, .. } =>to_binary(&query_big_tree(deps, address, key)),
             };
         }
     }
@@ -112,8 +113,7 @@ mod tests {
     use cosmwasm_std::testing::{mock_dependencies, mock_env};
     use cosmwasm_std::{coins, from_binary, HumanAddr};
     use std::fs::read_to_string;
-    use std::collections::HashMap;
-    use crate::backend::{make_file, TreeNode, make_root_tree};
+    use crate::backend::make_file;
     use crate::msg::{FolderContentsResponse, FileResponse};
 
     fn init_for_test<S: Storage, A: Api, Q: Querier> (
@@ -148,48 +148,8 @@ mod tests {
     }
 
 
-    fn scan_folder<S: Storage, A: Api, Q: Querier> (
-        deps: &mut Extern<S, A, Q>,
-        folders_to_scan: Vec<String>,
-        vk: ViewingKey,
-    ) -> Vec<HashMap<String, Vec<String>>> {
-        let mut temp_vec = vec![]; 
-        for folder in folders_to_scan {
-            // get folder's name from path
-            // let split = folder.split_terminator('/');
-            // let vec: Vec<&str> = split.collect();
-            // let folder_name = &vec.last().unwrap();
-
-            // get proper path 
-            // !!! replace hardcoded "anyone" with address
-            let proper_path = folder.replace("anyone", "");
-
-            // calling query now
-            let res = query(&deps, QueryMsg::GetFolderContents { address: HumanAddr("anyone".to_string()), path: proper_path.to_string(), key: vk.to_string() }).unwrap();
-            let value: FolderContentsResponse = from_binary(&res).unwrap();
-            let folders_to_scan_next = &value.folders;
-            // println!("Folder from {}: {:?}", folder_name, &value);
-
-            let folder_is_empty = folders_to_scan_next.is_empty();
-
-            let mut hashie: HashMap<String, Vec<String>> = HashMap::new();
-            hashie.insert((&folder).to_string(), (&folders_to_scan_next).to_vec());
-
-            let _ = &temp_vec.push(hashie);
-
-            if !folder_is_empty{
-                // continue loop
-                let this = scan_folder(deps, folders_to_scan_next.to_vec(), vk.clone());
-                for each in this {
-                    let _ = &temp_vec.push(each);
-                }
-            }
-        }
-         temp_vec
-    }
-
     #[test]
-    fn test_json() {
+    fn test_big_tree() {
         let mut deps = mock_dependencies(20, &coins(2, "token"));
         let vk = init_for_test(&mut deps);
 
@@ -222,16 +182,11 @@ mod tests {
         let msg = HandleMsg::CreateFolder { name: String::from("e"), path: String::from("/a/b/c/") };
         let _res = handle(&mut deps, env, msg).unwrap();
 
-        // Get Root Folder
-        let query_res = query(&deps, QueryMsg::GetFolderContents { address: HumanAddr("anyone".to_string()), path: String::from("/"), key: vk.to_string() }).unwrap();
-        let value: FolderContentsResponse = from_binary(&query_res).unwrap();
-        let folders_from_root = &value.folders;
-        
-        let big_vec = scan_folder(&mut deps, folders_from_root.to_vec(), vk);
+        //Query Big Tree
+        let _query_res = query(&deps, QueryMsg::GetBigTree { address: HumanAddr("anyone".to_string()), path: String::from("/"), key: vk.to_string() }).unwrap();
 
-        println!("FINAL BIG: {:#?}", big_vec);
     }
-    
+
     #[test]
     fn test_create_viewing_key() {
         let mut deps = mock_dependencies(20, &[]);

@@ -1,11 +1,14 @@
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
-use serde_json::{json, Value};
+// use serde_json::{json, Value};
+use std::collections::HashMap;
 use cosmwasm_std::{debug_print,Env, Api, Querier, ReadonlyStorage, Storage, StdResult, StdError, Extern, HandleResponse, HumanAddr};
 use cosmwasm_storage::{ bucket, bucket_read, Bucket, ReadonlyBucket};
 
+
 use crate::ordered_set::{OrderedSet};
 use crate::msg::{FileResponse, FolderContentsResponse};
+// use crate::viewing_key::ViewingKey;
 
 static FOLDER_LOCATION: &[u8] = b"FOLDERS";
 static FILE_LOCATION: &[u8] = b"FILES";
@@ -15,34 +18,6 @@ static FILE_LOCATION: &[u8] = b"FILES";
 // FOLDER always ends with '/' ex: "secret420rand0mwall3t6969/meme_folder/"
 // FILE does NOT ends with '/' ex: "secret420rand0mwall3t6969/meme_folder/beautiful_pepe.jpeg"
 
-#[derive(Serialize, Deserialize, JsonSchema, PartialEq, Debug, Clone)]
-pub struct TreeNode<T>{
-    pub parent: String,
-    pub name: String,
-    pub file_type: String,
-    pub children: Vec<T>
-}
-impl<T> TreeNode<T> {
-    pub fn new (parent:String,name: String, file_type: String, children: Vec<T>) -> Self{
-        TreeNode{
-            parent: parent,
-            name: name,
-            file_type: file_type,
-            children: children,
-        }
-    }
-}
-
-//make json
-pub fn make_root_tree<T>() -> TreeNode<T> {
-    let root_folder =  TreeNode {
-            parent: "this is root folder".to_string(),
-            name: "root".to_string(),
-            file_type: "dir".to_string(),
-            children: vec![],
-        };
-    root_folder
-}
 
 // HandleMsg::InitAddress
 pub fn try_init<S: Storage, A: Api, Q: Querier>(
@@ -466,7 +441,7 @@ pub fn query_file<S: Storage, A: Api, Q: Querier>(deps: &Extern<S, A, Q>, addres
     Ok(FileResponse { file: f })
 }
 
-pub fn query_folder_contents<S: Storage, A: Api, Q: Querier>(deps: &Extern<S, A, Q>, address: HumanAddr, path: String) -> StdResult<FolderContentsResponse> {
+pub fn query_folder_contents<S: Storage, A: Api, Q: Querier>(deps: &Extern<S, A, Q>, address: &HumanAddr, path: String) -> StdResult<FolderContentsResponse> {
 
     let adr = address.as_str();
     let query_path = format!("{}{}",adr,&path);
@@ -477,6 +452,54 @@ pub fn query_folder_contents<S: Storage, A: Api, Q: Querier>(deps: &Extern<S, A,
     Ok(FolderContentsResponse { parent: parent.to_string(), folders: f.list_folders(), files: f.list_files() })
 }
 
+pub fn query_big_tree<S: Storage, A: Api, Q: Querier>(
+    deps: &Extern<S, A, Q>,
+    address: HumanAddr,
+    key: String
+) 
+// -> Vec<HashMap<String, Vec<String>>> 
+{
+    let value = query_folder_contents(deps, &address, String::from("/")).unwrap();
+    let folders_from_root = &value.folders;
+    let big_vec = scan_folders(&deps, &address, folders_from_root.to_vec(), key);
+    println!("{:#?}", big_vec);
+    // big_vec
+    // What type are we returning here? (what type is big_vec)
+}
+
+
+fn scan_folders<S: Storage, A: Api, Q: Querier> (
+    deps: &Extern<S, A, Q>,
+    address: &HumanAddr,
+    folders_to_scan: Vec<String>,
+    vk: String,
+) -> Vec<HashMap<String, Vec<String>>> {
+    let mut temp_vec = vec![]; 
+    for folder in folders_to_scan {
+        // get proper path 
+        let owner_address = address.to_string();
+        let proper_path = folder.replace(&owner_address, "");
+
+        // calling query now
+        let value = query_folder_contents(deps, &HumanAddr(owner_address), proper_path.to_string()).unwrap();
+        let folders_to_scan_next = &value.folders;
+        let folder_is_empty = folders_to_scan_next.is_empty();
+
+        let mut hashie: HashMap<String, Vec<String>> = HashMap::new();
+        hashie.insert((&folder).to_string(), (&folders_to_scan_next).to_vec());
+
+        let _ = &temp_vec.push(hashie);
+
+        if !folder_is_empty{
+            // continue loop
+            let this = scan_folders(deps, address, folders_to_scan_next.to_vec(), vk.clone());
+            for each in this {
+                let _ = &temp_vec.push(each);
+            }
+        }
+    }
+     temp_vec
+}
 
 // MISC.
 
