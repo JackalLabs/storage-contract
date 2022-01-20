@@ -30,11 +30,11 @@ _build-mainnet:
 
 # like build-mainnet, but slower and more deterministic
 .PHONY: build-mainnet-reproducible
-build-mainnet-reproducible:
+optimize-wasm:
 	docker run --rm -v "$$(pwd)":/contract \
 		--mount type=volume,source="$$(basename "$$(pwd)")_cache",target=/contract/target \
 		--mount type=volume,source=registry_cache,target=/usr/local/cargo/registry \
-		enigmampc/secret-contract-optimizer:1.0.3
+		enigmampc/secret-contract-optimizer
 
 .PHONY: compress-wasm
 compress-wasm:

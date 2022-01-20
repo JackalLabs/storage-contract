@@ -7,7 +7,7 @@ use cosmwasm_std::{debug_print, to_binary, Api, Binary, Env, Extern, HandleRespo
 use secret_toolkit::crypto::sha_256;
 
 use crate::msg::{HandleMsg, InitMsg, QueryMsg, HandleAnswer};
-use crate::state::{ State, CONFIG_KEY, save, load, write_viewing_key, read_viewing_key};
+use crate::state::{ State, write_viewing_key, read_viewing_key, Config, ReadonlyConfig, Constants};
 use crate::backend::{query_file, query_folder_contents, try_create_folder, try_create_file, try_init, try_remove_folder, try_remove_file, try_move_folder, try_move_file, query_big_tree};
 use crate::viewing_key::{ViewingKey, VIEWING_KEY_SIZE};
 
@@ -16,17 +16,23 @@ pub fn init<S: Storage, A: Api, Q: Querier>(
     env: Env,
     msg: InitMsg,
 ) -> StdResult<InitResponse> {
+    // let ha = deps.api.human_address(&deps.api.canonical_address(&env.message.sender)?)?;
+    // let config = State {
+    //     owner: ha.clone(),
+    //     prng_seed: sha_256(&Binary::from("coolprngseedbro".as_bytes()).0).to_vec(), 
+    // };
+    // debug_print!("Contract was initialized by {}", env.message.sender);
+    // save(&mut deps.storage, CONFIG_KEY, &config)?;
 
     let ha = deps.api.human_address(&deps.api.canonical_address(&env.message.sender)?)?;
+    let prng_seed_hashed = sha_256(&msg.prng_seed.0);
+    let mut config = Config::from_storage(&mut deps.storage);
+    config.set_constants(&Constants{
+        admin: ha.clone(),
+        prng_seed: prng_seed_hashed.to_vec(),
+    })?;
 
-    let config = State {
-        owner: ha.clone(),
-        prng_seed: sha_256(base64::encode(msg.prng_seed).as_bytes()).to_vec(), 
-    };
 
-    debug_print!("Contract was initialized by {}", env.message.sender);
-
-    save(&mut deps.storage, CONFIG_KEY, &config)?;
     Ok(InitResponse::default())
 }
 
@@ -89,8 +95,11 @@ fn try_create_viewing_key<S: Storage, A: Api, Q: Querier>(
     env: Env,
     entropy: String,
 ) -> StdResult<HandleResponse> {
-    let config: State = load(&mut deps.storage, CONFIG_KEY)?;
-    let prng_seed = config.prng_seed;
+    // let config: State = load(&mut deps.storage, CONFIG_KEY)?;
+    // let prng_seed = config.prng_seed;
+
+    let constants = ReadonlyConfig::from_storage(&deps.storage).constants()?;
+    let prng_seed = constants.prng_seed;
 
     let key = ViewingKey::new(&env, &prng_seed, (&entropy).as_ref());
 
@@ -121,7 +130,7 @@ mod tests {
     ) -> ViewingKey {
 
         // Init Contract
-        let msg = InitMsg {prng_seed:String::from("lets init bro")};
+        let msg = InitMsg { admin:None, prng_seed: Binary::from("coolprngseedbro".as_bytes()) };
         let env = mock_env("creator", &[]);
         let _res = init(deps, env, msg).unwrap();
 
@@ -198,21 +207,21 @@ mod tests {
         let mut deps = mock_dependencies(20, &[]);
 
         // init
-        let msg = InitMsg {prng_seed:String::from("lets init bro")};
+        let msg = InitMsg {admin:None, prng_seed: Binary::from("coolprngseedbro".as_bytes())};
         let env = mock_env("anyone", &[]);
         let _res = init(&mut deps, env, msg).unwrap();
         
         // create viewingkey
         let env = mock_env("anyone", &[]);
         let create_vk_msg = HandleMsg::CreateViewingKey {
-            entropy: "supbro".to_string(),
+            entropy: "sup".to_string(),
             padding: None,
         };
         let handle_response = handle(&mut deps, env, create_vk_msg).unwrap();
         
         let _vk = match from_binary(&handle_response.data.unwrap()).unwrap() {
             HandleAnswer::CreateViewingKey { key } => {
-                // println!("viewing key here: {}",key);
+                println!("viewing key here: {}",key);
                 key
             },
             _ => panic!("Unexpected result from handle"),
@@ -441,7 +450,7 @@ mod tests {
     fn proper_initialization() {
         let mut deps = mock_dependencies(20, &[]);
 
-        let msg = InitMsg { prng_seed:String::from("lets init bro")};
+        let msg = InitMsg { admin:None, prng_seed: Binary::from("coolprngseedbro".as_bytes()) };
         let env = mock_env("creator", &coins(1000, "earth"));
 
         // we can just call .unwrap() to assert this was a success
@@ -454,7 +463,7 @@ mod tests {
     fn init_address_test() {
         let mut deps = mock_dependencies(20, &coins(2, "token"));
 
-        let msg = InitMsg {prng_seed:String::from("lets init bro")};
+        let msg = InitMsg { admin:None, prng_seed: Binary::from("coolprngseedbro".as_bytes()) };
         let env = mock_env("creator", &coins(2, "token"));
         let _res = init(&mut deps, env, msg).unwrap();
 

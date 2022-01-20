@@ -268,6 +268,7 @@ name = "jackal"
 version = "0.1.0"
 dependencies = [
  "base64 0.12.3",
+ "bincode2",
  "cosmwasm-schema",
  "cosmwasm-std",
  "cosmwasm-storage",

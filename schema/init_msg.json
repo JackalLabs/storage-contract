@@ -1,5 +1,13 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
   "title": "InitMsg",
-  "type": "object"
+  "type": "object",
+  "required": [
+    "prng_seed"
+  ],
+  "properties": {
+    "prng_seed": {
+      "type": "string"
+    }
+  }
 }

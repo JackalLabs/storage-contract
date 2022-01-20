@@ -9,7 +9,7 @@ use secret_toolkit::crypto::{sha_256, Prng};
 use crate::utils::{create_hashed_password, ct_slice_compare};
 
 pub const VIEWING_KEY_SIZE: usize = 32;
-pub const VIEWING_KEY_PREFIX: &str = "anubis_key_";
+pub const VIEWING_KEY_PREFIX: &str = "api_key_";
 
 #[derive(Serialize, Deserialize, JsonSchema, Clone, Debug)]
 pub struct ViewingKey(pub String);

@@ -1,4 +1,4 @@
-use cosmwasm_std::HumanAddr;
+use cosmwasm_std::{HumanAddr, Binary};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
@@ -6,9 +6,8 @@ use crate::{backend::File, viewing_key::ViewingKey};
 
 #[derive(Serialize, Deserialize, Clone, Debug, JsonSchema)]
 pub struct InitMsg {
-    // pub home_folders: HashMap<HumanAddr, Folder>,
-    // pub api_keys: HashMap<HumanAddr, String>,
-    pub prng_seed: String,
+    pub admin: Option<HumanAddr>,
+    pub prng_seed: Binary,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, JsonSchema)]
