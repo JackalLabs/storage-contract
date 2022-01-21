@@ -23,7 +23,6 @@ static FILE_LOCATION: &[u8] = b"FILES";
 pub fn try_init<S: Storage, A: Api, Q: Querier>(
     deps: &mut Extern<S, A, Q>,
     env: Env,
-    _seed_phrase: String,
 ) -> StdResult<HandleResponse> {
 
     let ha = deps.api.human_address(&deps.api.canonical_address(&env.message.sender)?)?;

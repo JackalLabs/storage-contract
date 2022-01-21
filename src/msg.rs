@@ -14,7 +14,7 @@ pub struct InitMsg {
 #[derive(Serialize, Deserialize, Clone, Debug, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum HandleMsg {
-    InitAddress { seed_phrase: String },
+    InitAddress {  },
     CreateFile { name: String, contents: String, path: String },
     RemoveFile {name: String, path: String},
     MoveFile {name: String, old_path: String, new_path: String},

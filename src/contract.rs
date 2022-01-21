@@ -36,7 +36,7 @@ pub fn handle<S: Storage, A: Api, Q: Querier>(
     msg: HandleMsg,
 ) -> StdResult<HandleResponse> {
     match msg {
-        HandleMsg::InitAddress { seed_phrase } => try_init(deps, env, seed_phrase),
+        HandleMsg::InitAddress { } => try_init(deps, env),
         HandleMsg::CreateFile { name, contents, path } => try_create_file(deps, env, name, contents, path),
         HandleMsg::CreateFolder { name, path } => try_create_folder(deps, env, name, path),
         HandleMsg::RemoveFolder { name, path } => try_remove_folder(deps, env, name, path),
@@ -127,7 +127,7 @@ mod tests {
 
         // Init Address
         let env = mock_env("anyone", &[]);
-        let msg = HandleMsg::InitAddress { seed_phrase: String::from("JACKAL IS ALIVE")};
+        let msg = HandleMsg::InitAddress { };
         let _res = handle(deps, env, msg).unwrap();
 
         // Create Viewingkey
@@ -459,12 +459,12 @@ mod tests {
         let _res = init(&mut deps, env, msg).unwrap();
 
         let env = mock_env("anyone", &coins(2, "token"));
-        let msg = HandleMsg::InitAddress { seed_phrase: String::from("JACKAL IS ALIVE")};
+        let msg = HandleMsg::InitAddress { };
         let _res = handle(&mut deps, env, msg).unwrap();
 
         // This should fail to prevent init again
         // let env = mock_env("anyone", &coins(2, "token"));
-        // let msg = HandleMsg::InitAddress { seed_phrase: String::from("JACKAL IS ALIVE")};
+        // let msg = HandleMsg::InitAddress { };
         // let _res = handle(&mut deps, env, msg).unwrap();
     }
 
