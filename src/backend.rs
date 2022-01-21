@@ -1,7 +1,5 @@
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
-use serde_json::json;
-use std::collections::HashMap;
 use cosmwasm_std::{debug_print,Env, Api, Querier, ReadonlyStorage, Storage, StdResult, StdError, Extern, HandleResponse, HumanAddr};
 use cosmwasm_storage::{ bucket, bucket_read, Bucket, ReadonlyBucket};
 
@@ -461,9 +459,9 @@ pub fn query_big_tree<S: Storage, A: Api, Q: Querier>(
     let value = query_folder_contents(deps, &address, String::from("/")).unwrap();
     let folders_from_root = &value.folders;
     let big_vec = scan_folders(&deps, &address, folders_from_root.to_vec(), key);
-    let data = json!(big_vec).to_string();
-    
-    Ok(BigTreeResponse{ data })
+    // let data = to_string(&big_vec).unwrap();
+
+    Ok(BigTreeResponse{ data:big_vec })
 }
 
 
@@ -472,7 +470,7 @@ fn scan_folders<S: Storage, A: Api, Q: Querier> (
     address: &HumanAddr,
     folders_to_scan: Vec<String>,
     vk: String,
-) -> Vec<HashMap<String, Vec<String>>> {
+) -> Vec<String> {
     let mut temp_vec = vec![]; 
     for folder in folders_to_scan {
         // get proper path 
@@ -484,8 +482,9 @@ fn scan_folders<S: Storage, A: Api, Q: Querier> (
         let folders_to_scan_next = &value.folders;
         let folder_is_empty = folders_to_scan_next.is_empty();
 
-        let mut hashie: HashMap<String, Vec<String>> = HashMap::new();
-        hashie.insert((&folder).to_string(), (&folders_to_scan_next).to_vec());
+        // let mut hashie: HashMap<String, Vec<String>> = HashMap::new();
+        // hashie.insert((&folder).to_string(), (&folders_to_scan_next).to_vec());
+        let hashie = format!("{}:{:?}",folder, folders_to_scan_next);
 
         let _ = &temp_vec.push(hashie);
 

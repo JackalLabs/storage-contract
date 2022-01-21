@@ -1,7 +1,7 @@
 [package]
 name = "jackal"
 version = "0.1.0"
-authors = ["Marston Connell"]
+authors = ["Marston Connell & Nugget"]
 edition = "2018"
 
 exclude = [
@@ -45,4 +45,3 @@ subtle = { version = "2.2.3", default-features = false }
 base64 = "0.12.3"
 hex = "0.4.2"
 sha2 = { version = "0.9.1", default-features = false }
-serde_json = "1.0"
