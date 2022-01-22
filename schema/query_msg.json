@@ -12,10 +12,14 @@
           "type": "object",
           "required": [
             "address",
+            "key",
             "path"
           ],
           "properties": {
             "address": {
+              "$ref": "#/definitions/HumanAddr"
+            },
+            "key": {
               "type": "string"
             },
             "path": {
@@ -35,10 +39,41 @@
           "type": "object",
           "required": [
             "address",
+            "key",
             "path"
           ],
           "properties": {
             "address": {
+              "$ref": "#/definitions/HumanAddr"
+            },
+            "key": {
+              "type": "string"
+            },
+            "path": {
+              "type": "string"
+            }
+          }
+        }
+      }
+    },
+    {
+      "type": "object",
+      "required": [
+        "get_big_tree"
+      ],
+      "properties": {
+        "get_big_tree": {
+          "type": "object",
+          "required": [
+            "address",
+            "key",
+            "path"
+          ],
+          "properties": {
+            "address": {
+              "$ref": "#/definitions/HumanAddr"
+            },
+            "key": {
               "type": "string"
             },
             "path": {
@@ -48,5 +83,10 @@
         }
       }
     }
-  ]
+  ],
+  "definitions": {
+    "HumanAddr": {
+      "type": "string"
+    }
+  }
 }

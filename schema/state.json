@@ -3,11 +3,20 @@
   "title": "State",
   "type": "object",
   "required": [
-    "owner"
+    "owner",
+    "prng_seed"
   ],
   "properties": {
     "owner": {
       "$ref": "#/definitions/HumanAddr"
+    },
+    "prng_seed": {
+      "type": "array",
+      "items": {
+        "type": "integer",
+        "format": "uint8",
+        "minimum": 0.0
+      }
     }
   },
   "definitions": {

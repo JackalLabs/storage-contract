@@ -9,15 +9,7 @@
       ],
       "properties": {
         "init_address": {
-          "type": "object",
-          "required": [
-            "seed_phrase"
-          ],
-          "properties": {
-            "seed_phrase": {
-              "type": "string"
-            }
-          }
+          "type": "object"
         }
       }
     },
@@ -166,6 +158,31 @@
             },
             "old_path": {
               "type": "string"
+            }
+          }
+        }
+      }
+    },
+    {
+      "type": "object",
+      "required": [
+        "create_viewing_key"
+      ],
+      "properties": {
+        "create_viewing_key": {
+          "type": "object",
+          "required": [
+            "entropy"
+          ],
+          "properties": {
+            "entropy": {
+              "type": "string"
+            },
+            "padding": {
+              "type": [
+                "string",
+                "null"
+              ]
             }
           }
         }
