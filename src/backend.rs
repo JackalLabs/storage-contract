@@ -54,6 +54,9 @@ pub struct Folder{
     files: OrderedSet<String>,
     name: String,
     owner: String,
+    public: bool,
+    allow_read_list: OrderedSet<String>,
+    allow_write_list: OrderedSet<String>
 }
 
 impl Folder {
@@ -193,6 +196,9 @@ pub fn make_folder(parent: &str,name: &str, owner: &str) -> Folder{
         files: OrderedSet::<String>::new(),
         name: String::from(name),
         owner: String::from(owner),
+        public: false,
+        allow_read_list: OrderedSet::<String>::new(),
+        allow_write_list: OrderedSet::<String>::new()
     }
 }
 
