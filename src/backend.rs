@@ -59,6 +59,18 @@ pub struct Folder{
     allow_write_list: OrderedSet<String>
 }
 
+#[derive(Serialize, Deserialize, JsonSchema, Debug, Clone)]
+enum PermType {
+    READ,
+    WRITE,
+}
+
+#[derive(Serialize, Deserialize, JsonSchema, Debug, Clone)]
+pub struct PermissionBlock{
+    address: String,
+    permission_type: PermType,
+}
+
 impl Folder {
     pub fn list_files(&self) -> Vec<String>{
         let mut files: Vec<String> = Vec::new();
@@ -78,6 +90,75 @@ impl Folder {
         }
 
         return folders;
+    }
+
+    /** 
+       Please call these before doing anything to files. If you are adding a newly 
+       created file to a folder, please check that you can write to the folder. If 
+       the file exists, just check the file permission since they overwrite the 
+       folder. 
+     */
+    pub fn can_read(&self, address:String) -> bool{
+        if self.owner.eq(&address) {
+            return true;
+        }
+        if self.public { 
+            return true; 
+        }
+        for i in 0..self.allow_read_list.len() {
+            if String::from(self.allow_read_list.get(i).unwrap()).eq(&address) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    pub fn can_write(&self, address:String) -> bool{
+        if self.owner.eq(&address) {
+            return true;
+        }
+        for i in 0..self.allow_write_list.len() {
+            if String::from(self.allow_write_list.get(i).unwrap()).eq(&address) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    pub fn allow_read(&mut self, address:String) -> bool {
+        if self.owner.eq(&address) {
+            return false;
+        }
+
+        self.allow_read_list.push(address);
+
+        return true;
+    }
+
+    pub fn allow_write(&mut self, address:String) -> bool {
+        if self.owner.eq(&address) {
+            return false;
+        }
+
+        self.allow_write_list.push(address);
+
+        true
+    }
+
+    pub fn make_public(&mut self) -> bool {
+        self.public = true;
+        true
+    }
+
+    pub fn make_private(&mut self) -> bool {
+        self.public = false;
+        true
+    }
+
+    pub fn is_public(&self) -> bool {
+        self.public
     }
     
 }
@@ -265,11 +346,84 @@ pub struct File{
     contents: String,
     name: String,
     owner: String,
+    public: bool,
+    allow_read_list: OrderedSet<String>,
+    allow_write_list: OrderedSet<String>
 }
 
 impl File {
     pub fn get_contents(&self) -> &str {
         &self.contents
+    }
+
+    /** 
+       Please call these before doing anything to files. If you are adding a newly 
+       created file to a folder, please check that you can write to the folder. If 
+       the file exists, just check the file permission since they overwrite the 
+       folder. 
+     */
+    pub fn can_read(&self, address:String) -> bool{
+        if self.owner.eq(&address) {
+            return true;
+        }
+        if self.public { 
+            return true; 
+        }
+        for i in 0..self.allow_read_list.len() {
+            if String::from(self.allow_read_list.get(i).unwrap()).eq(&address) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    pub fn can_write(&self, address:String) -> bool{
+        if self.owner.eq(&address) {
+            return true;
+        }
+
+        for i in 0..self.allow_write_list.len() {
+            if String::from(self.allow_write_list.get(i).unwrap()).eq(&address) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    pub fn allow_read(&mut self, address:String) -> bool {
+        if self.owner.eq(&address) {
+            return false;
+        }
+
+        self.allow_read_list.push(address);
+
+        return true;
+    }
+
+    pub fn allow_write(&mut self, address:String) -> bool {
+        if self.owner.eq(&address) {
+            return false;
+        }
+
+        self.allow_write_list.push(address);
+
+        true
+    }
+
+    pub fn make_public(&mut self) -> bool {
+        self.public = true;
+        true
+    }
+
+    pub fn make_private(&mut self) -> bool {
+        self.public = false;
+        true
+    }
+
+    pub fn is_public(&self) -> bool {
+        self.public
     }
 }
 
@@ -382,6 +536,9 @@ pub fn make_file(name: &str, owner: &str, contents: &str) -> File{
         contents: String::from(contents),
         name: String::from(name),
         owner: String::from(owner),
+        public: false,
+        allow_read_list: OrderedSet::<String>::new(),
+        allow_write_list: OrderedSet::<String>::new()
     }
 }
 
