@@ -31,4 +31,4 @@ jobs:
       - uses: actions-rs/cargo@v1.0.1
         with:
           command: unit-test
-          args: --lib --target wasm32-unknown-unknown --manifest-path=Cargo.toml -- contract::tests 
+          args: 
