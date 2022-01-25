@@ -468,49 +468,4 @@ mod tests {
         // let _res = handle(&mut deps, env, msg).unwrap();
     }
 
-    #[test]
-    fn big_files_test() {
-        let mut deps = mock_dependencies(20, &[]);
-        let vk = init_for_test(&mut deps);
-
-        let env = mock_env("anyone", &coins(2, "token"));
-        let msg = HandleMsg::CreateFolder { name: String::from("new_folder"), path: String::from("/") };
-        let _res = handle(&mut deps, env, msg).unwrap();
-
-        let env = mock_env("anyone", &coins(2, "token"));
-        let msg = HandleMsg::CreateFile { name: String::from("test.txt"), contents: String::from("Hello World!"), path: String::from("/new_folder/") };
-        let _res = handle(&mut deps, env, msg).unwrap();
-
-        let env = mock_env("anyone", &coins(2, "token"));
-        let msg = HandleMsg::CreateFile { name: String::from("test2.txt"), contents: String::from("Hello World!"), path: String::from("/") };
-        let _res = handle(&mut deps, env, msg).unwrap();
-
-        let fcont : String = read_to_string("eth.txt").unwrap();
-
-
-        for i in 0..100 {
-            let mut nm: String = i.to_string();
-            nm.push_str(".png");
-
-            let env = mock_env("anyone", &coins(2, "token"));
-            let msg = HandleMsg::CreateFile { name: String::from(nm), contents: fcont.clone(), path: String::from("/") };
-            let _res = handle(&mut deps, env, msg).unwrap();
-        }
-        
-        let res = query(&deps, QueryMsg::GetFile { address: HumanAddr("anyone".to_string()), path: String::from("/99.png"), key: vk.to_string() }).unwrap();
-        let value: FileResponse = from_binary(&res).unwrap();
-        assert_eq!(value.file.get_contents(), fcont.clone());
-
-        let res = query(&deps, QueryMsg::GetFolderContents { address: HumanAddr("anyone".to_string()), path: String::from("/"), key: vk.to_string() }).unwrap();
-        let value: FolderContentsResponse = from_binary(&res).unwrap();
-
-        println!("-->Folder Contents: {:#?}", value.files);
-        assert_eq!(value.folders, vec!["anyone/new_folder/"]);
-
-        let res = query(&deps, QueryMsg::GetFolderContents { address: HumanAddr("anyone".to_string()), path: String::from("/new_folder/"), key: vk.to_string() }).unwrap();
-        let value: FolderContentsResponse = from_binary(&res).unwrap();
-        assert_eq!(value.files, vec!["anyone/new_folder/test.txt"]);
-        assert_eq!(value.folders, Vec::<String>::new());
-    }
-
 }
