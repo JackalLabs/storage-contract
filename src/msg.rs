@@ -22,14 +22,15 @@ pub enum HandleMsg {
     RemoveFolder {name : String, path: String},
     MoveFolder {name : String, old_path: String, new_path: String},
     CreateViewingKey {entropy: String, padding: Option<String>},
+    AllowRead {path: String, address: String},
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum QueryMsg {
-    GetFile { address: HumanAddr, path: String, key: String },
-    GetFolderContents {address: HumanAddr, path: String, key: String},
-    GetBigTree {address: HumanAddr, path: String, key: String},
+    GetFile { address: HumanAddr, behalf: HumanAddr, path: String, key: String },
+    GetFolderContents {address: HumanAddr, behalf: HumanAddr, path: String, key: String},
+    GetBigTree {address: HumanAddr, behalf: HumanAddr, path: String, key: String},
 }
 
 #[derive(Serialize, Deserialize, JsonSchema, Debug)]
@@ -60,9 +61,9 @@ pub struct BigTreeResponse {
 impl QueryMsg {
     pub fn get_validation_params(&self) -> (Vec<&HumanAddr>, ViewingKey) {
         match self {
-            Self::GetFile { address, key, .. } => (vec![address], ViewingKey(key.clone())),
-            Self::GetFolderContents { address, key, .. } => (vec![address], ViewingKey(key.clone())),
-            Self::GetBigTree { address, key, .. } => (vec![address], ViewingKey(key.to_string())),
+            Self::GetFile { behalf, key, .. } => (vec![behalf], ViewingKey(key.clone())),
+            Self::GetFolderContents { behalf, key, .. } => (vec![behalf], ViewingKey(key.clone())),
+            Self::GetBigTree { behalf, key, .. } => (vec![behalf], ViewingKey(key.to_string())),
             // _ => panic!("This query type does not require authentication"),
         }
     }

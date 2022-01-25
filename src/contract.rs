@@ -8,7 +8,7 @@ use secret_toolkit::crypto::sha_256;
 
 use crate::msg::{HandleMsg, InitMsg, QueryMsg, HandleAnswer};
 use crate::state::{ State, CONFIG_KEY, save, load, write_viewing_key, read_viewing_key};
-use crate::backend::{query_file, query_folder_contents, try_create_folder, try_create_file, try_init, try_remove_folder, try_remove_file, try_move_folder, try_move_file, query_big_tree};
+use crate::backend::{try_allow_read, query_file, query_folder_contents, try_create_folder, try_create_file, try_init, try_remove_folder, try_remove_file, try_move_folder, try_move_file, query_big_tree};
 use crate::viewing_key::{ViewingKey, VIEWING_KEY_SIZE};
 
 pub fn init<S: Storage, A: Api, Q: Querier>(
@@ -44,6 +44,8 @@ pub fn handle<S: Storage, A: Api, Q: Querier>(
         HandleMsg::MoveFolder { name, old_path, new_path } => try_move_folder(deps, env, name, old_path, new_path),
         HandleMsg::MoveFile { name, old_path, new_path } => try_move_file(deps, env, name, old_path, new_path),
         HandleMsg::CreateViewingKey { entropy, .. } => try_create_viewing_key(deps, env, entropy),
+        HandleMsg::AllowRead { path, address } => try_allow_read(deps, env, path, address),
+
     }
 }
 
@@ -75,7 +77,7 @@ fn authenticated_queries<S: Storage, A: Api, Q: Querier>(
 
             return match msg {
                 QueryMsg::GetFile { path, address, .. } => to_binary(&query_file(deps, address, path)?),
-                QueryMsg::GetFolderContents { path, address, .. } => to_binary(&query_folder_contents(deps, &address, path)?),
+                QueryMsg::GetFolderContents { path, behalf, address, .. } => to_binary(&query_folder_contents(deps, &address, path, &behalf)?),
                 QueryMsg::GetBigTree { address, key, .. } =>to_binary(&query_big_tree(deps, address, key)?),
             };
         }
@@ -117,7 +119,7 @@ mod tests {
     use crate::msg::{FolderContentsResponse, FileResponse, BigTreeResponse};
 
     fn init_for_test<S: Storage, A: Api, Q: Querier> (
-        deps: &mut Extern<S, A, Q>
+        deps: &mut Extern<S, A, Q>, address:String,
     ) -> ViewingKey {
 
         // Init Contract
@@ -126,12 +128,12 @@ mod tests {
         let _res = init(deps, env, msg).unwrap();
 
         // Init Address
-        let env = mock_env("anyone", &[]);
+        let env = mock_env(String::from(&address), &[]);
         let msg = HandleMsg::InitAddress { };
         let _res = handle(deps, env, msg).unwrap();
 
         // Create Viewingkey
-        let env = mock_env("anyone", &[]);
+        let env = mock_env(String::from(&address), &[]);
         let create_vk_msg = HandleMsg::CreateViewingKey {
             entropy: "supbro".to_string(),
             padding: None,
@@ -151,7 +153,7 @@ mod tests {
     #[test]
     fn test_big_tree() {
         let mut deps = mock_dependencies(20, &coins(2, "token"));
-        let vk = init_for_test(&mut deps);
+        let vk = init_for_test(&mut deps, String::from("anyone"));
 
         // Create Folders
         let env = mock_env("anyone", &[]);
@@ -187,7 +189,7 @@ mod tests {
         let _res = handle(&mut deps, env, msg).unwrap();
 
         //Query Big Tree
-        let query_res = query(&deps, QueryMsg::GetBigTree { address: HumanAddr("anyone".to_string()), path: String::from("/"), key: vk.to_string() }).unwrap();
+        let query_res = query(&deps, QueryMsg::GetBigTree { address: HumanAddr("anyone".to_string()), path: String::from("/"), behalf: HumanAddr("anyone".to_string()), key: vk.to_string() }).unwrap();
         let result:BigTreeResponse = from_binary(&query_res).unwrap();
         println!("{:#?}", &result.data);
 
@@ -223,7 +225,7 @@ mod tests {
     #[test]
     fn make_file_with_vk_test() {
         let mut deps = mock_dependencies(20, &[]);
-        let vk = init_for_test(&mut deps);
+        let vk = init_for_test(&mut deps, String::from("anyone"));
 
         // Create File
         let env = mock_env("anyone", &[]);
@@ -231,7 +233,7 @@ mod tests {
         let _res = handle(&mut deps, env, msg).unwrap();
 
         // Get File with viewing key
-        let query_res = query(&deps, QueryMsg::GetFile { address: HumanAddr("anyone".to_string()), path: String::from("/pepe.jpeg"), key: vk.to_string() }).unwrap();
+        let query_res = query(&deps, QueryMsg::GetFile { address: HumanAddr("anyone".to_string()), path: String::from("/pepe.jpeg"), behalf: HumanAddr("anyone".to_string()), key: vk.to_string() }).unwrap();
         let value: FileResponse = from_binary(&query_res).unwrap();
         println!("{:#?}", value);
 
@@ -240,7 +242,11 @@ mod tests {
     #[test]
     fn make_folder_with_vk_test() {
         let mut deps = mock_dependencies(20, &[]);
-        let vk = init_for_test(&mut deps);
+
+        let vk = init_for_test(&mut deps, String::from("anyone"));
+
+
+        let vk_alice = init_for_test(&mut deps, String::from("alice"));
 
         // Create Folders
         let env = mock_env("anyone", &[]);
@@ -264,19 +270,40 @@ mod tests {
         let _res = handle(&mut deps, env, msg).unwrap();
 
         // Get Folder with viewing key
-        let query_res = query(&deps, QueryMsg::GetFolderContents { address: HumanAddr("anyone".to_string()), path: String::from("/"), key: vk.to_string() }).unwrap();
+        let query_res = query(&deps, QueryMsg::GetFolderContents { address: HumanAddr("anyone".to_string()), path: String::from("/"), behalf: HumanAddr("anyone".to_string()), key: vk.to_string() }).unwrap();
         let value: FolderContentsResponse = from_binary(&query_res).unwrap();
         println!("From /: {:#?}", value);
 
-        let query_res = query(&deps, QueryMsg::GetFolderContents { address: HumanAddr("anyone".to_string()), path: String::from("/a/"), key: vk.to_string() }).unwrap();
+        let query_res = query(&deps, QueryMsg::GetFolderContents { address: HumanAddr("anyone".to_string()), path: String::from("/a/"), behalf: HumanAddr("anyone".to_string()), key: vk.to_string() }).unwrap();
         let value: FolderContentsResponse = from_binary(&query_res).unwrap();
         println!("From /a/: {:#?}", value);
 
-        let query_res = query(&deps, QueryMsg::GetFolderContents { address: HumanAddr("anyone".to_string()), path: String::from("/a/b/"), key: vk.to_string() }).unwrap();
+        let query_res = query(&deps, QueryMsg::GetFolderContents { address: HumanAddr("anyone".to_string()), path: String::from("/a/b/"), behalf: HumanAddr("anyone".to_string()), key: vk.to_string() }).unwrap();
         let value: FolderContentsResponse = from_binary(&query_res).unwrap();
         println!("From /b/: {:#?}", value);
 
-        let query_res = query(&deps, QueryMsg::GetFolderContents { address: HumanAddr("anyone".to_string()), path: String::from("/a/b/c/"), key: vk.to_string() }).unwrap();
+        let query_res = query(&deps, QueryMsg::GetFolderContents { address: HumanAddr("anyone".to_string()), path: String::from("/a/b/c/"), behalf: HumanAddr("anyone".to_string()), key: vk.to_string() }).unwrap();
+        let value: FolderContentsResponse = from_binary(&query_res).unwrap();
+        println!("From /c/: {:#?}", value);
+
+        let query_res = query(&deps, QueryMsg::GetFolderContents { address: HumanAddr("anyone".to_string()), path: String::from("/a/b/c/"), behalf: HumanAddr("alice".to_string()), key: vk_alice.to_string() });
+        assert!(query_res.is_err() == true);
+
+        let env = mock_env("anyone", &[]);
+        let msg = HandleMsg::AllowRead { path: String::from("anyone/a/b/c/"), address: String::from("alice") };
+        let _res = handle(&mut deps, env, msg).unwrap();
+
+        let env = mock_env("alice", &[]);
+        let msg = HandleMsg::CreateFolder { name: String::from("a"), path: String::from("/") };
+        let _res = handle(&mut deps, env, msg).unwrap();
+
+        let query_res = query(&deps, QueryMsg::GetFolderContents { address: HumanAddr("alice".to_string()), path: String::from("/a/"), behalf: HumanAddr("alice".to_string()), key: vk_alice.to_string() }).unwrap();
+        let value: FolderContentsResponse = from_binary(&query_res).unwrap();
+        println!("From /c/: {:#?}", value);
+
+        println!("eeee");
+
+        let query_res = query(&deps, QueryMsg::GetFolderContents { address: HumanAddr("anyone".to_string()), path: String::from("/a/b/c/"), behalf: HumanAddr("alice".to_string()), key: vk_alice.to_string() }).unwrap();
         let value: FolderContentsResponse = from_binary(&query_res).unwrap();
         println!("From /c/: {:#?}", value);
 
@@ -285,7 +312,7 @@ mod tests {
     #[test]
     fn move_file_test() {
         let mut deps = mock_dependencies(20, &coins(2, "token"));
-        let vk = init_for_test(&mut deps);
+        let vk = init_for_test(&mut deps, String::from("anyone"));
         
         // Create Folders
         let env = mock_env("anyone", &coins(2, "token"));
@@ -302,7 +329,7 @@ mod tests {
         let _res = handle(&mut deps, env, msg).unwrap();
         
 
-        let res = query(&deps, QueryMsg::GetFolderContents { address: HumanAddr("anyone".to_string()), path: String::from("/"), key: vk.to_string() }).unwrap();
+        let res = query(&deps, QueryMsg::GetFolderContents { address: HumanAddr("anyone".to_string()), path: String::from("/"), behalf: HumanAddr("anyone".to_string()), key: vk.to_string() }).unwrap();
         let value: FolderContentsResponse = from_binary(&res).unwrap();
         println!("Folder Content BEFORE: {:?}", &value);
 
@@ -311,17 +338,17 @@ mod tests {
         let msg = HandleMsg::MoveFile { name: String::from("pepe.jpeg"), old_path: String::from("/"), new_path: String::from("/meme_storage/sad_meme/") };
         let _res = handle(&mut deps, env, msg).unwrap();
 
-        let res = query(&deps, QueryMsg::GetFolderContents { address: HumanAddr("anyone".to_string()), path: String::from("/"), key: vk.to_string() }).unwrap();
+        let res = query(&deps, QueryMsg::GetFolderContents { address: HumanAddr("anyone".to_string()), path: String::from("/"), behalf: HumanAddr("anyone".to_string()), key: vk.to_string() }).unwrap();
         let value: FolderContentsResponse = from_binary(&res).unwrap();
         assert_eq!(value.folders, vec!["anyone/meme_storage/"]);
         println!("Folder Content AFTER: {:?}", &value);
 
-        let res = query(&deps, QueryMsg::GetFolderContents { address: HumanAddr("anyone".to_string()), path: String::from("/meme_storage/sad_meme/"), key: vk.to_string() }).unwrap();
+        let res = query(&deps, QueryMsg::GetFolderContents { address: HumanAddr("anyone".to_string()), path: String::from("/meme_storage/sad_meme/"), behalf: HumanAddr("anyone".to_string()), key: vk.to_string() }).unwrap();
         let value: FolderContentsResponse = from_binary(&res).unwrap();
         assert_eq!(value.files, vec!["anyone/meme_storage/sad_meme/pepe.jpeg"]);
         println!("--> pepe.jpeg should be HERE: {:#?}", &value);
 
-        let res = query(&deps, QueryMsg::GetFile { address: HumanAddr("anyone".to_string()), path: String::from("/meme_storage/sad_meme/pepe.jpeg"), key: vk.to_string() }).unwrap();
+        let res = query(&deps, QueryMsg::GetFile { address: HumanAddr("anyone".to_string()), path: String::from("/meme_storage/sad_meme/pepe.jpeg"), behalf: HumanAddr("anyone".to_string()), key: vk.to_string() }).unwrap();
         let value: FileResponse = from_binary(&res).unwrap();
         println!("contents HERE: {:?}", &value.file);
         assert_eq!(make_file("pepe.jpeg", "anyone", "I'm sad"), value.file);
@@ -331,7 +358,7 @@ mod tests {
     #[test]
     fn move_folder_test() {
         let mut deps = mock_dependencies(20, &coins(2, "token"));
-        let vk = init_for_test(&mut deps);
+        let vk = init_for_test(&mut deps, String::from("anyone"));
 
         // Create Folders
         let env = mock_env("anyone", &coins(2, "token"));
@@ -342,7 +369,7 @@ mod tests {
         let msg = HandleMsg::CreateFolder { name: String::from("sad_meme"), path: String::from("/") };
         let _res = handle(&mut deps, env, msg).unwrap();
 
-        let res = query(&deps, QueryMsg::GetFolderContents { address: HumanAddr("anyone".to_string()), path: String::from("/"), key: vk.to_string() }).unwrap();
+        let res = query(&deps, QueryMsg::GetFolderContents { address: HumanAddr("anyone".to_string()), path: String::from("/"), behalf: HumanAddr("anyone".to_string()), key: vk.to_string() }).unwrap();
         let value: FolderContentsResponse = from_binary(&res).unwrap();
         println!("Folder Content BEFORE: {:?}", &value);
 
@@ -351,12 +378,12 @@ mod tests {
         let msg = HandleMsg::MoveFolder { name: String::from("sad_meme"), old_path: String::from("/"), new_path: String::from("/meme_storage/") };
         let _res = handle(&mut deps, env, msg).unwrap();
 
-        let res = query(&deps, QueryMsg::GetFolderContents { address: HumanAddr("anyone".to_string()), path: String::from("/"), key: vk.to_string() }).unwrap();
+        let res = query(&deps, QueryMsg::GetFolderContents { address: HumanAddr("anyone".to_string()), path: String::from("/"), behalf: HumanAddr("anyone".to_string()), key: vk.to_string() }).unwrap();
         let value: FolderContentsResponse = from_binary(&res).unwrap();
         assert_eq!(value.folders, vec!["anyone/meme_storage/"]);
         println!("Folder Content AFTER: {:?}", &value);
 
-        let res = query(&deps, QueryMsg::GetFolderContents { address: HumanAddr("anyone".to_string()), path: String::from("/meme_storage/"), key: vk.to_string() }).unwrap();
+        let res = query(&deps, QueryMsg::GetFolderContents { address: HumanAddr("anyone".to_string()), path: String::from("/meme_storage/"), behalf: HumanAddr("anyone".to_string()), key: vk.to_string() }).unwrap();
         let value: FolderContentsResponse = from_binary(&res).unwrap();
         assert_eq!(value.folders, vec!["anyone/meme_storage/sad_meme/"]);
         println!("sad_meme folder should be HERE: {:?}", &value);
@@ -366,7 +393,7 @@ mod tests {
     #[test]
     fn remove_folder_test() {
         let mut deps = mock_dependencies(20, &[]);
-        let vk = init_for_test(&mut deps);
+        let vk = init_for_test(&mut deps, String::from("anyone"));
 
         // Create Folder
         let env = mock_env("anyone", &coins(2, "token"));
@@ -377,7 +404,7 @@ mod tests {
         let msg = HandleMsg::CreateFolder { name: String::from("u_cant_see_this_folder"), path: String::from("/") };
         let _res = handle(&mut deps, env, msg).unwrap();
 
-        let res = query(&deps, QueryMsg::GetFolderContents { address: HumanAddr("anyone".to_string()), path: String::from("/"), key: vk.to_string() }).unwrap();
+        let res = query(&deps, QueryMsg::GetFolderContents { address: HumanAddr("anyone".to_string()), path: String::from("/"), behalf: HumanAddr("anyone".to_string()), key: vk.to_string() }).unwrap();
         let value: FolderContentsResponse = from_binary(&res).unwrap();
         println!("Folder Content before removal: {:?}", &value);
 
@@ -386,7 +413,7 @@ mod tests {
         let msg = HandleMsg::RemoveFolder { name: String::from("u_cant_see_this_folder"), path: String::from("/") };
         let _res = handle(&mut deps, env, msg).unwrap();
 
-        let res = query(&deps, QueryMsg::GetFolderContents { address: HumanAddr("anyone".to_string()), path: String::from("/"), key: vk.to_string() }).unwrap();
+        let res = query(&deps, QueryMsg::GetFolderContents { address: HumanAddr("anyone".to_string()), path: String::from("/"), behalf: HumanAddr("anyone".to_string()), key: vk.to_string() }).unwrap();
         let value: FolderContentsResponse = from_binary(&res).unwrap();
         assert_eq!(value.folders, vec!["anyone/new_folder/"]);
 
@@ -397,7 +424,7 @@ mod tests {
     #[test]
     fn remove_file_test() {
         let mut deps = mock_dependencies(20, &coins(2, "token"));
-        let vk = init_for_test(&mut deps);
+        let vk = init_for_test(&mut deps, String::from("anyone"));
 
         // Create Folder
         let env = mock_env("anyone", &coins(2, "token"));
@@ -424,13 +451,13 @@ mod tests {
         let msg = HandleMsg::RemoveFile { name: String::from("very_nice.txt"), path: String::from("/new_folder/") };
         let _res = handle(&mut deps, env, msg).unwrap();
 
-        let res = query(&deps, QueryMsg::GetFolderContents { address: HumanAddr("anyone".to_string()), path: String::from("/"), key: vk.to_string() }).unwrap();
+        let res = query(&deps, QueryMsg::GetFolderContents { address: HumanAddr("anyone".to_string()), path: String::from("/"), behalf: HumanAddr("anyone".to_string()), key: vk.to_string() }).unwrap();
         let value: FolderContentsResponse = from_binary(&res).unwrap();
         println!("Files after removal in root: {:?}", &value.files);
         assert_eq!(value.files, Vec::<String>::new());
 
 
-        let res = query(&deps, QueryMsg::GetFolderContents { address: HumanAddr("anyone".to_string()), path: String::from("/new_folder/"), key: vk.to_string() }).unwrap();
+        let res = query(&deps, QueryMsg::GetFolderContents { address: HumanAddr("anyone".to_string()), path: String::from("/new_folder/"), behalf: HumanAddr("anyone".to_string()), key: vk.to_string() }).unwrap();
         let value: FolderContentsResponse = from_binary(&res).unwrap();
         println!("Files after removal in new_folder: {:?}", &value.files);
         assert_eq!(value.files, Vec::<String>::new());

@@ -224,6 +224,24 @@ pub fn try_remove_folder<S: Storage, A: Api, Q: Querier>(
     Ok(HandleResponse::default())
 }
 
+pub fn try_allow_read<S: Storage, A: Api, Q: Querier>(
+    deps: &mut Extern<S, A, Q>,
+    env: Env,
+    path: String,
+    address: String,
+) -> StdResult<HandleResponse> {
+
+
+    let mut f = bucket_load_folder(&mut deps.storage, String::from(&path));
+
+    f.allow_read(address);
+
+    bucket_save_folder(&mut deps.storage, String::from(&path), f);
+
+    Ok(HandleResponse::default())
+}
+
+
 pub fn try_create_folder<S: Storage, A: Api, Q: Querier>(
     deps: &mut Extern<S, A, Q>,
     env: Env,
@@ -238,6 +256,8 @@ pub fn try_create_folder<S: Storage, A: Api, Q: Querier>(
 
     let mut p = adr.clone();
     p.push_str(&path);
+
+    println!("{:}", p.clone());
 
     let mut l = bucket_load_folder(&mut deps.storage, p.clone());
     // println!("LOAD BUCKET before creating file: {:?}", l);
@@ -601,15 +621,23 @@ pub fn query_file<S: Storage, A: Api, Q: Querier>(deps: &Extern<S, A, Q>, addres
     Ok(FileResponse { file: f })
 }
 
-pub fn query_folder_contents<S: Storage, A: Api, Q: Querier>(deps: &Extern<S, A, Q>, address: &HumanAddr, path: String) -> StdResult<FolderContentsResponse> {
+pub fn query_folder_contents<S: Storage, A: Api, Q: Querier>(deps: &Extern<S, A, Q>, address: &HumanAddr, path: String, behalf: &HumanAddr) -> StdResult<FolderContentsResponse> {
 
     let adr = address.as_str();
     let query_path = format!("{}{}",adr,&path);
 
     let f = bucket_load_readonly_folder(&deps.storage, query_path);
-    let parent = &f.parent;
 
-    Ok(FolderContentsResponse { parent: parent.to_string(), folders: f.list_folders(), files: f.list_files() })
+    if f.can_read(String::from(behalf.as_str())) {
+        let parent = &f.parent;
+
+        return Ok(FolderContentsResponse { parent: parent.to_string(), folders: f.list_folders(), files: f.list_files() });
+    }
+
+    let error_message = String::from("Error querying folder.");
+    Err(StdError::generic_err(error_message))
+
+    
 }
 
 pub fn query_big_tree<S: Storage, A: Api, Q: Querier>(
@@ -619,7 +647,7 @@ pub fn query_big_tree<S: Storage, A: Api, Q: Querier>(
 ) 
 -> StdResult<BigTreeResponse>
 {
-    let value = query_folder_contents(deps, &address, String::from("/")).unwrap();
+    let value = query_folder_contents(deps, &address, String::from("/"), &address).unwrap();
     let folders_from_root = &value.folders;
     let big_vec = scan_folders(&deps, &address, folders_from_root.to_vec(), key);
     // let data = to_string(&big_vec).unwrap();
@@ -641,7 +669,7 @@ fn scan_folders<S: Storage, A: Api, Q: Querier> (
         let proper_path = folder.replace(&owner_address, "");
 
         // calling query now
-        let value = query_folder_contents(deps, &HumanAddr(owner_address), proper_path.to_string()).unwrap();
+        let value = query_folder_contents(deps, &HumanAddr(owner_address.clone()), proper_path.to_string(),  &HumanAddr(owner_address.clone())).unwrap();
         let folders_to_scan_next = &value.folders;
         let folder_is_empty = folders_to_scan_next.is_empty();
 
