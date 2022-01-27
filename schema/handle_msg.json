@@ -187,6 +187,29 @@
           }
         }
       }
+    },
+    {
+      "type": "object",
+      "required": [
+        "allow_read"
+      ],
+      "properties": {
+        "allow_read": {
+          "type": "object",
+          "required": [
+            "address",
+            "path"
+          ],
+          "properties": {
+            "address": {
+              "type": "string"
+            },
+            "path": {
+              "type": "string"
+            }
+          }
+        }
+      }
     }
   ]
 }

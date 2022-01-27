@@ -3,6 +3,7 @@ pub mod msg;
 pub mod state;
 pub mod backend;
 pub mod ordered_set;
+pub mod nodes;
 mod viewing_key;
 mod utils;
 
