@@ -10,6 +10,7 @@ use crate::msg::{HandleMsg, InitMsg, QueryMsg, HandleAnswer};
 use crate::state::{ State, CONFIG_KEY, save, load, write_viewing_key, read_viewing_key};
 use crate::backend::{try_allow_read, query_file, query_folder_contents, try_create_folder, try_create_file, try_init, try_remove_folder, try_remove_file, try_move_folder, try_move_file, query_big_tree};
 use crate::viewing_key::{ViewingKey, VIEWING_KEY_SIZE};
+use crate::nodes::{push_node, get_node, get_node_size, set_node_size};
 
 pub fn init<S: Storage, A: Api, Q: Querier>(
     deps: &mut Extern<S, A, Q>,
@@ -23,6 +24,8 @@ pub fn init<S: Storage, A: Api, Q: Querier>(
         owner: ha.clone(),
         prng_seed: sha_256(base64::encode(msg.prng_seed).as_bytes()).to_vec(), 
     };
+
+    set_node_size(&mut deps.storage, 0);
 
     debug_print!("Contract was initialized by {}", env.message.sender);
 
@@ -45,6 +48,7 @@ pub fn handle<S: Storage, A: Api, Q: Querier>(
         HandleMsg::MoveFile { name, old_path, new_path } => try_move_file(deps, env, name, old_path, new_path),
         HandleMsg::CreateViewingKey { entropy, .. } => try_create_viewing_key(deps, env, entropy),
         HandleMsg::AllowRead { path, address } => try_allow_read(deps, env, path, address),
+        HandleMsg::InitNode {ip, address} => try_init_node(deps, env, ip, address),
 
     }
 }
@@ -54,6 +58,9 @@ pub fn query<S: Storage, A: Api, Q: Querier>(
     msg: QueryMsg,
 ) -> StdResult<Binary> {
     match msg {
+
+        QueryMsg::GetNodeIP {index} => to_binary(&try_get_ip(deps, index)?),
+        QueryMsg::GetNodeListSize {} => to_binary(&try_get_node_list_size(deps)?),
         _ => authenticated_queries(deps, msg),
     }
 }
@@ -79,11 +86,51 @@ fn authenticated_queries<S: Storage, A: Api, Q: Querier>(
                 QueryMsg::GetFile { path, address, .. } => to_binary(&query_file(deps, address, path)?),
                 QueryMsg::GetFolderContents { path, behalf, address, .. } => to_binary(&query_folder_contents(deps, &address, path, &behalf)?),
                 QueryMsg::GetBigTree { address, key, .. } =>to_binary(&query_big_tree(deps, address, key)?),
+                _ => panic!("How did this even get to this stage. It should have been processed.")
             };
         }
     }
 
     Err(StdError::unauthorized())
+}
+
+fn try_init_node<S: Storage, A: Api, Q: Querier>(
+    deps: &mut Extern<S, A, Q>,
+    env: Env,
+    ip: String,
+    address: String,
+) -> StdResult<HandleResponse> {
+
+    push_node(&mut deps.storage, ip, address);
+
+    Ok(HandleResponse {
+        messages: vec![],
+        log: vec![],
+        data: Some(to_binary("OK")?),
+    })
+}
+
+fn try_get_ip<S: Storage, A: Api, Q: Querier>(
+    deps: &Extern<S, A, Q>,
+    index: u64,
+) -> StdResult<HandleResponse> {
+
+    Ok(HandleResponse {
+        messages: vec![],
+        log: vec![],
+        data: Some(to_binary(&get_node(&deps.storage, index))?),
+    })
+}
+
+fn try_get_node_list_size<S: Storage, A: Api, Q: Querier>(
+    deps: &Extern<S, A, Q>,
+) -> StdResult<HandleResponse> {
+
+    Ok(HandleResponse {
+        messages: vec![],
+        log: vec![],
+        data: Some(to_binary(&get_node_size(&deps.storage))?),
+    })
 }
 
 fn try_create_viewing_key<S: Storage, A: Api, Q: Querier>(
@@ -149,6 +196,35 @@ mod tests {
         vk
     }
 
+    #[test]
+    fn test_node_setup() {
+
+        let mut deps = mock_dependencies(20, &coins(2, "token"));
+        let vk = init_for_test(&mut deps, String::from("anyone"));
+
+        let query_res: Binary = query(&deps, QueryMsg::GetNodeListSize {  }).unwrap();
+        let result:HandleResponse = from_binary(&query_res).unwrap();
+        let size: u64 = from_binary(&result.data.unwrap()).unwrap();
+        println!("{:#?}", &size);
+
+        let env = mock_env("anyone", &[]);
+        let msg = HandleMsg::InitNode { ip: String::from("192.168.0.1"), address: String::from("secret123456789") };
+        let _res = handle(&mut deps, env, msg).unwrap();
+
+        let query_res: Binary = query(&deps, QueryMsg::GetNodeListSize {  }).unwrap();
+        let result:HandleResponse = from_binary(&query_res).unwrap();
+        let size: u64 = from_binary(&result.data.unwrap()).unwrap();
+        println!("{:#?}", &size);
+
+
+        let s = size - 1;
+
+        let query_res: Binary = query(&deps, QueryMsg::GetNodeIP { index: (s) }).unwrap();
+        let result:HandleResponse = from_binary(&query_res).unwrap();
+        let ip:String = from_binary(&result.data.unwrap()).unwrap();
+        println!("{:#?}", &ip);
+
+    }
 
     #[test]
     fn test_big_tree() {

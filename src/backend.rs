@@ -257,7 +257,7 @@ pub fn try_create_folder<S: Storage, A: Api, Q: Querier>(
     let mut p = adr.clone();
     p.push_str(&path);
 
-    println!("{:}", p.clone());
+    // println!("{:}", p.clone());
 
     let mut l = bucket_load_folder(&mut deps.storage, p.clone());
     // println!("LOAD BUCKET before creating file: {:?}", l);

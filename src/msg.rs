@@ -23,6 +23,9 @@ pub enum HandleMsg {
     MoveFolder {name : String, old_path: String, new_path: String},
     CreateViewingKey {entropy: String, padding: Option<String>},
     AllowRead {path: String, address: String},
+    InitNode {ip: String, address: String},
+    
+
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, JsonSchema)]
@@ -31,6 +34,8 @@ pub enum QueryMsg {
     GetFile { address: HumanAddr, behalf: HumanAddr, path: String, key: String },
     GetFolderContents {address: HumanAddr, behalf: HumanAddr, path: String, key: String},
     GetBigTree {address: HumanAddr, behalf: HumanAddr, path: String, key: String},
+    GetNodeIP {index: u64},
+    GetNodeListSize {},
 }
 
 #[derive(Serialize, Deserialize, JsonSchema, Debug)]
@@ -64,7 +69,7 @@ impl QueryMsg {
             Self::GetFile { behalf, key, .. } => (vec![behalf], ViewingKey(key.clone())),
             Self::GetFolderContents { behalf, key, .. } => (vec![behalf], ViewingKey(key.clone())),
             Self::GetBigTree { behalf, key, .. } => (vec![behalf], ViewingKey(key.to_string())),
-            // _ => panic!("This query type does not require authentication"),
+            _ => panic!("This query type does not require authentication"),
         }
     }
 }
