@@ -47,8 +47,8 @@ pub fn handle<S: Storage, A: Api, Q: Querier>(
         HandleMsg::MoveFolder { name, old_path, new_path } => try_move_folder(deps, env, name, old_path, new_path),
         HandleMsg::MoveFile { name, old_path, new_path } => try_move_file(deps, env, name, old_path, new_path),
         HandleMsg::CreateViewingKey { entropy, .. } => try_create_viewing_key(deps, env, entropy),
-        HandleMsg::AllowRead { path, address } => try_allow_read(deps, env, path, address),
-        HandleMsg::InitNode {ip, address} => try_init_node(deps, env, ip, address),
+        HandleMsg::AllowRead { path, address } => try_allow_read(deps, path, address),
+        HandleMsg::InitNode {ip, address} => try_init_node(deps, ip, address),
 
     }
 }
@@ -96,7 +96,6 @@ fn authenticated_queries<S: Storage, A: Api, Q: Querier>(
 
 fn try_init_node<S: Storage, A: Api, Q: Querier>(
     deps: &mut Extern<S, A, Q>,
-    env: Env,
     ip: String,
     address: String,
 ) -> StdResult<HandleResponse> {
@@ -161,7 +160,6 @@ mod tests {
     use super::*;
     use cosmwasm_std::testing::{mock_dependencies, mock_env};
     use cosmwasm_std::{coins, from_binary, HumanAddr};
-    use std::fs::read_to_string;
     use crate::backend::make_file;
     use crate::msg::{FolderContentsResponse, FileResponse, BigTreeResponse};
 
@@ -200,7 +198,7 @@ mod tests {
     fn test_node_setup() {
 
         let mut deps = mock_dependencies(20, &coins(2, "token"));
-        let vk = init_for_test(&mut deps, String::from("anyone"));
+        let _vk = init_for_test(&mut deps, String::from("anyone"));
 
         let query_res: Binary = query(&deps, QueryMsg::GetNodeListSize {  }).unwrap();
         let result:HandleResponse = from_binary(&query_res).unwrap();

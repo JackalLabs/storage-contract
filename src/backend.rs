@@ -226,7 +226,6 @@ pub fn try_remove_folder<S: Storage, A: Api, Q: Querier>(
 
 pub fn try_allow_read<S: Storage, A: Api, Q: Querier>(
     deps: &mut Extern<S, A, Q>,
-    env: Env,
     path: String,
     address: String,
 ) -> StdResult<HandleResponse> {
