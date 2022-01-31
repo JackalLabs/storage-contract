@@ -478,7 +478,23 @@ mod tests {
         let msg = HandleMsg::CreateFolder { name: String::from("u_cant_see_this_folder"), path: String::from("/") };
         let _res = handle(&mut deps, env, msg).unwrap();
 
+        let env = mock_env("anyone", &coins(2, "token"));
+        let msg = HandleMsg::CreateFolder { name: String::from("inside_folder"), path: String::from("/u_cant_see_this_folder/") };
+        let _res = handle(&mut deps, env, msg).unwrap();
+
+        let env = mock_env("anyone", &coins(2, "token"));
+        let msg = HandleMsg::CreateFolder { name: String::from("inside_folder_brother"), path: String::from("/u_cant_see_this_folder/") };
+        let _res = handle(&mut deps, env, msg).unwrap();
+
+        let env = mock_env("anyone", &coins(2, "token"));
+        let msg = HandleMsg::CreateFolder { name: String::from("inside_folder2"), path: String::from("/u_cant_see_this_folder/inside_folder/") };
+        let _res = handle(&mut deps, env, msg).unwrap();
+
         let res = query(&deps, QueryMsg::GetFolderContents { address: HumanAddr("anyone".to_string()), path: String::from("/"), behalf: HumanAddr("anyone".to_string()), key: vk.to_string() }).unwrap();
+        let value: FolderContentsResponse = from_binary(&res).unwrap();
+        println!("Folder Content before removal: {:?}", &value);
+
+        let res = query(&deps, QueryMsg::GetFolderContents { address: HumanAddr("anyone".to_string()), path: String::from("/u_cant_see_this_folder/"), behalf: HumanAddr("anyone".to_string()), key: vk.to_string() }).unwrap();
         let value: FolderContentsResponse = from_binary(&res).unwrap();
         println!("Folder Content before removal: {:?}", &value);
 
@@ -486,6 +502,9 @@ mod tests {
         let env = mock_env("anyone", &coins(2, "token"));
         let msg = HandleMsg::RemoveFolder { name: String::from("u_cant_see_this_folder"), path: String::from("/") };
         let _res = handle(&mut deps, env, msg).unwrap();
+
+        // let res = query(&deps, QueryMsg::GetFolderContents { address: HumanAddr("anyone".to_string()), path: String::from("/u_cant_see_this_folder/inside_folder/"), behalf: HumanAddr("anyone".to_string()), key: vk.to_string() });
+        // assert!(res.is_err() == true);
 
         let res = query(&deps, QueryMsg::GetFolderContents { address: HumanAddr("anyone".to_string()), path: String::from("/"), behalf: HumanAddr("anyone".to_string()), key: vk.to_string() }).unwrap();
         let value: FolderContentsResponse = from_binary(&res).unwrap();

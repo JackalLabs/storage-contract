@@ -187,7 +187,7 @@ pub fn try_move_folder<S: Storage, A: Api, Q: Querier>(
     Ok(HandleResponse::default())
 }
 
-pub fn try_remove_folder<S: Storage, A: Api, Q: Querier>(
+pub fn try_remove_folder<S: Storage, A: Api, Q: Querier>( // TODO: change this to accept people who have write permissions for the folder not just the account.
     deps: &mut Extern<S, A, Q>,
     env: Env,
     name: String,
@@ -196,16 +196,12 @@ pub fn try_remove_folder<S: Storage, A: Api, Q: Querier>(
 
     let ha = deps.api.human_address(&deps.api.canonical_address(&env.message.sender)?)?;
 
-    debug_print!("Attempting to remove folder for account: {}", ha.clone());
 
     let adr = String::from(ha.clone().as_str());
 
     let parent_path = format!("{}{}", adr, path);
 
     let child_path = format!("{}{}{}/",adr, path, name);
-
-    // println!("parent_path from backend: {}", parent_path);
-    // println!("child_path from backend: {}", child_path);
 
     // Load PARENT FOLDER from bucket
     let mut load_from_bucket = bucket_load_folder(&mut deps.storage, parent_path.clone());
@@ -218,10 +214,52 @@ pub fn try_remove_folder<S: Storage, A: Api, Q: Querier>(
     // SAVE new ver of PARENT FOLDER to bucket
     bucket_save_folder(&mut deps.storage, parent_path, load_from_bucket);
 
+
     // REMOVE CHILD FOLDER from bucket
-    bucket_remove_folder(&mut deps.storage, child_path);
+    remove_children_from_folder(&mut deps.storage, child_path);
 
     Ok(HandleResponse::default())
+}
+
+fn remove_children_from_folder<'a, S: Storage>(store: &'a mut S, path: String) {
+
+    let mop = bucket_load_readonly_folder(store, path.clone());
+
+    match mop {
+        Ok(top) => {
+            let y = top.child_folder_names.unwrap();
+
+        
+            if y.len() > 0 {
+        
+                let iter = y.iter();
+        
+                for val in iter {
+                    let k = val.to_string(); 
+                    remove_children_from_folder(store, k) 
+                }
+            }
+        
+        
+        
+            // let _m = .map(|x| { 
+                
+            // });
+        
+            remove_folder_by_path(store, path);
+        },
+
+        Err(err) => {
+            return;
+        }
+    }
+
+    
+
+}
+
+fn remove_folder_by_path<'a, S: Storage>(store: &'a mut S, path: String) {
+    bucket_remove_folder(store, path);
 }
 
 pub fn try_allow_read<S: Storage, A: Api, Q: Querier>(
@@ -341,8 +379,8 @@ pub fn bucket_load_folder<'a, S: Storage>( store: &'a mut S, path: String) -> Fo
     bucket(FOLDER_LOCATION, store).load(&path.as_bytes()).unwrap()
 }
 
-pub fn bucket_load_readonly_folder<'a, S: Storage>( store: &'a S, path: String) -> Folder{
-    bucket_read(FOLDER_LOCATION, store).load(&path.as_bytes()).unwrap()
+pub fn bucket_load_readonly_folder<'a, S: Storage>( store: &'a S, path: String) -> Result<Folder, StdError>{
+    bucket_read(FOLDER_LOCATION, store).load(&path.as_bytes())
 
 }
 
@@ -626,15 +664,27 @@ pub fn query_folder_contents<S: Storage, A: Api, Q: Querier>(deps: &Extern<S, A,
     let query_path = format!("{}{}",adr,&path);
 
     let f = bucket_load_readonly_folder(&deps.storage, query_path);
+    let error_message = String::from("Error querying folder.");
 
-    if f.can_read(String::from(behalf.as_str())) {
-        let parent = &f.parent;
+    match f {
+        Ok(f1) => {
+            if f1.can_read(String::from(behalf.as_str())) {
+                let parent = &f1.parent;
+        
+                return Ok(FolderContentsResponse { parent: parent.to_string(), folders: f1.list_folders(), files: f1.list_files() });
+            }
 
-        return Ok(FolderContentsResponse { parent: parent.to_string(), folders: f.list_folders(), files: f.list_files() });
+            return Err(StdError::generic_err(error_message))
+        },
+
+        Err(err) => {
+            return Err(StdError::generic_err(error_message))
+        }
     }
 
-    let error_message = String::from("Error querying folder.");
-    Err(StdError::generic_err(error_message))
+    
+
+    
 
     
 }

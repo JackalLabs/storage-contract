@@ -1,6 +1,7 @@
-use schemars::JsonSchema;
+use schemars::{JsonSchema, _serde_json::map::Iter};
 use serde::{Deserialize, Serialize};
 use std::slice::SliceIndex;
+use std::ops::Deref;
 
 #[derive(Serialize, Deserialize, JsonSchema, Debug, Clone, PartialEq)]
 pub struct OrderedSet<T> {
@@ -10,6 +11,7 @@ pub struct OrderedSet<T> {
 
 
 impl<T: PartialEq + Sized> OrderedSet<T> {
+
     #[must_use]
     pub fn new() -> Self {
         OrderedSet { data: Vec::new() }
@@ -49,5 +51,12 @@ impl<T: PartialEq + Sized> OrderedSet<T> {
             self.data.remove(index);
         }
     }
+
+    pub fn unwrap(&self) -> &Vec<T> {
+        &self.data
+    }
 }
+
+
+
 
