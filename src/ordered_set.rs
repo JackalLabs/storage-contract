@@ -1,7 +1,6 @@
-use schemars::{JsonSchema, _serde_json::map::Iter};
+use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use std::slice::SliceIndex;
-use std::ops::Deref;
 
 #[derive(Serialize, Deserialize, JsonSchema, Debug, Clone, PartialEq)]
 pub struct OrderedSet<T> {

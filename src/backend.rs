@@ -228,7 +228,6 @@ fn remove_children_from_folder<'a, S: Storage>(store: &'a mut S, path: String) {
     match mop {
         Ok(top) => {
             let y = top.child_folder_names.unwrap();
-
         
             if y.len() > 0 {
         
@@ -240,16 +239,10 @@ fn remove_children_from_folder<'a, S: Storage>(store: &'a mut S, path: String) {
                 }
             }
         
-        
-        
-            // let _m = .map(|x| { 
-                
-            // });
-        
             remove_folder_by_path(store, path);
         },
 
-        Err(err) => {
+        Err(_err) => {
             return;
         }
     }
@@ -664,7 +657,6 @@ pub fn query_folder_contents<S: Storage, A: Api, Q: Querier>(deps: &Extern<S, A,
     let query_path = format!("{}{}",adr,&path);
 
     let f = bucket_load_readonly_folder(&deps.storage, query_path);
-    let error_message = String::from("Error querying folder.");
 
     match f {
         Ok(f1) => {
@@ -674,18 +666,15 @@ pub fn query_folder_contents<S: Storage, A: Api, Q: Querier>(deps: &Extern<S, A,
                 return Ok(FolderContentsResponse { parent: parent.to_string(), folders: f1.list_folders(), files: f1.list_files() });
             }
 
+            let error_message = String::from("Sorry bud! Unauthorized to read folder.");
             return Err(StdError::generic_err(error_message))
         },
 
-        Err(err) => {
+        Err(_err) => {
+            let error_message = String::from("Error querying folder.");
             return Err(StdError::generic_err(error_message))
         }
     }
-
-    
-
-    
-
     
 }
 
