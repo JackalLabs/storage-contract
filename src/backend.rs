@@ -1,3 +1,5 @@
+use std::vec;
+
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use cosmwasm_std::{debug_print,Env, Api, Querier, ReadonlyStorage, Storage, StdResult, StdError, Extern, HandleResponse, HumanAddr};
@@ -275,7 +277,6 @@ pub fn try_allow_read<S: Storage, A: Api, Q: Querier>(
     path: String,
     address: String,
 ) -> StdResult<HandleResponse> {
-
 
     let mut f = bucket_load_folder(&mut deps.storage, String::from(&path));
 
@@ -721,9 +722,8 @@ pub fn query_big_tree<S: Storage, A: Api, Q: Querier>(
     let value = query_folder_contents(deps, &address, String::from("/"), &address).unwrap();
     let folders_from_root = &value.folders;
     let big_vec = scan_folders(&deps, &address, folders_from_root.to_vec(), key);
-    // let data = to_string(&big_vec).unwrap();
 
-    Ok(BigTreeResponse{ data:big_vec })
+    Ok(BigTreeResponse{ folders: big_vec.0, files: big_vec.1 })
 }
 
 
@@ -732,20 +732,26 @@ fn scan_folders<S: Storage, A: Api, Q: Querier> (
     address: &HumanAddr,
     folders_to_scan: Vec<String>,
     vk: String,
-) -> Vec<String> {
-    let mut temp_vec = vec![]; 
+) -> (Vec<String>, Vec<String>) {
+    let mut temp_vec = vec![];
+    let mut files_vec = vec![]; 
     for folder in folders_to_scan {
+
         // get proper path 
         let owner_address = address.to_string();
         let proper_path = folder.replace(&owner_address, "");
 
-        // calling query now
+        // calling query to get folders
         let value = query_folder_contents(deps, &HumanAddr(owner_address.clone()), proper_path.to_string(),  &HumanAddr(owner_address.clone())).unwrap();
         let folders_to_scan_next = &value.folders;
         let folder_is_empty = folders_to_scan_next.is_empty();
+        
+        // Getting Files
+        let files_in_here = value.files;
+        for each in files_in_here {
+            files_vec.push(each);
+        }
 
-        // let mut hashie: HashMap<String, Vec<String>> = HashMap::new();
-        // hashie.insert((&folder).to_string(), (&folders_to_scan_next).to_vec());
         let hashie = format!("{}:{:?}",folder, folders_to_scan_next);
 
         let _ = &temp_vec.push(hashie);
@@ -753,12 +759,17 @@ fn scan_folders<S: Storage, A: Api, Q: Querier> (
         if !folder_is_empty{
             // continue loop
             let this = scan_folders(deps, address, folders_to_scan_next.to_vec(), vk.clone());
-            for each in this {
-                let _ = &temp_vec.push(each);
+            for each_folder in this.0 {
+                let _ = &temp_vec.push(each_folder);
+            }
+            
+            for each_file in this.1{
+                let _ = &files_vec.push(each_file);
             }
         }
+
     }
-     temp_vec
+     (temp_vec, files_vec)
 }
 
 // MISC.

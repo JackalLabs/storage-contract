@@ -60,7 +60,8 @@ pub struct FolderContentsResponse {
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 pub struct BigTreeResponse {
-    pub data: Vec<String>,
+    pub folders: Vec<String>,
+    pub files: Vec<String>,
 }
 
 impl QueryMsg {

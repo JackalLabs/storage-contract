@@ -164,7 +164,8 @@ mod tests {
     use crate::msg::{FolderContentsResponse, FileResponse, BigTreeResponse};
 
     fn init_for_test<S: Storage, A: Api, Q: Querier> (
-        deps: &mut Extern<S, A, Q>, address:String,
+        deps: &mut Extern<S, A, Q>,
+        address:String,
     ) -> ViewingKey {
 
         // Init Contract
@@ -229,7 +230,7 @@ mod tests {
         let mut deps = mock_dependencies(20, &coins(2, "token"));
         let vk = init_for_test(&mut deps, String::from("anyone"));
 
-        // Create Folders
+        // Create Folders & Files
         let env = mock_env("anyone", &[]);
         let msg = HandleMsg::CreateFolder { name: String::from("a"), path: String::from("/") };
         let _res = handle(&mut deps, env, msg).unwrap();
@@ -247,7 +248,15 @@ mod tests {
         let _res = handle(&mut deps, env, msg).unwrap();
 
         let env = mock_env("anyone", &[]);
+        let msg = HandleMsg::CreateFile { name: String::from("file_in_a"), path: String::from("/a/"), contents: String::from("<content here>") };
+        let _res = handle(&mut deps, env, msg).unwrap();
+
+        let env = mock_env("anyone", &[]);
         let msg = HandleMsg::CreateFolder { name: String::from("c"), path: String::from("/a/b/") };
+        let _res = handle(&mut deps, env, msg).unwrap();
+        
+        let env = mock_env("anyone", &[]);
+        let msg = HandleMsg::CreateFile { name: String::from("file_in_b"), path: String::from("/a/b/"), contents: String::from("<content here>") };
         let _res = handle(&mut deps, env, msg).unwrap();
         
         let env = mock_env("anyone", &[]);
@@ -259,13 +268,25 @@ mod tests {
         let _res = handle(&mut deps, env, msg).unwrap();
 
         let env = mock_env("anyone", &[]);
+        let msg = HandleMsg::CreateFile { name: String::from("file_in_c"), path: String::from("/a/b/c/"), contents: String::from("<content here>") };
+        let _res = handle(&mut deps, env, msg).unwrap();
+
+        let env = mock_env("anyone", &[]);
+        let msg = HandleMsg::CreateFile { name: String::from("file2_in_c"), path: String::from("/a/b/c/"), contents: String::from("<content here>") };
+        let _res = handle(&mut deps, env, msg).unwrap();
+
+        let env = mock_env("anyone", &[]);
         let msg = HandleMsg::CreateFolder { name: String::from("f"), path: String::from("/a/b/c/e/") };
+        let _res = handle(&mut deps, env, msg).unwrap();
+
+        let env = mock_env("anyone", &[]);
+        let msg = HandleMsg::CreateFile { name: String::from("file_in_e"), path: String::from("/a/b/c/e/"), contents: String::from("<content here>") };
         let _res = handle(&mut deps, env, msg).unwrap();
 
         //Query Big Tree
         let query_res = query(&deps, QueryMsg::GetBigTree { address: HumanAddr("anyone".to_string()), path: String::from("/"), behalf: HumanAddr("anyone".to_string()), key: vk.to_string() }).unwrap();
         let result:BigTreeResponse = from_binary(&query_res).unwrap();
-        println!("{:#?}", &result.data);
+        println!("{:#?}", &result);
 
     }
 
@@ -496,11 +517,11 @@ mod tests {
         // Query Before
         let res = query(&deps, QueryMsg::GetFolderContents { address: HumanAddr("anyone".to_string()), path: String::from("/"), behalf: HumanAddr("anyone".to_string()), key: vk.to_string() }).unwrap();
         let value: FolderContentsResponse = from_binary(&res).unwrap();
-        // println!("Root Folder content before removal: {:#?}", &value);
+        println!("Root Folder content before removal: {:#?}", &value);
 
         let res = query(&deps, QueryMsg::GetFolderContents { address: HumanAddr("anyone".to_string()), path: String::from("/layer_1/layer_2/"), behalf: HumanAddr("anyone".to_string()), key: vk.to_string() }).unwrap();
         let value: FolderContentsResponse = from_binary(&res).unwrap();
-        // println!("Layer_2 content before removal: {:#?}", &value);
+        println!("Layer_2 content before removal: {:#?}", &value);
 
         // Remove Folder
         let env = mock_env("anyone", &coins(2, "token"));
