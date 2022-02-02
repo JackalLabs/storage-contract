@@ -469,47 +469,60 @@ mod tests {
 
         // Create Folder
         let env = mock_env("anyone", &coins(2, "token"));
-        let msg = HandleMsg::CreateFolder { name: String::from("new_folder"), path: String::from("/") };
+        let msg = HandleMsg::CreateFolder { name: String::from("layer_1"), path: String::from("/") };
         let _res = handle(&mut deps, env, msg).unwrap();
 
         let env = mock_env("anyone", &coins(2, "token"));
-        let msg = HandleMsg::CreateFolder { name: String::from("u_cant_see_this_folder"), path: String::from("/") };
+        let msg = HandleMsg::CreateFolder { name: String::from("layer_2"), path: String::from("/layer_1/") };
         let _res = handle(&mut deps, env, msg).unwrap();
 
         let env = mock_env("anyone", &coins(2, "token"));
-        let msg = HandleMsg::CreateFolder { name: String::from("inside_folder"), path: String::from("/u_cant_see_this_folder/") };
+        let msg = HandleMsg::CreateFolder { name: String::from("second_layer_2"), path: String::from("/layer_1/") };
         let _res = handle(&mut deps, env, msg).unwrap();
 
         let env = mock_env("anyone", &coins(2, "token"));
-        let msg = HandleMsg::CreateFolder { name: String::from("inside_folder_brother"), path: String::from("/u_cant_see_this_folder/") };
+        let msg = HandleMsg::CreateFolder { name: String::from("layer_3"), path: String::from("/layer_1/layer_2/") };
         let _res = handle(&mut deps, env, msg).unwrap();
 
-        let env = mock_env("anyone", &coins(2, "token"));
-        let msg = HandleMsg::CreateFolder { name: String::from("inside_folder2"), path: String::from("/u_cant_see_this_folder/inside_folder/") };
+        // Create 2 File
+        let env = mock_env("anyone", &[]);
+        let msg = HandleMsg::CreateFile { name: String::from("pepe.jpeg"), contents: String::from("I'm sad"), path: String::from("/layer_1/") };
         let _res = handle(&mut deps, env, msg).unwrap();
 
+        let env = mock_env("anyone", &[]);
+        let msg = HandleMsg::CreateFile { name: String::from("nuggie.jpeg"), contents: String::from("I'm nuggie"), path: String::from("/layer_1/layer_2/") };
+        let _res = handle(&mut deps, env, msg).unwrap();
+
+        // Query Before
         let res = query(&deps, QueryMsg::GetFolderContents { address: HumanAddr("anyone".to_string()), path: String::from("/"), behalf: HumanAddr("anyone".to_string()), key: vk.to_string() }).unwrap();
         let value: FolderContentsResponse = from_binary(&res).unwrap();
-        println!("Folder Content before removal: {:?}", &value);
+        // println!("Root Folder content before removal: {:#?}", &value);
 
-        let res = query(&deps, QueryMsg::GetFolderContents { address: HumanAddr("anyone".to_string()), path: String::from("/u_cant_see_this_folder/"), behalf: HumanAddr("anyone".to_string()), key: vk.to_string() }).unwrap();
+        let res = query(&deps, QueryMsg::GetFolderContents { address: HumanAddr("anyone".to_string()), path: String::from("/layer_1/layer_2/"), behalf: HumanAddr("anyone".to_string()), key: vk.to_string() }).unwrap();
         let value: FolderContentsResponse = from_binary(&res).unwrap();
-        println!("Folder Content before removal: {:?}", &value);
+        // println!("Layer_2 content before removal: {:#?}", &value);
 
         // Remove Folder
         let env = mock_env("anyone", &coins(2, "token"));
-        let msg = HandleMsg::RemoveFolder { name: String::from("u_cant_see_this_folder"), path: String::from("/") };
+        let msg = HandleMsg::RemoveFolder { name: String::from("layer_1"), path: String::from("/") };
         let _res = handle(&mut deps, env, msg).unwrap();
 
-        // let res = query(&deps, QueryMsg::GetFolderContents { address: HumanAddr("anyone".to_string()), path: String::from("/u_cant_see_this_folder/inside_folder/"), behalf: HumanAddr("anyone".to_string()), key: vk.to_string() });
-        // assert!(res.is_err() == true);
+        // Query After
+        let res = query(&deps, QueryMsg::GetFolderContents { address: HumanAddr("anyone".to_string()), path: String::from("/layer_1/layer_2/"), behalf: HumanAddr("anyone".to_string()), key: vk.to_string() });
+        assert!(res.is_err() == true);
 
         let res = query(&deps, QueryMsg::GetFolderContents { address: HumanAddr("anyone".to_string()), path: String::from("/"), behalf: HumanAddr("anyone".to_string()), key: vk.to_string() }).unwrap();
         let value: FolderContentsResponse = from_binary(&res).unwrap();
-        assert_eq!(value.folders, vec!["anyone/new_folder/"]);
+        println!("Root folder Content after removal: {:?}", &value);
 
-        println!("Folder Content after removal: {:?}", &value);
+        // Query File that should fail
+        let res = query(&deps, QueryMsg::GetFile { address: HumanAddr("anyone".to_string()), path: String::from("/layer_1/pepe.jpeg"), behalf: HumanAddr("anyone".to_string()), key: vk.to_string() });
+        assert!(res.is_err() == true);
+        // println!("Get pepe.jpeg: {:#?}", res);
 
+        let res = query(&deps, QueryMsg::GetFile { address: HumanAddr("anyone".to_string()), path: String::from("/layer_1/layer_2/nuggie.jpeg"), behalf: HumanAddr("anyone".to_string()), key: vk.to_string() });
+        assert!(res.is_err() == true);
+        // println!("Get nuggie.jpeg: {:#?}", res);
     }
 
     #[test]

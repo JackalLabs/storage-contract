@@ -51,7 +51,7 @@ impl<T: PartialEq + Sized> OrderedSet<T> {
         }
     }
 
-    pub fn unwrap(&self) -> &Vec<T> {
+    pub fn to_vec(&self) -> &Vec<T> {
         &self.data
     }
 }

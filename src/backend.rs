@@ -201,7 +201,8 @@ pub fn try_remove_folder<S: Storage, A: Api, Q: Querier>( // TODO: change this t
 
     let parent_path = format!("{}{}", adr, path);
 
-    let child_path = format!("{}{}{}/",adr, path, name);
+    let child_path = format!("{}{}{}/",adr, path, name); // "anyone/layer_1/"
+    
 
     // Load PARENT FOLDER from bucket
     let mut load_from_bucket = bucket_load_folder(&mut deps.storage, parent_path.clone());
@@ -221,21 +222,35 @@ pub fn try_remove_folder<S: Storage, A: Api, Q: Querier>( // TODO: change this t
     Ok(HandleResponse::default())
 }
 
+/** 
+ This function will remove ALL folders and files within the target path
+*/
 fn remove_children_from_folder<'a, S: Storage>(store: &'a mut S, path: String) {
 
     let mop = bucket_load_readonly_folder(store, path.clone());
-
+    
     match mop {
         Ok(top) => {
-            let y = top.child_folder_names.unwrap();
-        
-            if y.len() > 0 {
-        
-                let iter = y.iter();
-        
+            let folders_found = top.child_folder_names.to_vec();
+            let files_found = top.files.to_vec();
+            
+            // Remove folders loop
+            if folders_found.len() > 0 {
+                let iter = folders_found.iter();
+                
                 for val in iter {
                     let k = val.to_string(); 
                     remove_children_from_folder(store, k) 
+                }
+            }
+            
+            // Remove files within this folder
+            if files_found.len() > 0 {
+                let iter = files_found.iter();
+                
+                for val in iter {
+                    let file_path = val.to_string(); 
+                    bucket_remove_file(store, file_path);
                 }
             }
         
@@ -636,8 +651,8 @@ pub fn bucket_load_file<'a, S: Storage>( store: &'a mut S, path: String) -> File
 //     };
 // }
 
-pub fn bucket_load_readonly_file<'a, S: Storage>( store: &'a S, path: String ) -> File{
-    bucket_read(FILE_LOCATION, store).load(&path.as_bytes()).unwrap()
+pub fn bucket_load_readonly_file<'a, S: Storage>( store: &'a S, path: String ) -> Result<File, StdError>{
+    bucket_read(FILE_LOCATION, store).load(&path.as_bytes())
 }
 
 // QueryMsg
@@ -648,7 +663,25 @@ pub fn query_file<S: Storage, A: Api, Q: Querier>(deps: &Extern<S, A, Q>, addres
 
     let f = bucket_load_readonly_file(&deps.storage, query_path);
 
-    Ok(FileResponse { file: f })
+    match f {
+        Ok(f1) => {
+            //TODO: add permission for files
+
+            // if f1.can_read(String::from(behalf.as_str())) {
+            //     let parent = &f1.parent;
+            Ok(FileResponse { file: f1 })
+
+            // let error_message = String::from("Sorry bud! Unauthorized to read file.");
+            // return Err(StdError::generic_err(error_message))
+        },
+
+        Err(_err) => {
+            let error_message = String::from("Error querying file.");
+            return Err(StdError::generic_err(error_message))
+        }
+    }
+
+    
 }
 
 pub fn query_folder_contents<S: Storage, A: Api, Q: Querier>(deps: &Extern<S, A, Q>, address: &HumanAddr, path: String, behalf: &HumanAddr) -> StdResult<FolderContentsResponse> {
