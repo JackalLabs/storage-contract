@@ -274,17 +274,34 @@ fn remove_folder_by_path<'a, S: Storage>(store: &'a mut S, path: String) {
 
 pub fn try_allow_read<S: Storage, A: Api, Q: Querier>(
     deps: &mut Extern<S, A, Q>,
+    env: Env,
     path: String,
     address: String,
 ) -> StdResult<HandleResponse> {
+    let owner_address = deps.api.human_address(&deps.api.canonical_address(&env.message.sender)?)?.to_string();
 
-    let mut f = bucket_load_folder(&mut deps.storage, String::from(&path));
+    let mut proper_path = owner_address.clone();
+    proper_path.push_str(&path);
 
-    f.allow_read(address);
+    let last_char = &proper_path.chars().last().unwrap();
 
-    bucket_save_folder(&mut deps.storage, String::from(&path), f);
+    if *last_char == '/'{
+        let mut f = bucket_load_folder(&mut deps.storage, String::from(&proper_path));
+    
+        f.allow_read(address);
+    
+        bucket_save_folder(&mut deps.storage, String::from(&proper_path), f);
 
-    Ok(HandleResponse::default())
+        Ok(HandleResponse::default())
+
+    } else {
+        let mut f = bucket_load_file(&mut deps.storage, &proper_path);
+
+        f.allow_read(address);
+
+        bucket_save_file(&mut deps.storage, proper_path, f);
+        Ok(HandleResponse::default())
+    }
 }
 
 
@@ -508,7 +525,7 @@ pub fn try_move_file<S: Storage, A: Api, Q: Querier>(
     let adr = String::from(ha.clone().as_str());
     let old_file_path = format!("{}{}{}",adr, old_path, name);
 
-    let duplicated_contents = bucket_load_file(&mut deps.storage, old_file_path).contents;
+    let duplicated_contents = bucket_load_file(&mut deps.storage, &old_file_path).contents;
 
     try_create_file(deps, env.clone(), name.clone(), duplicated_contents, new_path)?;
     try_remove_file(deps, env, name, old_path)?;
@@ -638,7 +655,7 @@ pub fn file_exists<'a, S: Storage>( store: &'a mut S, path: String) -> bool{
     };
 }
 
-pub fn bucket_load_file<'a, S: Storage>( store: &'a mut S, path: String) -> File{
+pub fn bucket_load_file<'a, S: Storage>( store: &'a mut S, path: &String) -> File{
     bucket(FILE_LOCATION, store).load(&path.as_bytes()).unwrap()
 }
 
@@ -657,7 +674,7 @@ pub fn bucket_load_readonly_file<'a, S: Storage>( store: &'a S, path: String ) -
 }
 
 // QueryMsg
-pub fn query_file<S: Storage, A: Api, Q: Querier>(deps: &Extern<S, A, Q>, address: HumanAddr, path: String) -> StdResult<FileResponse> {
+pub fn query_file<S: Storage, A: Api, Q: Querier>(deps: &Extern<S, A, Q>, address: HumanAddr, path: String, behalf: &HumanAddr) -> StdResult<FileResponse> {
 
     let adr = address.as_str();
     let query_path = format!("{}{}",adr,&path);
@@ -666,14 +683,13 @@ pub fn query_file<S: Storage, A: Api, Q: Querier>(deps: &Extern<S, A, Q>, addres
 
     match f {
         Ok(f1) => {
-            //TODO: add permission for files
 
-            // if f1.can_read(String::from(behalf.as_str())) {
-            //     let parent = &f1.parent;
-            Ok(FileResponse { file: f1 })
+            if f1.can_read(String::from(behalf.as_str())) {
+                return Ok(FileResponse { file: f1 });
+            }
 
-            // let error_message = String::from("Sorry bud! Unauthorized to read file.");
-            // return Err(StdError::generic_err(error_message))
+            let error_message = String::from("Sorry bud! Unauthorized to read file.");
+            return Err(StdError::generic_err(error_message))
         },
 
         Err(_err) => {

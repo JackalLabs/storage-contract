@@ -47,7 +47,7 @@ pub fn handle<S: Storage, A: Api, Q: Querier>(
         HandleMsg::MoveFolder { name, old_path, new_path } => try_move_folder(deps, env, name, old_path, new_path),
         HandleMsg::MoveFile { name, old_path, new_path } => try_move_file(deps, env, name, old_path, new_path),
         HandleMsg::CreateViewingKey { entropy, .. } => try_create_viewing_key(deps, env, entropy),
-        HandleMsg::AllowRead { path, address } => try_allow_read(deps, path, address),
+        HandleMsg::AllowRead { path, address } => try_allow_read(deps, env, path, address),
         HandleMsg::InitNode {ip, address} => try_init_node(deps, ip, address),
 
     }
@@ -83,7 +83,7 @@ fn authenticated_queries<S: Storage, A: Api, Q: Querier>(
         } else if key.check_viewing_key(expected_key.unwrap().as_slice()) {
 
             return match msg {
-                QueryMsg::GetFile { path, address, .. } => to_binary(&query_file(deps, address, path)?),
+                QueryMsg::GetFile { path, address, behalf, .. } => to_binary(&query_file(deps, address, path, &behalf)?),
                 QueryMsg::GetFolderContents { path, behalf, address, .. } => to_binary(&query_folder_contents(deps, &address, path, &behalf)?),
                 QueryMsg::GetBigTree { address, key, .. } =>to_binary(&query_big_tree(deps, address, key)?),
                 _ => panic!("How did this even get to this stage. It should have been processed.")
@@ -335,6 +335,39 @@ mod tests {
     }
 
     #[test]
+    fn permission_test() {
+        let mut deps = mock_dependencies(20, &[]);
+        let _vk = init_for_test(&mut deps, String::from("nugget"));
+        let vk_alice = init_for_test(&mut deps, String::from("alice"));
+
+        // Create Folder and File
+        let env = mock_env("nugget", &[]);
+        let msg = HandleMsg::CreateFolder { name: String::from("a"), path: String::from("/") };
+        let _res = handle(&mut deps, env, msg).unwrap();
+
+        let env = mock_env("nugget", &[]);
+        let msg = HandleMsg::CreateFile { name: String::from("big_nuggz.txt"), path: String::from("/a/"), contents: String::from("shrimp") };
+        let _res = handle(&mut deps, env, msg).unwrap();
+
+        // AllowRead File
+        let env = mock_env("nugget", &[]);
+        let msg = HandleMsg::AllowRead { path: String::from("/a/big_nuggz.txt"), address: String::from("alice") };
+        let _res = handle(&mut deps, env, msg).unwrap();
+        
+        // AllowRead Folder
+        let env = mock_env("nugget", &[]);
+        let msg = HandleMsg::AllowRead { path: String::from("/a/"), address: String::from("alice") };
+        let _res = handle(&mut deps, env, msg).unwrap();
+
+        // Query
+        let query_res = query(&deps, QueryMsg::GetFile { address: HumanAddr("nugget".to_string()), path: String::from("/a/big_nuggz.txt"), behalf: HumanAddr("alice".to_string()), key: vk_alice.to_string() }).unwrap();
+        let value: FileResponse = from_binary(&query_res).unwrap();
+        println!("Query nugget's Root by alice: {:#?}", value);
+
+
+    }
+
+    #[test]
     fn make_folder_with_vk_test() {
         let mut deps = mock_dependencies(20, &[]);
 
@@ -385,7 +418,7 @@ mod tests {
         assert!(query_res.is_err() == true);
 
         let env = mock_env("anyone", &[]);
-        let msg = HandleMsg::AllowRead { path: String::from("anyone/a/b/c/"), address: String::from("alice") };
+        let msg = HandleMsg::AllowRead { path: String::from("/a/b/c/"), address: String::from("alice") };
         let _res = handle(&mut deps, env, msg).unwrap();
 
         let env = mock_env("alice", &[]);
