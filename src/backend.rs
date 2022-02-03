@@ -149,6 +149,26 @@ impl Folder {
         true
     }
 
+    pub fn disallow_read(&mut self, address:String) -> bool {
+        if self.owner.eq(&address) {
+            return false;
+        }
+
+        self.allow_read_list.remove(address);
+
+        return true;
+    }
+
+    pub fn disallow_write(&mut self, address:String) -> bool {
+        if self.owner.eq(&address) {
+            return false;
+        }
+
+        self.allow_write_list.remove(address);
+
+        true
+    }
+
     pub fn make_public(&mut self) -> bool {
         self.public = true;
         true
@@ -264,8 +284,6 @@ fn remove_children_from_folder<'a, S: Storage>(store: &'a mut S, path: String) {
         }
     }
 
-    
-
 }
 
 fn remove_folder_by_path<'a, S: Storage>(store: &'a mut S, path: String) {
@@ -298,6 +316,38 @@ pub fn try_allow_read<S: Storage, A: Api, Q: Querier>(
         let mut f = bucket_load_file(&mut deps.storage, &proper_path);
 
         f.allow_read(address);
+
+        bucket_save_file(&mut deps.storage, proper_path, f);
+        Ok(HandleResponse::default())
+    }
+}
+
+pub fn try_disallow_read<S: Storage, A: Api, Q: Querier>(
+    deps: &mut Extern<S, A, Q>,
+    env: Env,
+    path: String,
+    address: String,
+) -> StdResult<HandleResponse> {
+    let owner_address = deps.api.human_address(&deps.api.canonical_address(&env.message.sender)?)?.to_string();
+
+    let mut proper_path = owner_address.clone();
+    proper_path.push_str(&path);
+
+    let last_char = &proper_path.chars().last().unwrap();
+
+    if *last_char == '/'{
+        let mut f = bucket_load_folder(&mut deps.storage, String::from(&proper_path));
+    
+        f.disallow_read(address);
+    
+        bucket_save_folder(&mut deps.storage, String::from(&proper_path), f);
+
+        Ok(HandleResponse::default())
+
+    } else {
+        let mut f = bucket_load_file(&mut deps.storage, &proper_path);
+
+        f.disallow_read(address);
 
         bucket_save_file(&mut deps.storage, proper_path, f);
         Ok(HandleResponse::default())
@@ -491,6 +541,26 @@ impl File {
         }
 
         self.allow_write_list.push(address);
+
+        true
+    }
+
+    pub fn disallow_read(&mut self, address:String) -> bool {
+        if self.owner.eq(&address) {
+            return false;
+        }
+
+        self.allow_read_list.remove(address);
+
+        return true;
+    }
+
+    pub fn disallow_write(&mut self, address:String) -> bool {
+        if self.owner.eq(&address) {
+            return false;
+        }
+
+        self.allow_write_list.remove(address);
 
         true
     }

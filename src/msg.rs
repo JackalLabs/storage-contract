@@ -23,6 +23,7 @@ pub enum HandleMsg {
     MoveFolder {name : String, old_path: String, new_path: String},
     CreateViewingKey {entropy: String, padding: Option<String>},
     AllowRead {path: String, address: String},
+    DisallowRead {path: String, address: String},
     InitNode {ip: String, address: String},
     
 

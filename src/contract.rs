@@ -8,7 +8,7 @@ use secret_toolkit::crypto::sha_256;
 
 use crate::msg::{HandleMsg, InitMsg, QueryMsg, HandleAnswer};
 use crate::state::{ State, CONFIG_KEY, save, load, write_viewing_key, read_viewing_key};
-use crate::backend::{try_allow_read, query_file, query_folder_contents, try_create_folder, try_create_file, try_init, try_remove_folder, try_remove_file, try_move_folder, try_move_file, query_big_tree};
+use crate::backend::{try_allow_read, try_disallow_read, query_file, query_folder_contents, try_create_folder, try_create_file, try_init, try_remove_folder, try_remove_file, try_move_folder, try_move_file, query_big_tree};
 use crate::viewing_key::{ViewingKey, VIEWING_KEY_SIZE};
 use crate::nodes::{push_node, get_node, get_node_size, set_node_size};
 
@@ -48,6 +48,7 @@ pub fn handle<S: Storage, A: Api, Q: Querier>(
         HandleMsg::MoveFile { name, old_path, new_path } => try_move_file(deps, env, name, old_path, new_path),
         HandleMsg::CreateViewingKey { entropy, .. } => try_create_viewing_key(deps, env, entropy),
         HandleMsg::AllowRead { path, address } => try_allow_read(deps, env, path, address),
+        HandleMsg::DisallowRead { path, address } => try_disallow_read(deps, env, path, address),
         HandleMsg::InitNode {ip, address} => try_init_node(deps, ip, address),
 
     }
@@ -358,11 +359,15 @@ mod tests {
         let env = mock_env("nugget", &[]);
         let msg = HandleMsg::AllowRead { path: String::from("/a/"), address: String::from("alice") };
         let _res = handle(&mut deps, env, msg).unwrap();
+        
+        // DisallowRead File
+        let env = mock_env("nugget", &[]);
+        let msg = HandleMsg::DisallowRead { path: String::from("/a/big_nuggz.txt"), address: String::from("alice") };
+        let _res = handle(&mut deps, env, msg).unwrap();
 
         // Query
-        let query_res = query(&deps, QueryMsg::GetFile { address: HumanAddr("nugget".to_string()), path: String::from("/a/big_nuggz.txt"), behalf: HumanAddr("alice".to_string()), key: vk_alice.to_string() }).unwrap();
-        let value: FileResponse = from_binary(&query_res).unwrap();
-        println!("Query nugget's Root by alice: {:#?}", value);
+        let query_res = query(&deps, QueryMsg::GetFile { address: HumanAddr("nugget".to_string()), path: String::from("/a/big_nuggz.txt"), behalf: HumanAddr("alice".to_string()), key: vk_alice.to_string() });
+        assert!(query_res.is_err() == true);
 
 
     }
