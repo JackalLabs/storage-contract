@@ -210,6 +210,52 @@
           }
         }
       }
+    },
+    {
+      "type": "object",
+      "required": [
+        "disallow_read"
+      ],
+      "properties": {
+        "disallow_read": {
+          "type": "object",
+          "required": [
+            "address",
+            "path"
+          ],
+          "properties": {
+            "address": {
+              "type": "string"
+            },
+            "path": {
+              "type": "string"
+            }
+          }
+        }
+      }
+    },
+    {
+      "type": "object",
+      "required": [
+        "init_node"
+      ],
+      "properties": {
+        "init_node": {
+          "type": "object",
+          "required": [
+            "address",
+            "ip"
+          ],
+          "properties": {
+            "address": {
+              "type": "string"
+            },
+            "ip": {
+              "type": "string"
+            }
+          }
+        }
+      }
     }
   ]
 }

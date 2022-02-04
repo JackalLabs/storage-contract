@@ -94,6 +94,59 @@
           }
         }
       }
+    },
+    {
+      "type": "object",
+      "required": [
+        "get_node_i_p"
+      ],
+      "properties": {
+        "get_node_i_p": {
+          "type": "object",
+          "required": [
+            "index"
+          ],
+          "properties": {
+            "index": {
+              "type": "integer",
+              "format": "uint64",
+              "minimum": 0.0
+            }
+          }
+        }
+      }
+    },
+    {
+      "type": "object",
+      "required": [
+        "get_node_list_size"
+      ],
+      "properties": {
+        "get_node_list_size": {
+          "type": "object"
+        }
+      }
+    },
+    {
+      "type": "object",
+      "required": [
+        "get_node_list"
+      ],
+      "properties": {
+        "get_node_list": {
+          "type": "object",
+          "required": [
+            "size"
+          ],
+          "properties": {
+            "size": {
+              "type": "integer",
+              "format": "uint64",
+              "minimum": 0.0
+            }
+          }
+        }
+      }
     }
   ],
   "definitions": {
