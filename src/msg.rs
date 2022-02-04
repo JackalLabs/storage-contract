@@ -37,6 +37,7 @@ pub enum QueryMsg {
     GetBigTree {address: HumanAddr, behalf: HumanAddr, path: String, key: String},
     GetNodeIP {index: u64},
     GetNodeListSize {},
+    GetNodeList{size: u64},
 }
 
 #[derive(Serialize, Deserialize, JsonSchema, Debug)]

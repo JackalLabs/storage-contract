@@ -61,6 +61,7 @@ pub fn query<S: Storage, A: Api, Q: Querier>(
     match msg {
 
         QueryMsg::GetNodeIP {index} => to_binary(&try_get_ip(deps, index)?),
+        QueryMsg::GetNodeList {size} => to_binary(&try_get_top_x(deps, size)?),
         QueryMsg::GetNodeListSize {} => to_binary(&try_get_node_list_size(deps)?),
         _ => authenticated_queries(deps, msg),
     }
@@ -120,6 +121,39 @@ fn try_get_ip<S: Storage, A: Api, Q: Querier>(
         log: vec![],
         data: Some(to_binary(&get_node(&deps.storage, index))?),
     })
+}
+
+fn try_get_top_x<S: Storage, A: Api, Q: Querier>(
+    deps: &Extern<S, A, Q>,
+    size: u64,
+) -> StdResult<HandleResponse> {
+
+
+    let index_node = &get_node(&deps.storage, 0);
+
+    let mut nodes = vec!(index_node.clone());
+
+    if size <= 1  {
+        return Ok(HandleResponse {
+            messages: vec![],
+            log: vec![],
+            data: Some(to_binary(&nodes)?),
+        });
+    }
+
+
+    let mut x = 1;
+    while x < size {
+        let new_node = &get_node(&deps.storage, x);
+        nodes.push(new_node.clone());
+        x += 1;
+    } 
+
+    return Ok(HandleResponse {
+        messages: vec![],
+        log: vec![],
+        data: Some(to_binary(&nodes)?),
+    });
 }
 
 fn try_get_node_list_size<S: Storage, A: Api, Q: Querier>(
