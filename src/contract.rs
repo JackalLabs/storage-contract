@@ -5,6 +5,7 @@
 
 use cosmwasm_std::{debug_print, to_binary, Api, Binary, Env, Extern, HandleResponse, InitResponse, Querier, StdResult, Storage, QueryResult, StdError};
 use secret_toolkit::crypto::sha_256;
+use std::cmp;
 
 use crate::msg::{HandleMsg, InitMsg, QueryMsg, HandleAnswer};
 use crate::state::{ State, CONFIG_KEY, save, load, write_viewing_key, read_viewing_key};
@@ -128,6 +129,7 @@ fn try_get_top_x<S: Storage, A: Api, Q: Querier>(
     size: u64,
 ) -> StdResult<HandleResponse> {
 
+    let size = cmp::min(size, get_node_size(&deps.storage));
 
     let index_node = &get_node(&deps.storage, 0);
 
