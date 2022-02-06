@@ -678,20 +678,21 @@ mod tests {
 
     #[test]
     fn init_address_test() {
-        let mut deps = mock_dependencies(20, &coins(2, "token"));
+        let mut deps = mock_dependencies(20, &[]);
 
         let msg = InitMsg {prng_seed:String::from("lets init bro")};
-        let env = mock_env("creator", &coins(2, "token"));
+        let env = mock_env("creator", &[]);
         let _res = init(&mut deps, env, msg).unwrap();
 
-        let env = mock_env("anyone", &coins(2, "token"));
+        let env = mock_env("anyone", &[]);
         let msg = HandleMsg::InitAddress { };
         let _res = handle(&mut deps, env, msg).unwrap();
 
         // This should fail to prevent init again
-        // let env = mock_env("anyone", &coins(2, "token"));
-        // let msg = HandleMsg::InitAddress { };
-        // let _res = handle(&mut deps, env, msg).unwrap();
+        let env = mock_env("anyone", &[]);
+        let msg = HandleMsg::InitAddress {};
+        let res = handle(&mut deps, env, msg);
+        assert!(res.is_err() == true);
     }
 
 }
