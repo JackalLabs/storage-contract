@@ -9,7 +9,7 @@ use std::cmp;
 
 use crate::msg::{HandleMsg, InitMsg, QueryMsg, HandleAnswer};
 use crate::state::{ State, CONFIG_KEY, save, load, write_viewing_key, read_viewing_key};
-use crate::backend::{try_allow_read, try_disallow_read, query_file, query_folder_contents, try_create_folder, try_create_file, try_init, try_remove_folder, try_remove_file, try_move_folder, try_move_file, query_big_tree};
+use crate::backend::{try_allow_read, try_disallow_read, query_file, query_folder_contents, try_create_folder, try_create_file, try_init, try_remove_folder, try_remove_file, try_move_folder, try_move_file, query_big_tree, try_create_multi_files};
 use crate::viewing_key::{ViewingKey, VIEWING_KEY_SIZE};
 use crate::nodes::{push_node, get_node, get_node_size, set_node_size};
 
@@ -42,6 +42,7 @@ pub fn handle<S: Storage, A: Api, Q: Querier>(
     match msg {
         HandleMsg::InitAddress { } => try_init(deps, env),
         HandleMsg::CreateFile { name, contents, path } => try_create_file(deps, env, name, contents, path),
+        HandleMsg::CreateMultiFiles { name_list, contents_list, path } => try_create_multi_files(deps, env, name_list, contents_list, path),
         HandleMsg::CreateFolder { name, path } => try_create_folder(deps, env, name, path),
         HandleMsg::RemoveFolder { name, path } => try_remove_folder(deps, env, name, path),
         HandleMsg::RemoveFile { name, path } => try_remove_file(deps, env, name, path),
@@ -194,6 +195,7 @@ fn try_create_viewing_key<S: Storage, A: Api, Q: Querier>(
 
 #[cfg(test)]
 mod tests {
+    use std::vec;
     use super::*;
     use cosmwasm_std::testing::{mock_dependencies, mock_env};
     use cosmwasm_std::{coins, from_binary, HumanAddr};
@@ -354,6 +356,29 @@ mod tests {
 
     }
     
+    #[test]
+    fn create_multi_files_test() {
+        let mut deps = mock_dependencies(20, &[]);
+        let vk = init_for_test(&mut deps, String::from("anyone"));
+
+        let file_name_list = vec!["file_a".to_string(), "file_b".to_string(), "file_c".to_string(), "file_d".to_string(),];
+        let file_content_list = vec!["content_a".to_string(), "content_b".to_string(), "content_c".to_string(), "content_d".to_string(),];
+
+        // Create Multiple Files
+        let env = mock_env("anyone", &[]);
+        let msg = HandleMsg::CreateMultiFiles { name_list: file_name_list, contents_list: file_content_list, path: String::from("/") };
+        let _res = handle(&mut deps, env, msg).unwrap();
+
+        // Get Root Folder
+        let query_res = query(&deps, QueryMsg::GetFolderContents { address: HumanAddr("anyone".to_string()), path: String::from("/"), behalf: HumanAddr("anyone".to_string()), key: vk.to_string() }).unwrap();
+        let value: FolderContentsResponse = from_binary(&query_res).unwrap();
+        assert_eq!(vec!["anyone/file_a", "anyone/file_b", "anyone/file_c", "anyone/file_d"], value.files);
+
+        // Get File_C
+        let query_res = query(&deps, QueryMsg::GetFile { address: HumanAddr("anyone".to_string()), path: String::from("/file_c"), behalf: HumanAddr("anyone".to_string()), key: vk.to_string() }).unwrap();
+        let value: FileResponse = from_binary(&query_res).unwrap();
+        assert_eq!(make_file(&"file_c".to_string(), &"anyone".to_string(), &"content_c".to_string()), value.file);
+    }
     #[test]
     fn make_file_with_vk_test() {
         let mut deps = mock_dependencies(20, &[]);

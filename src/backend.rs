@@ -675,6 +675,51 @@ pub fn try_create_file<S: Storage, A: Api, Q: Querier>(
     }
 
 }
+pub fn try_create_multi_files<S: Storage, A: Api, Q: Querier>(
+    deps: &mut Extern<S, A, Q>,
+    env: Env,
+    name_list: Vec<String>,
+    contents_list: Vec<String>,
+    path: String,
+) -> StdResult<HandleResponse> {
+
+    let ha = deps.api.human_address(&deps.api.canonical_address(&env.message.sender)?)?;
+    debug_print!("Attempting to create multiple files for account: {}", ha.clone());
+
+    let adr = String::from(ha.clone().as_str());
+
+    for i in 0..name_list.len() {
+
+        let file_name = name_list[i].clone();
+        let file_contents = contents_list[i].clone();
+
+        let mut p = adr.clone();
+        p.push_str(&path);
+    
+        let mut l = bucket_load_folder(&mut deps.storage, p.clone());
+    
+        let path_to_compare = &mut p.clone();
+
+        path_to_compare.push_str(&file_name);
+        
+        let file_name_taken = file_exists(&mut deps.storage, path_to_compare.to_string());
+
+        match file_name_taken{
+            false => {
+                create_file(&mut deps.storage, &mut l, p.clone(), file_name, file_contents);
+                bucket_save_folder(&mut deps.storage, p.clone(), l);
+                debug_print!("create file success");
+                // Ok(HandleResponse::default())
+            }
+            true => {
+                let _error_message = format!("File name '{}' has already been taken", file_name);
+                // Err(StdError::generic_err(error_message))
+            },
+        }
+    }
+
+    Ok(HandleResponse::default())
+}
 
 pub fn create_file<'a, S: Storage>(store: &'a mut S, root: &mut Folder, path: String, name: String, contents: String) {
 
