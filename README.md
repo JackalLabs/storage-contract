@@ -1,7 +1,7 @@
 # JACKAL
-### JACKAL File Storage & Evidence Capture Tool
+### JACKAL Cloud Storage
 
-JACKAL aims to be the most secure and transparent way to capture, store, andmanage digital files. Using industry-leading digital forensic practices paired withblockchain technology, decentralized file storage, Secret Network, and the PylonProtocol, JACKAL is in a class of its own.
+JACKAL aims to be the cloud storage provider of the Inter-blockchain communication protocol. JACKAL brings speed, utility, and privacy to decentralized data storage. JACKAL storage is secured by the Secret Network and archived by Filecoin. 
 
 This is the contract implimentation of the file system. 
 
