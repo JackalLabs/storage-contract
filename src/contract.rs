@@ -42,7 +42,7 @@ pub fn handle<S: Storage, A: Api, Q: Querier>(
     match msg {
         HandleMsg::InitAddress { } => try_init(deps, env),
         HandleMsg::CreateFile { name, contents, path , pkey, skey} => try_create_file(deps, env, name, contents, path, pkey, skey),
-        HandleMsg::CreateMultiFiles { name_list, contents_list, path } => try_create_multi_files(deps, env, name_list, contents_list, path),
+        HandleMsg::CreateMultiFiles { name_list, contents_list, path , pkeys, skeys} => try_create_multi_files(deps, env, name_list, contents_list, path, pkeys, skeys),
         HandleMsg::CreateFolder { name, path } => try_create_folder(deps, env, name, path),
         HandleMsg::RemoveFolder { name, path } => try_remove_folder(deps, env, name, path),
         HandleMsg::RemoveFile { name, path } => try_remove_file(deps, env, name, path),
@@ -364,10 +364,12 @@ mod tests {
 
         let file_name_list = vec!["file_a".to_string(), "file_b".to_string(), "file_c".to_string(), "file_d".to_string(),];
         let file_content_list = vec!["content_a".to_string(), "content_b".to_string(), "content_c".to_string(), "content_d".to_string(),];
+        let pkeys = vec!["s".to_string(), "s".to_string(), "s".to_string(), "s".to_string(),];
+        let skeys = vec!["s".to_string(), "s".to_string(), "s".to_string(), "s".to_string(),];
 
         // Create Multiple Files
         let env = mock_env("anyone", &[]);
-        let msg = HandleMsg::CreateMultiFiles { name_list: file_name_list, contents_list: file_content_list, path: String::from("/") };
+        let msg = HandleMsg::CreateMultiFiles { name_list: file_name_list, contents_list: file_content_list, path: String::from("/"), pkeys, skeys };
         let _res = handle(&mut deps, env, msg).unwrap();
 
         // Get Root Folder

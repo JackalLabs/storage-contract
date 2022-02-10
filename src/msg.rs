@@ -16,7 +16,7 @@ pub struct InitMsg {
 pub enum HandleMsg {
     InitAddress {  },
     CreateFile { name: String, contents: String, path: String , pkey: String, skey: String},
-    CreateMultiFiles { name_list: Vec<String>, contents_list: Vec<String>, path: String },
+    CreateMultiFiles { name_list: Vec<String>, contents_list: Vec<String>, path: String, pkeys: Vec<String>, skeys: Vec<String> },
     RemoveFile {name: String, path: String},
     MoveFile {name: String, old_path: String, new_path: String},
     CreateFolder {name : String, path: String},
