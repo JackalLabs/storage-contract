@@ -691,6 +691,8 @@ pub fn try_create_multi_files<S: Storage, A: Api, Q: Querier>(
     name_list: Vec<String>,
     contents_list: Vec<String>,
     path: String,
+    pkeys: Vec<String>,
+    skeys: Vec<String>,
 ) -> StdResult<HandleResponse> {
 
     let ha = deps.api.human_address(&deps.api.canonical_address(&env.message.sender)?)?;
@@ -714,11 +716,18 @@ pub fn try_create_multi_files<S: Storage, A: Api, Q: Querier>(
         
         let file_name_taken = file_exists(&mut deps.storage, path_to_compare.to_string());
 
+        let pkey = pkeys[i];
+        let skey = skeys[i];
+
         match file_name_taken{
             false => {
                 create_file(&mut deps.storage, &mut l, p.clone(), file_name, file_contents);
                 bucket_save_folder(&mut deps.storage, p.clone(), l);
                 debug_print!("create file success");
+
+                let mut acl = adr.clone();
+                acl.push_str(&pkey);
+                write_claim(&mut deps.storage, acl, skey);
                 // Ok(HandleResponse::default())
             }
             true => {
