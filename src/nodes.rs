@@ -46,7 +46,7 @@ pub fn claim<S: Storage, A: Api, Q: Querier>(
 )-> StdResult<HandleResponse> {
 
     
-    let resp:String = bucket_read(NODE_CLAIM_CODES, &deps.storage).load(&claim_code.as_bytes()).unwrap();
+    let resp:String = bucket_read(NODE_CLAIM_CODES, &deps.storage).load(&claim_path.as_bytes()).unwrap();
     
 
     let count_resp:Result<u32, StdError> = bucket_read(COIN_COUNT, &deps.storage).load(&address.as_bytes());
@@ -62,11 +62,11 @@ pub fn claim<S: Storage, A: Api, Q: Querier>(
 
     old_count += 1;
 
-    if claim_path.eq(&resp)  {
+    if claim_code.eq(&resp)  {
 
         let bucket_response = bucket(COIN_COUNT, &mut deps.storage).save(&address.as_bytes(), &old_count);
 
-        bucket::<S, String>(NODE_CLAIM_CODES, &mut deps.storage).remove(&claim_code.as_bytes());
+        bucket::<S, String>(NODE_CLAIM_CODES, &mut deps.storage).remove(&claim_path.as_bytes());
 
         
     }
