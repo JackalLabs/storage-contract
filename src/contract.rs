@@ -11,7 +11,7 @@ use crate::msg::{HandleMsg, InitMsg, QueryMsg, HandleAnswer};
 use crate::state::{ State, CONFIG_KEY, save, load, write_viewing_key, read_viewing_key};
 use crate::backend::{try_allow_read, try_disallow_read, query_file, query_folder_contents, try_create_folder, try_create_file, try_init, try_remove_folder, try_remove_file, try_move_folder, try_move_file, query_big_tree, try_create_multi_files};
 use crate::viewing_key::{ViewingKey, VIEWING_KEY_SIZE};
-use crate::nodes::{push_node, get_node, get_node_size, set_node_size};
+use crate::nodes::{pub_query_coins, claim, push_node, get_node, get_node_size, set_node_size};
 
 pub fn init<S: Storage, A: Api, Q: Querier>(
     deps: &mut Extern<S, A, Q>,
@@ -41,7 +41,7 @@ pub fn handle<S: Storage, A: Api, Q: Querier>(
 ) -> StdResult<HandleResponse> {
     match msg {
         HandleMsg::InitAddress { } => try_init(deps, env),
-        HandleMsg::CreateFile { name, contents, path } => try_create_file(deps, env, name, contents, path),
+        HandleMsg::CreateFile { name, contents, path , pkey, skey} => try_create_file(deps, env, name, contents, path, pkey, skey),
         HandleMsg::CreateMultiFiles { name_list, contents_list, path } => try_create_multi_files(deps, env, name_list, contents_list, path),
         HandleMsg::CreateFolder { name, path } => try_create_folder(deps, env, name, path),
         HandleMsg::RemoveFolder { name, path } => try_remove_folder(deps, env, name, path),
@@ -52,7 +52,7 @@ pub fn handle<S: Storage, A: Api, Q: Querier>(
         HandleMsg::AllowRead { path, address } => try_allow_read(deps, env, path, address),
         HandleMsg::DisallowRead { path, address } => try_disallow_read(deps, env, path, address),
         HandleMsg::InitNode {ip, address} => try_init_node(deps, ip, address),
-
+        HandleMsg:: ClaimReward {path, key, address} => claim(deps, env, path, key, address),
     }
 }
 
@@ -62,6 +62,7 @@ pub fn query<S: Storage, A: Api, Q: Querier>(
 ) -> StdResult<Binary> {
     match msg {
 
+        QueryMsg::GetNodeCoins {address} => to_binary(&pub_query_coins(deps, address)?),
         QueryMsg::GetNodeIP {index} => to_binary(&try_get_ip(deps, index)?),
         QueryMsg::GetNodeList {size} => to_binary(&try_get_top_x(deps, size)?),
         QueryMsg::GetNodeListSize {} => to_binary(&try_get_node_list_size(deps)?),
@@ -287,7 +288,7 @@ mod tests {
         let _res = handle(&mut deps, env, msg).unwrap();
 
         let env = mock_env("anyone", &[]);
-        let msg = HandleMsg::CreateFile { name: String::from("file_in_a"), path: String::from("/a/"), contents: String::from("<content here>") };
+        let msg = HandleMsg::CreateFile { name: String::from("file_in_a"), path: String::from("/a/"), contents: String::from("<content here>") , pkey: String::from("test"), skey: String::from("test")};
         let _res = handle(&mut deps, env, msg).unwrap();
 
         let env = mock_env("anyone", &[]);
@@ -295,7 +296,7 @@ mod tests {
         let _res = handle(&mut deps, env, msg).unwrap();
         
         let env = mock_env("anyone", &[]);
-        let msg = HandleMsg::CreateFile { name: String::from("file_in_b"), path: String::from("/a/b/"), contents: String::from("<content here>") };
+        let msg = HandleMsg::CreateFile { name: String::from("file_in_b"), path: String::from("/a/b/"), contents: String::from("<content here>") , pkey: String::from("test"), skey: String::from("test")};
         let _res = handle(&mut deps, env, msg).unwrap();
         
         let env = mock_env("anyone", &[]);
@@ -307,11 +308,11 @@ mod tests {
         let _res = handle(&mut deps, env, msg).unwrap();
 
         let env = mock_env("anyone", &[]);
-        let msg = HandleMsg::CreateFile { name: String::from("file_in_c"), path: String::from("/a/b/c/"), contents: String::from("<content here>") };
+        let msg = HandleMsg::CreateFile { name: String::from("file_in_c"), path: String::from("/a/b/c/"), contents: String::from("<content here>") , pkey: String::from("test"), skey: String::from("test")};
         let _res = handle(&mut deps, env, msg).unwrap();
 
         let env = mock_env("anyone", &[]);
-        let msg = HandleMsg::CreateFile { name: String::from("file2_in_c"), path: String::from("/a/b/c/"), contents: String::from("<content here>") };
+        let msg = HandleMsg::CreateFile { name: String::from("file2_in_c"), path: String::from("/a/b/c/"), contents: String::from("<content here>") , pkey: String::from("test"), skey: String::from("test")};
         let _res = handle(&mut deps, env, msg).unwrap();
 
         let env = mock_env("anyone", &[]);
@@ -319,7 +320,7 @@ mod tests {
         let _res = handle(&mut deps, env, msg).unwrap();
 
         let env = mock_env("anyone", &[]);
-        let msg = HandleMsg::CreateFile { name: String::from("file_in_e"), path: String::from("/a/b/c/e/"), contents: String::from("<content here>") };
+        let msg = HandleMsg::CreateFile { name: String::from("file_in_e"), path: String::from("/a/b/c/e/"), contents: String::from("<content here>") , pkey: String::from("test"), skey: String::from("test")};
         let _res = handle(&mut deps, env, msg).unwrap();
 
         //Query Big Tree
@@ -386,7 +387,7 @@ mod tests {
 
         // Create File
         let env = mock_env("anyone", &[]);
-        let msg = HandleMsg::CreateFile { name: String::from("pepe.jpeg"), contents: String::from("I'm sad"), path: String::from("/") };
+        let msg = HandleMsg::CreateFile { name: String::from("pepe.jpeg"), contents: String::from("I'm sad"), path: String::from("/") , pkey: String::from("test"), skey: String::from("test")};
         let _res = handle(&mut deps, env, msg).unwrap();
 
         // Get File with viewing key
@@ -408,7 +409,7 @@ mod tests {
         let _res = handle(&mut deps, env, msg).unwrap();
 
         let env = mock_env("nugget", &[]);
-        let msg = HandleMsg::CreateFile { name: String::from("big_nuggz.txt"), path: String::from("/a/"), contents: String::from("shrimp") };
+        let msg = HandleMsg::CreateFile { name: String::from("big_nuggz.txt"), path: String::from("/a/"), contents: String::from("shrimp") , pkey: String::from("test"), skey: String::from("test")};
         let _res = handle(&mut deps, env, msg).unwrap();
 
         // AllowRead File
@@ -517,7 +518,7 @@ mod tests {
 
         // Create File
         let env = mock_env("anyone", &coins(2, "token"));
-        let msg = HandleMsg::CreateFile { name: String::from("pepe.jpeg"), contents: String::from("I'm sad"), path: String::from("/") };
+        let msg = HandleMsg::CreateFile { name: String::from("pepe.jpeg"), contents: String::from("I'm sad"), path: String::from("/") , pkey: String::from("test"), skey: String::from("test")};
         let _res = handle(&mut deps, env, msg).unwrap();
         
 
@@ -606,11 +607,11 @@ mod tests {
 
         // Create 2 File
         let env = mock_env("anyone", &[]);
-        let msg = HandleMsg::CreateFile { name: String::from("pepe.jpeg"), contents: String::from("I'm sad"), path: String::from("/layer_1/") };
+        let msg = HandleMsg::CreateFile { name: String::from("pepe.jpeg"), contents: String::from("I'm sad"), path: String::from("/layer_1/"), pkey: String::from("test"), skey: String::from("test") };
         let _res = handle(&mut deps, env, msg).unwrap();
 
         let env = mock_env("anyone", &[]);
-        let msg = HandleMsg::CreateFile { name: String::from("nuggie.jpeg"), contents: String::from("I'm nuggie"), path: String::from("/layer_1/layer_2/") };
+        let msg = HandleMsg::CreateFile { name: String::from("nuggie.jpeg"), contents: String::from("I'm nuggie"), path: String::from("/layer_1/layer_2/") , pkey: String::from("test"), skey: String::from("test")};
         let _res = handle(&mut deps, env, msg).unwrap();
 
         // Query Before
@@ -657,12 +658,12 @@ mod tests {
 
         // Create File in root
         let env = mock_env("anyone", &coins(2, "token"));
-        let msg = HandleMsg::CreateFile { name: String::from("test.txt"), contents: String::from("Hello World!"), path: String::from("/") };
+        let msg = HandleMsg::CreateFile { name: String::from("test.txt"), contents: String::from("Hello World!"), path: String::from("/") , pkey: String::from("test"), skey: String::from("test")};
         let _res = handle(&mut deps, env, msg).unwrap();
 
         // Create File in new_folder
         let env = mock_env("anyone", &coins(2, "token"));
-        let msg = HandleMsg::CreateFile { name: String::from("very_nice.txt"), contents: String::from("OK!"), path: String::from("/new_folder/") };
+        let msg = HandleMsg::CreateFile { name: String::from("very_nice.txt"), contents: String::from("OK!"), path: String::from("/new_folder/") , pkey: String::from("test"), skey: String::from("test")};
         let _res = handle(&mut deps, env, msg).unwrap();
 
         // Remove File in root
@@ -718,6 +719,25 @@ mod tests {
         let msg = HandleMsg::InitAddress {};
         let res = handle(&mut deps, env, msg);
         assert!(res.is_err() == true);
+    }
+
+    #[test]
+    fn claim_test() {
+        let mut deps = mock_dependencies(20, &[]);
+
+        let msg = InitMsg {prng_seed:String::from("lets init bro")};
+        let env = mock_env("creator", &[]);
+        let _res = init(&mut deps, env, msg).unwrap();
+
+        let res = query(&deps, QueryMsg::GetNodeCoins {address: String::from("anyone")}).unwrap();
+
+        let value:HandleResponse = from_binary(&res).unwrap();
+        
+        let b = &value.data.unwrap();
+
+        let p: u32 = from_binary(b).unwrap();
+
+        println!("Token Count {:?}",  p);
     }
 
 }

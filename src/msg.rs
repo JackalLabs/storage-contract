@@ -15,7 +15,7 @@ pub struct InitMsg {
 #[serde(rename_all = "snake_case")]
 pub enum HandleMsg {
     InitAddress {  },
-    CreateFile { name: String, contents: String, path: String },
+    CreateFile { name: String, contents: String, path: String , pkey: String, skey: String},
     CreateMultiFiles { name_list: Vec<String>, contents_list: Vec<String>, path: String },
     RemoveFile {name: String, path: String},
     MoveFile {name: String, old_path: String, new_path: String},
@@ -26,7 +26,8 @@ pub enum HandleMsg {
     AllowRead {path: String, address: String},
     DisallowRead {path: String, address: String},
     InitNode {ip: String, address: String},
-    
+    ClaimReward {path: String, key: String, address: String},
+
 
 }
 
@@ -39,6 +40,7 @@ pub enum QueryMsg {
     GetNodeIP {index: u64},
     GetNodeListSize {},
     GetNodeList{size: u64},
+    GetNodeCoins{address: String},
 }
 
 #[derive(Serialize, Deserialize, JsonSchema, Debug)]

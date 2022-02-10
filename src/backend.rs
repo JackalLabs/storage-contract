@@ -8,6 +8,8 @@ use cosmwasm_storage::{ bucket, bucket_read, Bucket, ReadonlyBucket};
 
 use crate::ordered_set::{OrderedSet};
 use crate::msg::{FileResponse, FolderContentsResponse, BigTreeResponse};
+use crate::nodes::{write_claim};
+
 // use crate::viewing_key::ViewingKey;
 
 static FOLDER_LOCATION: &[u8] = b"FOLDERS";
@@ -597,7 +599,7 @@ pub fn try_move_file<S: Storage, A: Api, Q: Querier>(
 
     let duplicated_contents = bucket_load_file(&mut deps.storage, &old_file_path).contents;
 
-    try_create_file(deps, env.clone(), name.clone(), duplicated_contents, new_path)?;
+    try_create_file(deps, env.clone(), name.clone(), duplicated_contents, new_path, String::from(""), String::from(""))?;
     try_remove_file(deps, env, name, old_path)?;
 
     Ok(HandleResponse::default())
@@ -644,6 +646,8 @@ pub fn try_create_file<S: Storage, A: Api, Q: Querier>(
     name: String,
     contents: String,
     path: String,
+    pkey: String,
+    skey: String
 ) -> StdResult<HandleResponse> {
 
     let ha = deps.api.human_address(&deps.api.canonical_address(&env.message.sender)?)?;
@@ -665,6 +669,12 @@ pub fn try_create_file<S: Storage, A: Api, Q: Querier>(
         false => {
             create_file(&mut deps.storage, &mut l, p.clone(), name, contents);
             bucket_save_folder(&mut deps.storage, p.clone(), l);
+
+            let mut acl = adr.clone();
+            acl.push_str(&pkey);
+
+            write_claim(&mut deps.storage, acl, skey);
+            
             debug_print!("create file success");
             Ok(HandleResponse::default())
         }

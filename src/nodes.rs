@@ -1,12 +1,98 @@
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
-use cosmwasm_std::Storage;
 use cosmwasm_storage::{ bucket, bucket_read};
+use cosmwasm_std::{to_binary, debug_print,Env, Api, Querier, ReadonlyStorage, Storage, StdResult, StdError, Extern, HandleResponse, HumanAddr};
 
 
 static NODE_LOCATION: &[u8] = b"NODES";
 static NODE_LOC_LOCATION: &[u8] = b"NODE_LOC";
 static NODE_MAP_DATA: &[u8] = b"NODE_MAP";
+
+static NODE_CLAIM_CODES: &[u8] = b"CLAIM_CODES";
+
+static COIN_COUNT: &[u8] = b"TOKEN_COUNT";
+
+pub fn pub_query_coins<S: Storage, A: Api, Q: Querier>(
+    deps: &Extern<S, A, Q>,
+    address: String,
+) -> StdResult<HandleResponse> {
+
+    Ok(HandleResponse {
+        messages: vec![],
+        log: vec![],
+        data: Some(to_binary(&query_coins(&deps.storage, address))?),
+    })
+}
+
+fn query_coins<'a, S: Storage>(store: &'a S, address: String) -> u32{
+    let r = bucket_read(COIN_COUNT, store).load(&address.as_bytes());
+
+    match r {
+        Ok(c) => {
+            c
+        },
+        Err(_e) => {
+            0
+        }
+    }
+}
+
+pub fn claim<S: Storage, A: Api, Q: Querier>(
+    deps: &mut Extern<S, A, Q>,
+    env: Env,
+    claim_path: String, 
+    claim_code: String, 
+    address: String
+)-> StdResult<HandleResponse> {
+
+    
+    let resp:String = bucket_read(NODE_CLAIM_CODES, &deps.storage).load(&claim_code.as_bytes()).unwrap();
+    
+
+    let count_resp:Result<u32, StdError> = bucket_read(COIN_COUNT, &deps.storage).load(&address.as_bytes());
+
+    let mut old_count:u32 = 0;
+    match count_resp {
+        Ok(count) => {
+
+            old_count = count;
+        },
+        Err(e) => {}
+    }
+
+    old_count += 1;
+
+    if claim_path.eq(&resp)  {
+
+        let bucket_response = bucket(COIN_COUNT, &mut deps.storage).save(&address.as_bytes(), &old_count);
+
+        bucket::<S, String>(NODE_CLAIM_CODES, &mut deps.storage).remove(&claim_code.as_bytes());
+
+        
+    }
+
+    Ok(HandleResponse {
+        messages: vec![],
+        log: vec![],
+        data: Some(to_binary("OK")?),
+    })
+
+}
+
+pub fn write_claim<'a, S: Storage>(store: &'a mut S, claim_path: String, claim_code: String) {
+
+    let bucket_response = bucket(NODE_CLAIM_CODES, store).save(&claim_code.as_bytes(), &claim_path);
+    match bucket_response {
+        Ok(bucket_response) => bucket_response,
+        Err(e) => panic!("Bucket Error: {}", e)
+    }
+}
+
+
+
+
+
+
 
 #[derive(Serialize, Deserialize, JsonSchema, Debug, Clone)]
 pub struct NodeData {

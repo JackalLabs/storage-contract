@@ -24,7 +24,9 @@
           "required": [
             "contents",
             "name",
-            "path"
+            "path",
+            "pkey",
+            "skey"
           ],
           "properties": {
             "contents": {
@@ -32,6 +34,45 @@
             },
             "name": {
               "type": "string"
+            },
+            "path": {
+              "type": "string"
+            },
+            "pkey": {
+              "type": "string"
+            },
+            "skey": {
+              "type": "string"
+            }
+          }
+        }
+      }
+    },
+    {
+      "type": "object",
+      "required": [
+        "create_multi_files"
+      ],
+      "properties": {
+        "create_multi_files": {
+          "type": "object",
+          "required": [
+            "contents_list",
+            "name_list",
+            "path"
+          ],
+          "properties": {
+            "contents_list": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "name_list": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
             },
             "path": {
               "type": "string"
