@@ -297,6 +297,33 @@
           }
         }
       }
+    },
+    {
+      "type": "object",
+      "required": [
+        "claim_reward"
+      ],
+      "properties": {
+        "claim_reward": {
+          "type": "object",
+          "required": [
+            "address",
+            "key",
+            "path"
+          ],
+          "properties": {
+            "address": {
+              "type": "string"
+            },
+            "key": {
+              "type": "string"
+            },
+            "path": {
+              "type": "string"
+            }
+          }
+        }
+      }
     }
   ]
 }

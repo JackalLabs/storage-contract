@@ -52,7 +52,7 @@ pub fn handle<S: Storage, A: Api, Q: Querier>(
         HandleMsg::AllowRead { path, address } => try_allow_read(deps, env, path, address),
         HandleMsg::DisallowRead { path, address } => try_disallow_read(deps, env, path, address),
         HandleMsg::InitNode {ip, address} => try_init_node(deps, ip, address),
-        HandleMsg:: ClaimReward {path, key, address} => claim(deps, env, path, key, address),
+        HandleMsg::ClaimReward {path, key, address} => claim(deps, env, path, key, address),
     }
 }
 

@@ -147,6 +147,25 @@
           }
         }
       }
+    },
+    {
+      "type": "object",
+      "required": [
+        "get_node_coins"
+      ],
+      "properties": {
+        "get_node_coins": {
+          "type": "object",
+          "required": [
+            "address"
+          ],
+          "properties": {
+            "address": {
+              "type": "string"
+            }
+          }
+        }
+      }
     }
   ],
   "definitions": {
