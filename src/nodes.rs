@@ -1,3 +1,5 @@
+use std::str::from_utf8;
+
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use cosmwasm_storage::{ bucket, bucket_read};
@@ -45,8 +47,12 @@ pub fn claim<S: Storage, A: Api, Q: Querier>(
 )-> StdResult<HandleResponse> {
 
     
-    let resp:String = bucket_read(NODE_CLAIM_CODES, &deps.storage).load(&claim_path.as_bytes()).unwrap();
-    
+    let mut acl = String::from(&address);
+    acl.push_str(&claim_path);
+
+
+    let resp:Result<String, StdError> = bucket_read(NODE_CLAIM_CODES, &deps.storage).load(&acl.as_bytes());
+    let r = resp.unwrap();
 
     let count_resp:Result<u32, StdError> = bucket_read(COIN_COUNT, &deps.storage).load(&address.as_bytes());
 
@@ -61,7 +67,7 @@ pub fn claim<S: Storage, A: Api, Q: Querier>(
 
     old_count += 1;
 
-    if claim_code.eq(&resp)  {
+    if claim_code.eq(&r)  {
 
         let _bucket_response = bucket(COIN_COUNT, &mut deps.storage).save(&address.as_bytes(), &old_count);
 
@@ -80,7 +86,10 @@ pub fn claim<S: Storage, A: Api, Q: Querier>(
 
 pub fn write_claim<'a, S: Storage>(store: &'a mut S, claim_path: String, claim_code: String) {
 
-    let bucket_response = bucket(NODE_CLAIM_CODES, store).save(&claim_code.as_bytes(), &claim_path);
+    let c = &claim_path;
+
+
+    let bucket_response = bucket(NODE_CLAIM_CODES, store).save(&c.as_bytes(), &claim_code);
     match bucket_response {
         Ok(bucket_response) => bucket_response,
         Err(e) => panic!("Bucket Error: {}", e)

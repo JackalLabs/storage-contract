@@ -724,6 +724,39 @@ mod tests {
     }
 
     #[test]
+    fn reward_test() {
+        let mut deps = mock_dependencies(20, &[]);
+
+        let msg = InitMsg {prng_seed:String::from("lets init bro")};
+        let env = mock_env("creator", &[]);
+        let _res = init(&mut deps, env, msg).unwrap();
+
+        let env = mock_env("anyone", &[]);
+        let msg = HandleMsg::InitAddress { };
+        let _res = handle(&mut deps, env, msg).unwrap();
+
+        let env = mock_env("anyone", &coins(2, "token"));
+        let msg = HandleMsg::CreateFile { name: String::from("test.txt"), contents: String::from("Hello World!"), path: String::from("/") , pkey: String::from("testing123"), skey: String::from("password")};
+        let _res = handle(&mut deps, env, msg).unwrap();
+
+        let env = mock_env("anyone", &coins(2, "token"));
+        let msg = HandleMsg::ClaimReward { address: String::from("anyone"), path: String::from("testing123"), key: String::from("password")};
+        let _res = handle(&mut deps, env, msg);
+        println!( "{:?}",  _res);
+
+
+        let res = query(&deps, QueryMsg::GetNodeCoins {address: String::from("anyone")}).unwrap();
+
+        let value:HandleResponse = from_binary(&res).unwrap();
+        
+        let b = &value.data.unwrap();
+
+        let p: u32 = from_binary(b).unwrap();
+
+        println!("Token Count {:?}",  p);
+    }
+
+    #[test]
     fn claim_test() {
         let mut deps = mock_dependencies(20, &[]);
 
