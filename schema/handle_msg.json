@@ -59,7 +59,9 @@
           "required": [
             "contents_list",
             "name_list",
-            "path"
+            "path",
+            "pkeys",
+            "skeys"
           ],
           "properties": {
             "contents_list": {
@@ -76,6 +78,18 @@
             },
             "path": {
               "type": "string"
+            },
+            "pkeys": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "skeys": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
             }
           }
         }
