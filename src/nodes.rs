@@ -1,7 +1,7 @@
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use cosmwasm_storage::{ bucket, bucket_read};
-use cosmwasm_std::{to_binary, debug_print,Env, Api, Querier, ReadonlyStorage, Storage, StdResult, StdError, Extern, HandleResponse, HumanAddr};
+use cosmwasm_std::{to_binary, Api, Querier, Storage, StdResult, StdError, Extern, HandleResponse};
 
 
 static NODE_LOCATION: &[u8] = b"NODES";
@@ -39,7 +39,6 @@ fn query_coins<'a, S: Storage>(store: &'a S, address: String) -> u32{
 
 pub fn claim<S: Storage, A: Api, Q: Querier>(
     deps: &mut Extern<S, A, Q>,
-    env: Env,
     claim_path: String, 
     claim_code: String, 
     address: String
@@ -57,14 +56,14 @@ pub fn claim<S: Storage, A: Api, Q: Querier>(
 
             old_count = count;
         },
-        Err(e) => {}
+        Err(_e) => {}
     }
 
     old_count += 1;
 
     if claim_code.eq(&resp)  {
 
-        let bucket_response = bucket(COIN_COUNT, &mut deps.storage).save(&address.as_bytes(), &old_count);
+        let _bucket_response = bucket(COIN_COUNT, &mut deps.storage).save(&address.as_bytes(), &old_count);
 
         bucket::<S, String>(NODE_CLAIM_CODES, &mut deps.storage).remove(&claim_path.as_bytes());
 

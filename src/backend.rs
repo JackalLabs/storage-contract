@@ -716,8 +716,8 @@ pub fn try_create_multi_files<S: Storage, A: Api, Q: Querier>(
         
         let file_name_taken = file_exists(&mut deps.storage, path_to_compare.to_string());
 
-        let pkey = pkeys[i];
-        let skey = skeys[i];
+        let pkey = &pkeys[i];
+        let skey = &skeys[i];
 
         match file_name_taken{
             false => {
@@ -727,7 +727,7 @@ pub fn try_create_multi_files<S: Storage, A: Api, Q: Querier>(
 
                 let mut acl = adr.clone();
                 acl.push_str(&pkey);
-                write_claim(&mut deps.storage, acl, skey);
+                write_claim(&mut deps.storage, acl, skey.to_string());
                 // Ok(HandleResponse::default())
             }
             true => {
