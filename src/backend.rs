@@ -673,6 +673,7 @@ pub fn try_create_file<S: Storage, A: Api, Q: Querier>(
             let mut acl = adr.clone();
             acl.push_str(&pkey);
 
+
             write_claim(&mut deps.storage, acl, skey);
             
             debug_print!("create file success");
