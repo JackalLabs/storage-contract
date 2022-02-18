@@ -195,8 +195,7 @@ mod tests {
     use super::*;
     use cosmwasm_std::testing::{mock_dependencies, mock_env};
     use cosmwasm_std::{coins, from_binary, HumanAddr};
-    use crate::backend::make_file;
-    use crate::msg::{FileResponse, BigTreeResponse};
+    use crate::msg::{FileResponse};
 
     fn init_for_test<S: Storage, A: Api, Q: Querier> (
         deps: &mut Extern<S, A, Q>,
