@@ -2,7 +2,7 @@ use cosmwasm_std::HumanAddr;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
-use crate::{merged_back::File, viewing_key::ViewingKey};
+use crate::{backend::File, viewing_key::ViewingKey};
 
 #[derive(Serialize, Deserialize, Clone, Debug, JsonSchema)]
 pub struct InitMsg {

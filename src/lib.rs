@@ -1,7 +1,7 @@
 pub mod contract;
 pub mod msg;
 pub mod state;
-pub mod merged_back;
+pub mod backend;
 pub mod ordered_set;
 pub mod nodes;
 mod viewing_key;

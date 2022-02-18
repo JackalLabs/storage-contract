@@ -9,7 +9,7 @@ use std::cmp;
 
 use crate::msg::{HandleMsg, InitMsg, QueryMsg, HandleAnswer};
 use crate::state::{ State, CONFIG_KEY, save, load, write_viewing_key, read_viewing_key};
-use crate::merged_back::{try_allow_read, try_disallow_read, query_file, try_create_file, try_init, try_remove_file, try_move_file, try_create_multi_files};
+use crate::backend::{try_allow_read, try_disallow_read, query_file, try_create_file, try_init, try_remove_file, try_move_file, try_create_multi_files};
 use crate::viewing_key::{ViewingKey, VIEWING_KEY_SIZE};
 use crate::nodes::{pub_query_coins, claim, push_node, get_node, get_node_size, set_node_size};
 
@@ -195,7 +195,7 @@ mod tests {
     use super::*;
     use cosmwasm_std::testing::{mock_dependencies, mock_env};
     use cosmwasm_std::{coins, from_binary, HumanAddr};
-    use crate::merged_back::make_file;
+    use crate::backend::make_file;
     use crate::msg::{FileResponse, BigTreeResponse};
 
     fn init_for_test<S: Storage, A: Api, Q: Querier> (
@@ -307,6 +307,11 @@ mod tests {
         let query_res = query(&deps, QueryMsg::GetContents { path: String::from("anyone/pepe.jpg"), behalf: HumanAddr("anyone".to_string()), key: vk.to_string() }).unwrap();
         let value: FileResponse = from_binary(&query_res).unwrap();
         println!("{:#?}", value);
+
+        let env = mock_env("alice", &[]);
+        let msg = HandleMsg::Create { contents: String::from("I'm not sad"), path: String::from("anyone/popo.jpg") , pkey: String::from("test"), skey: String::from("test")};
+        let res = handle(&mut deps, env, msg);
+        assert_eq!(res.is_err(), true);
 
     }
 }
