@@ -479,7 +479,6 @@ pub fn read_folder<'a, S: ReadonlyStorage>(
 #[derive(Serialize, Deserialize, JsonSchema, PartialEq, Debug, Clone)]
 pub struct File{
     contents: String,
-    name: String,
     owner: String,
     public: bool,
     allow_read_list: OrderedSet<String>,
@@ -585,22 +584,17 @@ impl File {
 pub fn try_move_file<S: Storage, A: Api, Q: Querier>(
     deps: &mut Extern<S, A, Q>,
     env: Env,
-    name: String,
     old_path: String,
     new_path: String,
 ) -> StdResult<HandleResponse> {
 
-    let ha = deps.api.human_address(&deps.api.canonical_address(&env.message.sender)?)?;
 
-    debug_print!("Attempting to move file from `{}` to `{}` for account: {}", old_path.clone() , new_path.clone() , ha.clone());
+    debug_print!("Attempting to move file from `{}` to `{}`", old_path.clone() , new_path.clone());
 
-    let adr = String::from(ha.clone().as_str());
-    let old_file_path = format!("{}{}{}",adr, old_path, name);
+    let duplicated_contents = bucket_load_file(&mut deps.storage, &old_path).contents;
 
-    let duplicated_contents = bucket_load_file(&mut deps.storage, &old_file_path).contents;
-
-    try_create_file(deps, env.clone(), name.clone(), duplicated_contents, new_path, String::from(""), String::from(""))?;
-    try_remove_file(deps, env, name, old_path)?;
+    try_create_file(deps, env.clone(), duplicated_contents, new_path, String::from(""), String::from(""))?;
+    try_remove_file(deps, env, old_path)?;
 
     Ok(HandleResponse::default())
 }
@@ -608,34 +602,10 @@ pub fn try_move_file<S: Storage, A: Api, Q: Querier>(
 pub fn try_remove_file<S: Storage, A: Api, Q: Querier>(
     deps: &mut Extern<S, A, Q>,
     env: Env,
-    name: String,
     path: String,
 ) -> StdResult<HandleResponse> {
 
-    let ha = deps.api.human_address(&deps.api.canonical_address(&env.message.sender)?)?;
-
-    debug_print!("Attempting to remove file for account: {}", ha.clone());
-
-    let adr = String::from(ha.clone().as_str());
-    let parent_path = format!("{}{}", adr, path);
-
-    let file_path = format!("{}{}{}",adr, path, name);
-    // println!("parent_path from backend: {}", parent_path);
-    // println!("file_path from backend: {}", file_path);
-
-    // Load PARENT FOLDER from bucket
-    let mut parent_from_bucket = bucket_load_folder(&mut deps.storage, parent_path.clone());
-    // println!("PARENT from bucket: {:?}", parent_from_bucket);
-
-    // Remove FILE from PARENT FOLDER
-    parent_from_bucket.files.remove(file_path.clone());
-    // println!("after remove --- {:?}", parent_from_bucket);
-
-    // SAVE new ver of PARENT FOLDER to bucket
-    bucket_save_folder(&mut deps.storage, parent_path, parent_from_bucket);
-
-    // REMOVE FILE from bucket
-    bucket_remove_file(&mut deps.storage, file_path.clone());
+    bucket_remove_file(&mut deps.storage, path);
 
     Ok(HandleResponse::default())
 }
@@ -643,36 +613,23 @@ pub fn try_remove_file<S: Storage, A: Api, Q: Querier>(
 pub fn try_create_file<S: Storage, A: Api, Q: Querier>(
     deps: &mut Extern<S, A, Q>,
     env: Env,
-    name: String,
     contents: String,
     path: String,
     pkey: String,
     skey: String
 ) -> StdResult<HandleResponse> {
 
-    let ha = deps.api.human_address(&deps.api.canonical_address(&env.message.sender)?)?;
-    debug_print!("Attempting to create file for account: {}", ha.clone());
-
-    let adr = String::from(ha.clone().as_str());
-
-    let mut p = adr.clone();
-    p.push_str(&path);
-
-    let mut l = bucket_load_folder(&mut deps.storage, p.clone());
-
-    let path_to_compare = &mut p.clone();
-    path_to_compare.push_str(&name);
-
-    let file_name_taken = file_exists(&mut deps.storage, path_to_compare.to_string());
+  
+    let file_name_taken = file_exists(&mut deps.storage, path.to_string());
 
     match file_name_taken{
         false => {
-            create_file(&mut deps.storage, &mut l, p.clone(), name, contents);
-            bucket_save_folder(&mut deps.storage, p.clone(), l);
+            create_file(&mut deps.storage, path.to_string(), contents);
 
+            let ha = deps.api.human_address(&deps.api.canonical_address(&env.message.sender)?)?;
+            let adr = String::from(ha.clone().as_str());
             let mut acl = adr.clone();
             acl.push_str(&pkey);
-
 
             write_claim(&mut deps.storage, acl, skey);
             
@@ -680,7 +637,7 @@ pub fn try_create_file<S: Storage, A: Api, Q: Querier>(
             Ok(HandleResponse::default())
         }
         true => {
-            let error_message = format!("File name '{}' has already been taken", name);
+            let error_message = format!("File name '{}' has already been taken", path);
             Err(StdError::generic_err(error_message))
         },
     }
@@ -689,9 +646,8 @@ pub fn try_create_file<S: Storage, A: Api, Q: Querier>(
 pub fn try_create_multi_files<S: Storage, A: Api, Q: Querier>(
     deps: &mut Extern<S, A, Q>,
     env: Env,
-    name_list: Vec<String>,
     contents_list: Vec<String>,
-    path: String,
+    paths: Vec<String>,
     pkeys: Vec<String>,
     skeys: Vec<String>,
 ) -> StdResult<HandleResponse> {
@@ -701,29 +657,22 @@ pub fn try_create_multi_files<S: Storage, A: Api, Q: Querier>(
 
     let adr = String::from(ha.clone().as_str());
 
-    for i in 0..name_list.len() {
+    for i in 0..contents_list.len() {
 
-        let file_name = name_list[i].clone();
         let file_contents = contents_list[i].clone();
 
-        let mut p = adr.clone();
-        p.push_str(&path);
-    
-        let mut l = bucket_load_folder(&mut deps.storage, p.clone());
-    
-        let path_to_compare = &mut p.clone();
 
-        path_to_compare.push_str(&file_name);
+        let path = paths[i];
+    
         
-        let file_name_taken = file_exists(&mut deps.storage, path_to_compare.to_string());
+        let file_name_taken = file_exists(&mut deps.storage, path.to_string());
 
         let pkey = &pkeys[i];
         let skey = &skeys[i];
 
         match file_name_taken{
             false => {
-                create_file(&mut deps.storage, &mut l, p.clone(), file_name, file_contents);
-                bucket_save_folder(&mut deps.storage, p.clone(), l);
+                create_file(&mut deps.storage, path.to_string(), file_contents);
                 debug_print!("create file success");
 
                 let mut acl = adr.clone();
@@ -732,7 +681,7 @@ pub fn try_create_multi_files<S: Storage, A: Api, Q: Querier>(
                 // Ok(HandleResponse::default())
             }
             true => {
-                let _error_message = format!("File name '{}' has already been taken", file_name);
+                let _error_message = format!("File name '{}' has already been taken", path);
                 // Err(StdError::generic_err(error_message))
             },
         }
@@ -741,18 +690,17 @@ pub fn try_create_multi_files<S: Storage, A: Api, Q: Querier>(
     Ok(HandleResponse::default())
 }
 
-pub fn create_file<'a, S: Storage>(store: &'a mut S, root: &mut Folder, path: String, name: String, contents: String) {
+pub fn create_file<'a, S: Storage>(store: &'a mut S, path: String, contents: String) {
 
-    let file = make_file(&name, "", &contents);
+    let file = make_file("", &contents);
 
-    add_file(store, root, path, file);
+    add_file(store, path, file); 
 
 }
 
-pub fn make_file(name: &str, owner: &str, contents: &str) -> File{
+pub fn make_file(owner: &str, contents: &str) -> File{
     File {
         contents: String::from(contents),
-        name: String::from(name),
         owner: String::from(owner),
         public: false,
         allow_read_list: OrderedSet::<String>::new(),
@@ -760,13 +708,8 @@ pub fn make_file(name: &str, owner: &str, contents: &str) -> File{
     }
 }
 
-pub fn add_file<'a, S: Storage>(store: &'a mut S, parent : &mut Folder, path: String, mut child: File){
-    child.owner = parent.owner.clone();
-    let mut p = path.clone();
-    p.push_str(&child.name);
-
-    parent.files.push(p.clone());
-    bucket_save_file(store, p.clone(), child);
+pub fn add_file<'a, S: Storage>(store: &'a mut S, path: String, mut child: File){
+    bucket_save_file(store, path, child);
 }
 
 pub fn bucket_save_file<'a, S: Storage>( store: &'a mut S, path: String, folder: File ) {
@@ -809,12 +752,10 @@ pub fn bucket_load_readonly_file<'a, S: Storage>( store: &'a S, path: String ) -
 }
 
 // QueryMsg
-pub fn query_file<S: Storage, A: Api, Q: Querier>(deps: &Extern<S, A, Q>, address: HumanAddr, path: String, behalf: &HumanAddr) -> StdResult<FileResponse> {
+pub fn query_file<S: Storage, A: Api, Q: Querier>(deps: &Extern<S, A, Q>, path: String, behalf: &HumanAddr) -> StdResult<FileResponse> {
 
-    let adr = address.as_str();
-    let query_path = format!("{}{}",adr,&path);
 
-    let f = bucket_load_readonly_file(&deps.storage, query_path);
+    let f = bucket_load_readonly_file(&deps.storage, path);
 
     match f {
         Ok(f1) => {

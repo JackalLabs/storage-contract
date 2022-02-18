@@ -2,7 +2,7 @@ use cosmwasm_std::HumanAddr;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
-use crate::{backend::File, viewing_key::ViewingKey};
+use crate::{merged_back::File, viewing_key::ViewingKey};
 
 #[derive(Serialize, Deserialize, Clone, Debug, JsonSchema)]
 pub struct InitMsg {
@@ -14,29 +14,22 @@ pub struct InitMsg {
 #[derive(Serialize, Deserialize, Clone, Debug, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum HandleMsg {
-    InitAddress {  },
-    CreateFile { name: String, contents: String, path: String , pkey: String, skey: String},
-    CreateMultiFiles { name_list: Vec<String>, contents_list: Vec<String>, path: String, pkeys: Vec<String>, skeys: Vec<String> },
-    RemoveFile {name: String, path: String},
-    MoveFile {name: String, old_path: String, new_path: String},
-    CreateFolder {name : String, path: String},
-    RemoveFolder {name : String, path: String},
-    MoveFolder {name : String, old_path: String, new_path: String},
+    InitAddress { contents: String },
+    Create {contents: String, path: String , pkey: String, skey: String},
+    CreateMulti { contents_list: Vec<String>, path_list: Vec<String>, pkeys: Vec<String>, skeys: Vec<String> },
+    Remove {path: String},
+    Move {old_path: String, new_path: String},
     CreateViewingKey {entropy: String, padding: Option<String>},
     AllowRead {path: String, address: String},
     DisallowRead {path: String, address: String},
     InitNode {ip: String, address: String},
     ClaimReward {path: String, key: String, address: String},
-
-
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum QueryMsg {
-    GetFile { address: HumanAddr, behalf: HumanAddr, path: String, key: String },
-    GetFolderContents {address: HumanAddr, behalf: HumanAddr, path: String, key: String},
-    GetBigTree {address: HumanAddr, behalf: HumanAddr, path: String, key: String},
+    GetContents { behalf: HumanAddr, path: String, key: String },
     GetNodeIP {index: u64},
     GetNodeListSize {},
     GetNodeList{size: u64},
@@ -72,9 +65,7 @@ pub struct BigTreeResponse {
 impl QueryMsg {
     pub fn get_validation_params(&self) -> (Vec<&HumanAddr>, ViewingKey) {
         match self {
-            Self::GetFile { behalf, key, .. } => (vec![behalf], ViewingKey(key.clone())),
-            Self::GetFolderContents { behalf, key, .. } => (vec![behalf], ViewingKey(key.clone())),
-            Self::GetBigTree { behalf, key, .. } => (vec![behalf], ViewingKey(key.to_string())),
+            Self::GetContents { behalf, key, .. } => (vec![behalf], ViewingKey(key.clone())),
             _ => panic!("This query type does not require authentication"),
         }
     }
