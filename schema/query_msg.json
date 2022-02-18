@@ -5,83 +5,17 @@
     {
       "type": "object",
       "required": [
-        "get_file"
+        "get_contents"
       ],
       "properties": {
-        "get_file": {
+        "get_contents": {
           "type": "object",
           "required": [
-            "address",
             "behalf",
             "key",
             "path"
           ],
           "properties": {
-            "address": {
-              "$ref": "#/definitions/HumanAddr"
-            },
-            "behalf": {
-              "$ref": "#/definitions/HumanAddr"
-            },
-            "key": {
-              "type": "string"
-            },
-            "path": {
-              "type": "string"
-            }
-          }
-        }
-      }
-    },
-    {
-      "type": "object",
-      "required": [
-        "get_folder_contents"
-      ],
-      "properties": {
-        "get_folder_contents": {
-          "type": "object",
-          "required": [
-            "address",
-            "behalf",
-            "key",
-            "path"
-          ],
-          "properties": {
-            "address": {
-              "$ref": "#/definitions/HumanAddr"
-            },
-            "behalf": {
-              "$ref": "#/definitions/HumanAddr"
-            },
-            "key": {
-              "type": "string"
-            },
-            "path": {
-              "type": "string"
-            }
-          }
-        }
-      }
-    },
-    {
-      "type": "object",
-      "required": [
-        "get_big_tree"
-      ],
-      "properties": {
-        "get_big_tree": {
-          "type": "object",
-          "required": [
-            "address",
-            "behalf",
-            "key",
-            "path"
-          ],
-          "properties": {
-            "address": {
-              "$ref": "#/definitions/HumanAddr"
-            },
             "behalf": {
               "$ref": "#/definitions/HumanAddr"
             },
