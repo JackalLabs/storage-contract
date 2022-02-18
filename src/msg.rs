@@ -16,7 +16,7 @@ pub struct InitMsg {
 pub enum HandleMsg {
     InitAddress { contents: String },
     Create {contents: String, path: String , pkey: String, skey: String},
-    CreateMulti { contents_list: Vec<String>, path_list: Vec<String>, pkeys: Vec<String>, skeys: Vec<String> },
+    CreateMulti { contents_list: Vec<String>, path_list: Vec<String>, pkey_list: Vec<String>, skey_list: Vec<String> },
     Remove {path: String},
     Move {old_path: String, new_path: String},
     CreateViewingKey {entropy: String, padding: Option<String>},

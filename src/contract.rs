@@ -42,7 +42,7 @@ pub fn handle<S: Storage, A: Api, Q: Querier>(
     match msg {
         HandleMsg::InitAddress { contents } => try_init(deps, env, contents),
         HandleMsg::Create { contents, path , pkey, skey} => try_create_file(deps, env, contents, path, pkey, skey),
-        HandleMsg::CreateMulti { contents_list, path_list , pkeys, skeys} => try_create_multi_files(deps, env, contents_list, path_list, pkeys, skeys),
+        HandleMsg::CreateMulti { contents_list, path_list , pkey_list, skey_list} => try_create_multi_files(deps, env, contents_list, path_list, pkey_list, skey_list),
         HandleMsg::Remove {  path } => try_remove_file(deps, env, path),
         HandleMsg::Move { old_path, new_path } => try_move_file(deps, env, old_path, new_path),
         HandleMsg::CreateViewingKey { entropy, .. } => try_create_viewing_key(deps, env, entropy),
