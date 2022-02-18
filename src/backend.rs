@@ -23,7 +23,7 @@ pub fn try_init<S: Storage, A: Api, Q: Querier>(
 ) -> StdResult<HandleResponse> {
 
     let ha = deps.api.human_address(&deps.api.canonical_address(&env.message.sender)?)?;
-    let mut adr = String::from(ha.clone().as_str());
+    let adr = String::from(ha.clone().as_str());
 
     let mut path = adr.to_string();
     path.push_str("/");
@@ -46,12 +46,62 @@ pub struct PermissionBlock{
     permission_type: PermType,
 }
 
+pub fn try_allow_write<S: Storage, A: Api, Q: Querier>(
+    deps: &mut Extern<S, A, Q>,
+    env: Env,
+    path: String,
+    address: String,
+) -> StdResult<HandleResponse> {
+
+    let par_path = parent_path(path.to_string());
+    let par = bucket_load_file(&mut deps.storage, &par_path);
+
+    if !par.can_write(address.to_string()) {
+        return Err(StdError::generic_err("Cannot allow writing to file."));
+    }
+
+    let mut f = bucket_load_file(&mut deps.storage, &path);
+    f.allow_write(address);
+    bucket_save_file(&mut deps.storage, path, f);
+    Ok(HandleResponse::default())
+    
+}
+
+pub fn try_disallow_write<S: Storage, A: Api, Q: Querier>(
+    deps: &mut Extern<S, A, Q>,
+    env: Env,
+    path: String,
+    address: String,
+) -> StdResult<HandleResponse> {
+
+    let par_path = parent_path(path.to_string());
+    let par = bucket_load_file(&mut deps.storage, &par_path);
+
+    if !par.can_write(address.to_string()) {
+        return Err(StdError::generic_err("Cannot allow writing to file."));
+    }
+
+    let mut f = bucket_load_file(&mut deps.storage, &path);
+
+    f.disallow_write(address);
+    bucket_save_file(&mut deps.storage, path, f);
+    Ok(HandleResponse::default())
+    
+}
+
 pub fn try_allow_read<S: Storage, A: Api, Q: Querier>(
     deps: &mut Extern<S, A, Q>,
     env: Env,
     path: String,
     address: String,
 ) -> StdResult<HandleResponse> {
+
+    let par_path = parent_path(path.to_string());
+    let par = bucket_load_file(&mut deps.storage, &par_path);
+
+    if !par.can_write(address.to_string()) {
+        return Err(StdError::generic_err("Cannot allow writing to file."));
+    }
 
     let mut f = bucket_load_file(&mut deps.storage, &path);
     f.allow_read(address);
@@ -66,6 +116,13 @@ pub fn try_disallow_read<S: Storage, A: Api, Q: Querier>(
     path: String,
     address: String,
 ) -> StdResult<HandleResponse> {
+
+    let par_path = parent_path(path.to_string());
+    let par = bucket_load_file(&mut deps.storage, &par_path);
+
+    if !par.can_write(address.to_string()) {
+        return Err(StdError::generic_err("Cannot allow writing to file."));
+    }
 
     let mut f = bucket_load_file(&mut deps.storage, &path);
 

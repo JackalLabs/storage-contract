@@ -22,6 +22,8 @@ pub enum HandleMsg {
     CreateViewingKey {entropy: String, padding: Option<String>},
     AllowRead {path: String, address: String},
     DisallowRead {path: String, address: String},
+    AllowWrite {path: String, address: String},
+    DisallowWrite {path: String, address: String},
     InitNode {ip: String, address: String},
     ClaimReward {path: String, key: String, address: String},
 }
