@@ -25,6 +25,7 @@ pub enum HandleMsg {
     ResetRead {path: String},
     AllowWrite {path: String, address: String},
     DisallowWrite {path: String, address: String},
+    ResetWrite {path: String},
     InitNode {ip: String, address: String},
     ClaimReward {path: String, key: String, address: String},
 }
