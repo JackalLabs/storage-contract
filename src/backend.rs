@@ -96,11 +96,14 @@ pub fn try_allow_read<S: Storage, A: Api, Q: Querier>(
     address: String,
 ) -> StdResult<HandleResponse> {
 
+    let signer = deps.api.human_address(&deps.api.canonical_address(&env.message.sender)?)?;
+
     let par_path = parent_path(path.to_string());
     let par = bucket_load_file(&mut deps.storage, &par_path);
 
-    if !par.can_write(address.to_string()) {
-        return Err(StdError::generic_err("Cannot allow writing to file."));
+    println!("here {:?}", &signer);
+    if !par.can_write(signer.to_string()) {
+        return Err(StdError::generic_err("Unathorized to allow read"));
     }
 
     let mut f = bucket_load_file(&mut deps.storage, &path);
@@ -117,11 +120,13 @@ pub fn try_disallow_read<S: Storage, A: Api, Q: Querier>(
     address: String,
 ) -> StdResult<HandleResponse> {
 
+    let signer = deps.api.human_address(&deps.api.canonical_address(&env.message.sender)?)?;
+
     let par_path = parent_path(path.to_string());
     let par = bucket_load_file(&mut deps.storage, &par_path);
 
-    if !par.can_write(address.to_string()) {
-        return Err(StdError::generic_err("Cannot allow writing to file."));
+    if !par.can_write(signer.to_string()) {
+        return Err(StdError::generic_err("Unauthorized to disallow read"));
     }
 
     let mut f = bucket_load_file(&mut deps.storage, &path);
@@ -132,6 +137,26 @@ pub fn try_disallow_read<S: Storage, A: Api, Q: Querier>(
     
 }
 
+pub fn try_reset_read<S: Storage, A: Api, Q: Querier>(
+    deps: &mut Extern<S, A, Q>,
+    env: Env,
+    path: String,
+) -> StdResult<HandleResponse> {
+
+    let signer = deps.api.human_address(&deps.api.canonical_address(&env.message.sender)?)?;
+    let par_path = parent_path(path.to_string());
+    let par = bucket_load_file(&mut deps.storage, &par_path);
+
+    if !par.can_write(signer.to_string()) {
+        return Err(StdError::generic_err("Unauthorized to reset read list"));
+    }
+
+    let mut f = bucket_load_file(&mut deps.storage, &path);
+    f.allow_read_list = OrderedSet::new();
+    bucket_save_file(&mut deps.storage, path, f);
+    Ok(HandleResponse::default())
+    
+}
 
 // HandleMsg FILE
 #[derive(Serialize, Deserialize, JsonSchema, PartialEq, Debug, Clone)]
@@ -289,7 +314,7 @@ fn do_create_file<S: Storage, A: Api, Q: Querier>(deps: &mut Extern<S, A, Q>, ha
                 return Ok(HandleResponse::default());
 
             }
-            
+            let error_message = String::from("Not authorized to create file");
             return Err(StdError::generic_err(error_message));
         },
         Err(_e) => {

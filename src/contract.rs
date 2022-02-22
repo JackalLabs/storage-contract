@@ -9,7 +9,7 @@ use std::cmp;
 
 use crate::msg::{HandleMsg, InitMsg, QueryMsg, HandleAnswer};
 use crate::state::{ State, CONFIG_KEY, save, load, write_viewing_key, read_viewing_key};
-use crate::backend::{try_allow_write, try_disallow_write, try_allow_read, try_disallow_read, query_file, try_create_file, try_init, try_remove_file, try_move_file, try_create_multi_files};
+use crate::backend::{try_allow_write, try_disallow_write, try_allow_read, try_disallow_read, query_file, try_create_file, try_init, try_remove_file, try_move_file, try_create_multi_files, try_reset_read};
 use crate::viewing_key::{ViewingKey, VIEWING_KEY_SIZE};
 use crate::nodes::{pub_query_coins, claim, push_node, get_node, get_node_size, set_node_size};
 
@@ -48,6 +48,7 @@ pub fn handle<S: Storage, A: Api, Q: Querier>(
         HandleMsg::CreateViewingKey { entropy, .. } => try_create_viewing_key(deps, env, entropy),
         HandleMsg::AllowRead { path, address } => try_allow_read(deps, env, path, address),
         HandleMsg::DisallowRead { path, address } => try_disallow_read(deps, env, path, address),
+        HandleMsg::ResetRead { path } => try_reset_read(deps, env, path),
         HandleMsg::AllowWrite { path, address } => try_allow_write(deps, env, path, address),
         HandleMsg::DisallowWrite { path, address } => try_disallow_write(deps, env, path, address),
         HandleMsg::InitNode {ip, address} => try_init_node(deps, ip, address),
@@ -300,17 +301,39 @@ mod tests {
         let env = mock_env("anyone", &[]);
         let msg = HandleMsg::Create { contents: String::from("I'm sad"), path: String::from("anyone/pepe.jpg") , pkey: String::from("test"), skey: String::from("test")};
         let _res = handle(&mut deps, env, msg).unwrap();
-
+        
+        
         // Get File with viewing key
         let query_res = query(&deps, QueryMsg::GetContents { path: String::from("anyone/pepe.jpg"), behalf: HumanAddr("alice".to_string()), key: vk2.to_string() });
         assert_eq!(query_res.is_err(), true);
-
+        
+        // Allow Read Alice
+        let env = mock_env("anyone", &[]);
+        let msg = HandleMsg::AllowRead { path: String::from("anyone/pepe.jpg"), address: String::from("alice") };
+        let _res = handle(&mut deps, env, msg).unwrap();
+        // Allow Read Bob
+        let env = mock_env("anyone", &[]);
+        let msg = HandleMsg::AllowRead { path: String::from("anyone/pepe.jpg"), address: String::from("bob") };
+        let _res = handle(&mut deps, env, msg).unwrap();
+        
+        // Query File
         let query_res = query(&deps, QueryMsg::GetContents { path: String::from("anyone/pepe.jpg"), behalf: HumanAddr("anyone".to_string()), key: vk.to_string() }).unwrap();
         let value: FileResponse = from_binary(&query_res).unwrap();
-        println!("{:#?}", value);
+        println!("{:#?}", value.file);
+
+        //Reset Read List
+        let env = mock_env("anyone", &[]);
+        let msg = HandleMsg::DisallowRead { path: String::from("anyone/pepe.jpg"), address: String::from("alice") };
+        let _res = handle(&mut deps, env, msg).unwrap();
+
+        //Query File
+        let query_res = query(&deps, QueryMsg::GetContents { path: String::from("anyone/pepe.jpg"), behalf: HumanAddr("anyone".to_string()), key: vk.to_string() }).unwrap();
+        let value: FileResponse = from_binary(&query_res).unwrap();
+        println!("{:#?}", value.file);
+
 
         let env = mock_env("alice", &[]);
-        let msg = HandleMsg::Create { contents: String::from("I'm not sad"), path: String::from("anyone/popo.jpg") , pkey: String::from("test"), skey: String::from("test")};
+        let msg = HandleMsg::Create { contents: String::from("I'm not sad"), path: String::from("anyone/pepe.jpg") , pkey: String::from("test"), skey: String::from("test")};
         let res = handle(&mut deps, env, msg);
         assert_eq!(res.is_err(), true);
 
