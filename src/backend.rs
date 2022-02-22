@@ -64,6 +64,7 @@ pub fn try_allow_write<S: Storage, A: Api, Q: Querier>(
 
     let mut f = bucket_load_file(&mut deps.storage, &path);
     f.allow_write(address);
+    println!("after try_allow_write {:?}", &f.allow_write_list);
     bucket_save_file(&mut deps.storage, path, f);
     Ok(HandleResponse::default())
     
@@ -100,17 +101,16 @@ pub fn try_reset_write<S: Storage, A: Api, Q: Querier>(
 ) -> StdResult<HandleResponse> {
 
     let signer = deps.api.human_address(&deps.api.canonical_address(&env.message.sender)?)?;
-    let par_path = parent_path(path.to_string());
-    let par = bucket_load_file(&mut deps.storage, &par_path);
+    let mop = bucket_load_file(&mut deps.storage, &path); //this should load path not par_path
 
-    if !par.can_write(signer.to_string()) {
-        return Err(StdError::generic_err("Unauthorized to reset read list"));
+    if !mop.can_write(signer.to_string()) {
+        return Err(StdError::generic_err("Unauthorized to reset write list"));
+    } else {
+        let mut f = bucket_load_file(&mut deps.storage, &path);
+        f.allow_write_list = OrderedSet::new();
+        bucket_save_file(&mut deps.storage, path, f);
+        Ok(HandleResponse::default())
     }
-
-    let mut f = bucket_load_file(&mut deps.storage, &path);
-    f.allow_write_list = OrderedSet::new();
-    bucket_save_file(&mut deps.storage, path, f);
-    Ok(HandleResponse::default())
     
 }
 
@@ -126,7 +126,6 @@ pub fn try_allow_read<S: Storage, A: Api, Q: Querier>(
     let par_path = parent_path(path.to_string());
     let par = bucket_load_file(&mut deps.storage, &par_path);
 
-    println!("here {:?}", &signer);
     if !par.can_write(signer.to_string()) {
         return Err(StdError::generic_err("Unathorized to allow read"));
     }
@@ -169,10 +168,9 @@ pub fn try_reset_read<S: Storage, A: Api, Q: Querier>(
 ) -> StdResult<HandleResponse> {
 
     let signer = deps.api.human_address(&deps.api.canonical_address(&env.message.sender)?)?;
-    let par_path = parent_path(path.to_string());
-    let par = bucket_load_file(&mut deps.storage, &par_path);
+    let mop = bucket_load_file(&mut deps.storage, &path);
 
-    if !par.can_write(signer.to_string()) {
+    if !mop.can_write(signer.to_string()) {
         return Err(StdError::generic_err("Unauthorized to reset read list"));
     }
 
@@ -223,15 +221,13 @@ impl File {
     pub fn can_write(&self, address:String) -> bool{
         if self.owner.eq(&address) {
             return true;
-        }
-
-        for i in 0..self.allow_write_list.len() {
-            if String::from(self.allow_write_list.get(i).unwrap()).eq(&address) {
-                return true;
+        } 
+            for i in 0..self.allow_write_list.len() {
+                if String::from(self.allow_write_list.get(i).unwrap()).eq(&address) {
+                    return true;
+                }
             }
-        }
-
-        return false;
+            return false;
     }
 
     pub fn allow_read(&mut self, address:String) -> bool {
