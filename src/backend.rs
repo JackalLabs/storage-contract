@@ -55,16 +55,15 @@ pub fn try_allow_write<S: Storage, A: Api, Q: Querier>(
 
     let signer = deps.api.human_address(&deps.api.canonical_address(&env.message.sender)?)?;
 
-    let par_path = parent_path(path.to_string());
-    let par = bucket_load_file(&mut deps.storage, &par_path);
+    // let par_path = parent_path(path.to_string());
+    // let par = bucket_load_file(&mut deps.storage, &par_path);
+    let mut f = bucket_load_file(&mut deps.storage, &path);
 
-    if !par.can_write(signer.to_string()) {
+    if !f.can_write(signer.to_string()) {
         return Err(StdError::generic_err("Unauthorized to allow write"));
     }
 
-    let mut f = bucket_load_file(&mut deps.storage, &path);
     f.allow_write(address);
-    println!("after try_allow_write {:?}", &f.allow_write_list);
     bucket_save_file(&mut deps.storage, path, f);
     Ok(HandleResponse::default())
     
@@ -79,14 +78,13 @@ pub fn try_disallow_write<S: Storage, A: Api, Q: Querier>(
 
     let signer = deps.api.human_address(&deps.api.canonical_address(&env.message.sender)?)?;
 
-    let par_path = parent_path(path.to_string());
-    let par = bucket_load_file(&mut deps.storage, &par_path);
+    // let par_path = parent_path(path.to_string());
+    // let par = bucket_load_file(&mut deps.storage, &par_path);
+    let mut f = bucket_load_file(&mut deps.storage, &path);
 
-    if !par.can_write(signer.to_string()) {
+    if !f.can_write(signer.to_string()) {
         return Err(StdError::generic_err("Unauthorized to disallow write"));
     }
-
-    let mut f = bucket_load_file(&mut deps.storage, &path);
 
     f.disallow_write(address);
     bucket_save_file(&mut deps.storage, path, f);
@@ -123,14 +121,14 @@ pub fn try_allow_read<S: Storage, A: Api, Q: Querier>(
 
     let signer = deps.api.human_address(&deps.api.canonical_address(&env.message.sender)?)?;
 
-    let par_path = parent_path(path.to_string());
-    let par = bucket_load_file(&mut deps.storage, &par_path);
+    // let par_path = parent_path(path.to_string());
+    // let par = bucket_load_file(&mut deps.storage, &par_path);
+    let mut f = bucket_load_file(&mut deps.storage, &path);
 
-    if !par.can_write(signer.to_string()) {
+    if !f.can_write(signer.to_string()) {
         return Err(StdError::generic_err("Unathorized to allow read"));
     }
 
-    let mut f = bucket_load_file(&mut deps.storage, &path);
     f.allow_read(address);
     bucket_save_file(&mut deps.storage, path, f);
     Ok(HandleResponse::default())
@@ -146,14 +144,14 @@ pub fn try_disallow_read<S: Storage, A: Api, Q: Querier>(
 
     let signer = deps.api.human_address(&deps.api.canonical_address(&env.message.sender)?)?;
 
-    let par_path = parent_path(path.to_string());
-    let par = bucket_load_file(&mut deps.storage, &par_path);
+    // let par_path = parent_path(path.to_string());
+    // let par = bucket_load_file(&mut deps.storage, &par_path);
+    // Shouldn't we check permission with the path instead of parent_path?
+    let mut f = bucket_load_file(&mut deps.storage, &path);
 
-    if !par.can_write(signer.to_string()) {
+    if !f.can_write(signer.to_string()) {
         return Err(StdError::generic_err("Unauthorized to disallow read"));
     }
-
-    let mut f = bucket_load_file(&mut deps.storage, &path);
 
     f.disallow_read(address);
     bucket_save_file(&mut deps.storage, path, f);

@@ -322,16 +322,19 @@ mod tests {
         let value: FileResponse = from_binary(&query_res).unwrap();
         println!("Before Reset --> {:#?}", value.file);
 
-        // //Reset Read List
+        // Permission test
         let env = mock_env("anyone", &[]);
         let msg = HandleMsg::ResetRead { path: String::from("anyone/pepe.jpg") };
         let _res = handle(&mut deps, env, msg).unwrap();
 
-        // //Query File
+        // Query File
         let query_res = query(&deps, QueryMsg::GetContents { path: String::from("anyone/pepe.jpg"), behalf: HumanAddr("anyone".to_string()), key: vk.to_string() }).unwrap();
         let value: FileResponse = from_binary(&query_res).unwrap();
         println!("After Reset --> {:#?}", value.file);
 
+        //Query File as Alice
+        let query_res = query(&deps, QueryMsg::GetContents { path: String::from("anyone/pepe.jpg"), behalf: HumanAddr("alice".to_string()), key: vk2.to_string() });
+        assert!(query_res.is_err() == true);
 
         // let env = mock_env("alice", &[]);
         // let msg = HandleMsg::Create { contents: String::from("I'm not sad"), path: String::from("anyone/pepe.jpg") , pkey: String::from("test"), skey: String::from("test")};
