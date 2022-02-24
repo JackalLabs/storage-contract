@@ -308,11 +308,11 @@ mod tests {
         let query_res = query(&deps, QueryMsg::GetContents { path: String::from("anyone/pepe.jpg"), behalf: HumanAddr("alice".to_string()), key: vk2.to_string() });
         assert_eq!(query_res.is_err(), true);
         
-        // Allow Write Alice
+        // Allow Read Alice
         let env = mock_env("anyone", &[]);
         let msg = HandleMsg::AllowRead { path: String::from("anyone/pepe.jpg"), address: String::from("alice") };
         let _res = handle(&mut deps, env, msg).unwrap();
-        // Allow Write Bob
+        // Allow Read Bob
         let env = mock_env("anyone", &[]);
         let msg = HandleMsg::AllowRead { path: String::from("anyone/pepe.jpg"), address: String::from("bob") };
         let _res = handle(&mut deps, env, msg).unwrap();
@@ -322,7 +322,7 @@ mod tests {
         let value: FileResponse = from_binary(&query_res).unwrap();
         println!("Before Reset --> {:#?}", value.file);
 
-        // Permission test
+        // Reset Read
         let env = mock_env("anyone", &[]);
         let msg = HandleMsg::ResetRead { path: String::from("anyone/pepe.jpg") };
         let _res = handle(&mut deps, env, msg).unwrap();
