@@ -63,8 +63,8 @@
           "required": [
             "contents_list",
             "path_list",
-            "pkeys",
-            "skeys"
+            "pkey_list",
+            "skey_list"
           ],
           "properties": {
             "contents_list": {
@@ -79,13 +79,13 @@
                 "type": "string"
               }
             },
-            "pkeys": {
+            "pkey_list": {
               "type": "array",
               "items": {
                 "type": "string"
               }
             },
-            "skeys": {
+            "skey_list": {
               "type": "array",
               "items": {
                 "type": "string"
@@ -201,6 +201,90 @@
             "address": {
               "type": "string"
             },
+            "path": {
+              "type": "string"
+            }
+          }
+        }
+      }
+    },
+    {
+      "type": "object",
+      "required": [
+        "reset_read"
+      ],
+      "properties": {
+        "reset_read": {
+          "type": "object",
+          "required": [
+            "path"
+          ],
+          "properties": {
+            "path": {
+              "type": "string"
+            }
+          }
+        }
+      }
+    },
+    {
+      "type": "object",
+      "required": [
+        "allow_write"
+      ],
+      "properties": {
+        "allow_write": {
+          "type": "object",
+          "required": [
+            "address",
+            "path"
+          ],
+          "properties": {
+            "address": {
+              "type": "string"
+            },
+            "path": {
+              "type": "string"
+            }
+          }
+        }
+      }
+    },
+    {
+      "type": "object",
+      "required": [
+        "disallow_write"
+      ],
+      "properties": {
+        "disallow_write": {
+          "type": "object",
+          "required": [
+            "address",
+            "path"
+          ],
+          "properties": {
+            "address": {
+              "type": "string"
+            },
+            "path": {
+              "type": "string"
+            }
+          }
+        }
+      }
+    },
+    {
+      "type": "object",
+      "required": [
+        "reset_write"
+      ],
+      "properties": {
+        "reset_write": {
+          "type": "object",
+          "required": [
+            "path"
+          ],
+          "properties": {
             "path": {
               "type": "string"
             }
