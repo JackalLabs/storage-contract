@@ -43,7 +43,7 @@ pub fn handle<S: Storage, A: Api, Q: Querier>(
         HandleMsg::InitAddress { contents } => try_init(deps, env, contents),
         HandleMsg::Create { contents, path , pkey, skey} => try_create_file(deps, env, contents, path, pkey, skey),
         HandleMsg::CreateMulti { contents_list, path_list , pkey_list, skey_list} => try_create_multi_files(deps, env, contents_list, path_list, pkey_list, skey_list),
-        HandleMsg::Remove {  path } => try_remove_file(deps, env, path),
+        HandleMsg::Remove {  path } => try_remove_file(deps, path),
         HandleMsg::Move { old_path, new_path } => try_move_file(deps, env, old_path, new_path),
         HandleMsg::CreateViewingKey { entropy, .. } => try_create_viewing_key(deps, env, entropy),
         HandleMsg::AllowRead { path, address } => try_allow_read(deps, env, path, address),
@@ -195,7 +195,7 @@ fn try_create_viewing_key<S: Storage, A: Api, Q: Querier>(
 
 #[cfg(test)]
 mod tests {
-    use std::vec;
+    // use std::vec;
     use super::*;
     use cosmwasm_std::testing::{mock_dependencies, mock_env};
     use cosmwasm_std::{coins, from_binary, HumanAddr};

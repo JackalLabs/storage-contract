@@ -1,17 +1,17 @@
-use std::io::Stderr;
+// use std::io::Stderr;
 use std::vec;
 
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
-use cosmwasm_std::{debug_print,Env, Api, Querier, ReadonlyStorage, Storage, StdResult, StdError, Extern, HandleResponse, HumanAddr};
-use cosmwasm_storage::{ bucket, bucket_read, Bucket, ReadonlyBucket};
+use cosmwasm_std::{debug_print,Env, Api, Querier, Storage, StdResult, StdError, Extern, HandleResponse, HumanAddr};
+use cosmwasm_storage::{ bucket, bucket_read };
 
 
 use crate::ordered_set::{OrderedSet};
 use crate::msg::{FileResponse};
 use crate::nodes::{ write_claim };
 
-static FOLDER_LOCATION: &[u8] = b"FOLDERS";
+// static FOLDER_LOCATION: &[u8] = b"FOLDERS";
 static FILE_LOCATION: &[u8] = b"FILES";
 
 
@@ -299,14 +299,13 @@ pub fn try_move_file<S: Storage, A: Api, Q: Querier>(
     let duplicated_contents = bucket_load_file(&mut deps.storage, &old_path).contents;
 
     try_create_file(deps, env.clone(), duplicated_contents, new_path, String::from(""), String::from(""))?;
-    try_remove_file(deps, env, old_path)?;
+    try_remove_file(deps, old_path)?;
 
     Ok(HandleResponse::default())
 }
 
 pub fn try_remove_file<S: Storage, A: Api, Q: Querier>(
     deps: &mut Extern<S, A, Q>,
-    env: Env,
     path: String,
 ) -> StdResult<HandleResponse> {
 
