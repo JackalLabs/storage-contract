@@ -300,6 +300,11 @@ mod tests {
 
         // Create File
         let env = mock_env("anyone", &[]);
+        let msg = HandleMsg::Create { contents: String::from("I'm sad"), path: String::from("anyone/test/") , pkey: String::from("test"), skey: String::from("test")};
+        let _res = handle(&mut deps, env, msg).unwrap();
+
+        // Create File
+        let env = mock_env("anyone", &[]);
         let msg = HandleMsg::Create { contents: String::from("I'm sad"), path: String::from("anyone/pepe.jpg") , pkey: String::from("test"), skey: String::from("test")};
         let _res = handle(&mut deps, env, msg).unwrap();
         
