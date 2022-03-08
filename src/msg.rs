@@ -14,7 +14,7 @@ pub struct InitMsg {
 #[derive(Serialize, Deserialize, Clone, Debug, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum HandleMsg {
-    InitAddress { contents: String },
+    InitAddress { contents: String, entropy: String },
     Create {contents: String, path: String , pkey: String, skey: String},
     CreateMulti { contents_list: Vec<String>, path_list: Vec<String>, pkey_list: Vec<String>, skey_list: Vec<String> },
     Remove {path: String},

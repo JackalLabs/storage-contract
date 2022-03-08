@@ -7,10 +7,10 @@ use cosmwasm_std::{debug_print, to_binary, Api, Binary, Env, Extern, HandleRespo
 use secret_toolkit::crypto::sha_256;
 use std::cmp;
 
-use crate::msg::{HandleMsg, InitMsg, QueryMsg, HandleAnswer};
-use crate::state::{ State, CONFIG_KEY, save, load, write_viewing_key, read_viewing_key};
-use crate::backend::{try_allow_write, try_disallow_write, try_allow_read, try_disallow_read, query_file, try_create_file, try_init, try_remove_file, try_move_file, try_create_multi_files, try_reset_read, try_reset_write};
-use crate::viewing_key::{ViewingKey, VIEWING_KEY_SIZE};
+use crate::msg::{HandleMsg, InitMsg, QueryMsg};
+use crate::state::{ State, CONFIG_KEY, save, read_viewing_key};
+use crate::backend::{try_create_viewing_key, try_allow_write, try_disallow_write, try_allow_read, try_disallow_read, query_file, try_create_file, try_init, try_remove_file, try_move_file, try_create_multi_files, try_reset_read, try_reset_write};
+use crate::viewing_key::VIEWING_KEY_SIZE;
 use crate::nodes::{pub_query_coins, claim, push_node, get_node, get_node_size, set_node_size};
 
 pub fn init<S: Storage, A: Api, Q: Querier>(
@@ -40,7 +40,7 @@ pub fn handle<S: Storage, A: Api, Q: Querier>(
     msg: HandleMsg,
 ) -> StdResult<HandleResponse> {
     match msg {
-        HandleMsg::InitAddress { contents } => try_init(deps, env, contents),
+        HandleMsg::InitAddress { contents, entropy } => try_init(deps, env, contents, entropy),
         HandleMsg::Create { contents, path , pkey, skey} => try_create_file(deps, env, contents, path, pkey, skey),
         HandleMsg::CreateMulti { contents_list, path_list , pkey_list, skey_list} => try_create_multi_files(deps, env, contents_list, path_list, pkey_list, skey_list),
         HandleMsg::Remove {  path } => try_remove_file(deps, path),
@@ -170,36 +170,14 @@ fn try_get_node_list_size<S: Storage, A: Api, Q: Querier>(
     })
 }
 
-fn try_create_viewing_key<S: Storage, A: Api, Q: Querier>(
-    deps: &mut Extern<S, A, Q>,
-    env: Env,
-    entropy: String,
-) -> StdResult<HandleResponse> {
-    let config: State = load(&mut deps.storage, CONFIG_KEY)?;
-    let prng_seed = config.prng_seed;
-
-    let key = ViewingKey::new(&env, &prng_seed, (&entropy).as_ref());
-
-    let message_sender = deps.api.canonical_address(&env.message.sender)?;
-
-    write_viewing_key(&mut deps.storage, &message_sender, &key);
-
-    Ok(HandleResponse {
-        messages: vec![],
-        log: vec![],
-        data: Some(to_binary(&HandleAnswer::CreateViewingKey { 
-            key,
-        })?),
-    })
-}
-
 #[cfg(test)]
 mod tests {
     // use std::vec;
     use super::*;
     use cosmwasm_std::testing::{mock_dependencies, mock_env};
     use cosmwasm_std::{coins, from_binary, HumanAddr};
-    use crate::msg::{FileResponse};
+    use crate::msg::{FileResponse, HandleAnswer};
+    use crate::viewing_key::ViewingKey;
 
     fn init_for_test<S: Storage, A: Api, Q: Querier> (
         deps: &mut Extern<S, A, Q>,
@@ -211,26 +189,40 @@ mod tests {
         let env = mock_env("creator", &[]);
         let _res = init(deps, env, msg).unwrap();
 
-        // Init Address
+        // Init Address and Create ViewingKey
         let env = mock_env(String::from(&address), &[]);
-        let msg = HandleMsg::InitAddress { contents: String::from("{}") };
-        let _res = handle(deps, env, msg).unwrap();
-
-        // Create Viewingkey
-        let env = mock_env(String::from(&address), &[]);
-        let create_vk_msg = HandleMsg::CreateViewingKey {
-            entropy: "supbro".to_string(),
-            padding: None,
-        };
-        let handle_response = handle(deps, env, create_vk_msg).unwrap();
+        let msg = HandleMsg::InitAddress { contents: String::from("{}"), entropy: String::from("Entropygoeshereboi") };
+        let handle_response = handle(deps, env, msg).unwrap();
         let vk = match from_binary(&handle_response.data.unwrap()).unwrap() {
             HandleAnswer::CreateViewingKey { key } => {
-                // println!("viewing key here: {}",key);
                 key
             },
             _ => panic!("Unexpected result from handle"),
         };
         vk
+    }
+
+    #[test]
+    fn new_init_test(){
+        let mut deps = mock_dependencies(20, &coins(2, "token"));
+        
+        // Init Contract
+        let msg = InitMsg {prng_seed:String::from("lets init bro")};
+        let env = mock_env("creator", &[]);
+        let _res = init(&mut deps, env, msg).unwrap();
+
+        // Init Address
+        let env = mock_env(String::from("anyone"), &[]);
+        let msg = HandleMsg::InitAddress { contents: String::from("{}"), entropy: String::from("Entropygoeshereboi") };
+        let handle_response = handle(&mut deps, env, msg).unwrap();
+        let vk = match from_binary(&handle_response.data.unwrap()).unwrap() {
+            HandleAnswer::CreateViewingKey { key } => {
+                key
+            },
+            _ => panic!("Unexpected result from handle"),
+        };
+        println!("{:?}", &vk);
+
     }
 
     #[test]

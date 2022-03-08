@@ -3,13 +3,16 @@ use std::vec;
 
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
-use cosmwasm_std::{debug_print,Env, Api, Querier, Storage, StdResult, StdError, Extern, HandleResponse, HumanAddr};
+use cosmwasm_std::{debug_print,Env, Api, Querier, Storage, StdResult, StdError, Extern, HandleResponse, HumanAddr, to_binary};
 use cosmwasm_storage::{ bucket, bucket_read };
 
 
 use crate::ordered_set::{OrderedSet};
-use crate::msg::{FileResponse};
+use crate::msg::{FileResponse, HandleAnswer};
 use crate::nodes::{ write_claim };
+use crate::state::{CONFIG_KEY, State, write_viewing_key, load};
+use crate::viewing_key::{ViewingKey};
+
 
 // static FOLDER_LOCATION: &[u8] = b"FOLDERS";
 static FILE_LOCATION: &[u8] = b"FILES";
@@ -19,7 +22,8 @@ static FILE_LOCATION: &[u8] = b"FILES";
 pub fn try_init<S: Storage, A: Api, Q: Querier>(
     deps: &mut Extern<S, A, Q>,
     env: Env,
-    contents: String
+    contents: String,
+    entropy: String,
 ) -> StdResult<HandleResponse> {
 
     let ha = deps.api.human_address(&deps.api.canonical_address(&env.message.sender)?)?;
@@ -30,7 +34,44 @@ pub fn try_init<S: Storage, A: Api, Q: Querier>(
 
     create_file(&mut deps.storage, adr.to_string(), path, contents);
 
-    Ok(HandleResponse::default())
+    // Let's create viewing key 
+    let config: State = load(&mut deps.storage, CONFIG_KEY)?;
+    let prng_seed = config.prng_seed;
+    let key = ViewingKey::new(&env, &prng_seed, (&entropy).as_ref());
+    let message_sender = deps.api.canonical_address(&env.message.sender)?;
+    write_viewing_key(&mut deps.storage, &message_sender, &key);
+
+    // Ok(HandleResponse::default())
+    Ok(HandleResponse {
+        messages: vec![],
+        log: vec![],
+        data: Some(to_binary(&HandleAnswer::CreateViewingKey { 
+            key,
+        })?),
+    })
+}
+
+pub fn try_create_viewing_key<S: Storage, A: Api, Q: Querier>(
+    deps: &mut Extern<S, A, Q>,
+    env: Env,
+    entropy: String,
+) -> StdResult<HandleResponse> {
+    let config: State = load(&mut deps.storage, CONFIG_KEY)?;
+    let prng_seed = config.prng_seed;
+
+    let key = ViewingKey::new(&env, &prng_seed, (&entropy).as_ref());
+
+    let message_sender = deps.api.canonical_address(&env.message.sender)?;
+
+    write_viewing_key(&mut deps.storage, &message_sender, &key);
+
+    Ok(HandleResponse {
+        messages: vec![],
+        log: vec![],
+        data: Some(to_binary(&HandleAnswer::CreateViewingKey { 
+            key,
+        })?),
+    })
 }
 
 
