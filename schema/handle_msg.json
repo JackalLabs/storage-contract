@@ -9,30 +9,34 @@
       ],
       "properties": {
         "init_address": {
-          "type": "object"
+          "type": "object",
+          "required": [
+            "contents"
+          ],
+          "properties": {
+            "contents": {
+              "type": "string"
+            }
+          }
         }
       }
     },
     {
       "type": "object",
       "required": [
-        "create_file"
+        "create"
       ],
       "properties": {
-        "create_file": {
+        "create": {
           "type": "object",
           "required": [
             "contents",
-            "name",
             "path",
             "pkey",
             "skey"
           ],
           "properties": {
             "contents": {
-              "type": "string"
-            },
-            "name": {
               "type": "string"
             },
             "path": {
@@ -51,17 +55,16 @@
     {
       "type": "object",
       "required": [
-        "create_multi_files"
+        "create_multi"
       ],
       "properties": {
-        "create_multi_files": {
+        "create_multi": {
           "type": "object",
           "required": [
             "contents_list",
-            "name_list",
-            "path",
-            "pkeys",
-            "skeys"
+            "path_list",
+            "pkey_list",
+            "skey_list"
           ],
           "properties": {
             "contents_list": {
@@ -70,22 +73,19 @@
                 "type": "string"
               }
             },
-            "name_list": {
+            "path_list": {
               "type": "array",
               "items": {
                 "type": "string"
               }
             },
-            "path": {
-              "type": "string"
-            },
-            "pkeys": {
+            "pkey_list": {
               "type": "array",
               "items": {
                 "type": "string"
               }
             },
-            "skeys": {
+            "skey_list": {
               "type": "array",
               "items": {
                 "type": "string"
@@ -98,19 +98,15 @@
     {
       "type": "object",
       "required": [
-        "remove_file"
+        "remove"
       ],
       "properties": {
-        "remove_file": {
+        "remove": {
           "type": "object",
           "required": [
-            "name",
             "path"
           ],
           "properties": {
-            "name": {
-              "type": "string"
-            },
             "path": {
               "type": "string"
             }
@@ -121,93 +117,16 @@
     {
       "type": "object",
       "required": [
-        "move_file"
+        "move"
       ],
       "properties": {
-        "move_file": {
+        "move": {
           "type": "object",
           "required": [
-            "name",
             "new_path",
             "old_path"
           ],
           "properties": {
-            "name": {
-              "type": "string"
-            },
-            "new_path": {
-              "type": "string"
-            },
-            "old_path": {
-              "type": "string"
-            }
-          }
-        }
-      }
-    },
-    {
-      "type": "object",
-      "required": [
-        "create_folder"
-      ],
-      "properties": {
-        "create_folder": {
-          "type": "object",
-          "required": [
-            "name",
-            "path"
-          ],
-          "properties": {
-            "name": {
-              "type": "string"
-            },
-            "path": {
-              "type": "string"
-            }
-          }
-        }
-      }
-    },
-    {
-      "type": "object",
-      "required": [
-        "remove_folder"
-      ],
-      "properties": {
-        "remove_folder": {
-          "type": "object",
-          "required": [
-            "name",
-            "path"
-          ],
-          "properties": {
-            "name": {
-              "type": "string"
-            },
-            "path": {
-              "type": "string"
-            }
-          }
-        }
-      }
-    },
-    {
-      "type": "object",
-      "required": [
-        "move_folder"
-      ],
-      "properties": {
-        "move_folder": {
-          "type": "object",
-          "required": [
-            "name",
-            "new_path",
-            "old_path"
-          ],
-          "properties": {
-            "name": {
-              "type": "string"
-            },
             "new_path": {
               "type": "string"
             },
@@ -282,6 +201,90 @@
             "address": {
               "type": "string"
             },
+            "path": {
+              "type": "string"
+            }
+          }
+        }
+      }
+    },
+    {
+      "type": "object",
+      "required": [
+        "reset_read"
+      ],
+      "properties": {
+        "reset_read": {
+          "type": "object",
+          "required": [
+            "path"
+          ],
+          "properties": {
+            "path": {
+              "type": "string"
+            }
+          }
+        }
+      }
+    },
+    {
+      "type": "object",
+      "required": [
+        "allow_write"
+      ],
+      "properties": {
+        "allow_write": {
+          "type": "object",
+          "required": [
+            "address",
+            "path"
+          ],
+          "properties": {
+            "address": {
+              "type": "string"
+            },
+            "path": {
+              "type": "string"
+            }
+          }
+        }
+      }
+    },
+    {
+      "type": "object",
+      "required": [
+        "disallow_write"
+      ],
+      "properties": {
+        "disallow_write": {
+          "type": "object",
+          "required": [
+            "address",
+            "path"
+          ],
+          "properties": {
+            "address": {
+              "type": "string"
+            },
+            "path": {
+              "type": "string"
+            }
+          }
+        }
+      }
+    },
+    {
+      "type": "object",
+      "required": [
+        "reset_write"
+      ],
+      "properties": {
+        "reset_write": {
+          "type": "object",
+          "required": [
+            "path"
+          ],
+          "properties": {
             "path": {
               "type": "string"
             }
