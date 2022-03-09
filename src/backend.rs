@@ -8,7 +8,7 @@ use cosmwasm_storage::{ bucket, bucket_read };
 
 
 use crate::ordered_set::{OrderedSet};
-use crate::msg::{FileResponse, HandleAnswer};
+use crate::msg::{FileResponse, HandleAnswer, WalletInfoResponse};
 use crate::nodes::{ write_claim };
 use crate::state::{CONFIG_KEY, State, write_viewing_key, load};
 use crate::viewing_key::{ViewingKey};
@@ -34,6 +34,16 @@ pub fn try_init<S: Storage, A: Api, Q: Querier>(
 
     create_file(&mut deps.storage, adr.to_string(), path, contents);
 
+    //Register Wallet info
+    let wallet_info = WalletInfo { 
+        init : true
+    };
+    let bucket_response = bucket(FILE_LOCATION, &mut deps.storage).save(&adr.as_bytes(), &wallet_info);
+    match bucket_response {
+        Ok(bucket_response) => bucket_response,
+        Err(e) => panic!("Bucket Error: {}", e)
+    }
+
     // Let's create viewing key 
     let config: State = load(&mut deps.storage, CONFIG_KEY)?;
     let prng_seed = config.prng_seed;
@@ -49,6 +59,23 @@ pub fn try_init<S: Storage, A: Api, Q: Querier>(
             key,
         })?),
     })
+}
+
+pub fn try_you_up_bro<S: Storage, A: Api, Q: Querier>(
+    deps: &Extern<S, A, Q>, 
+    address: String, 
+) -> StdResult<WalletInfoResponse> {
+    let load_bucket:Result<WalletInfo, StdError> = bucket_read(FILE_LOCATION, &deps.storage).load(&address.as_bytes());
+    
+    match load_bucket {
+        Ok(wallet_info) => {
+            Ok( WalletInfoResponse { init: wallet_info.init})
+        },
+        Err(_e) => {
+            Ok( WalletInfoResponse { init: false})
+        }
+    }
+
 }
 
 pub fn try_create_viewing_key<S: Storage, A: Api, Q: Querier>(
@@ -222,6 +249,13 @@ pub fn try_reset_read<S: Storage, A: Api, Q: Querier>(
     Ok(HandleResponse::default())
     
 }
+
+
+#[derive(Serialize, Deserialize, JsonSchema, PartialEq, Debug, Clone)]
+pub struct WalletInfo{
+    init: bool,
+}
+
 
 // HandleMsg FILE
 #[derive(Serialize, Deserialize, JsonSchema, PartialEq, Debug, Clone)]

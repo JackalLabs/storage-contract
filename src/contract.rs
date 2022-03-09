@@ -9,7 +9,7 @@ use std::cmp;
 
 use crate::msg::{HandleMsg, InitMsg, QueryMsg};
 use crate::state::{ State, CONFIG_KEY, save, read_viewing_key};
-use crate::backend::{try_create_viewing_key, try_allow_write, try_disallow_write, try_allow_read, try_disallow_read, query_file, try_create_file, try_init, try_remove_file, try_move_file, try_create_multi_files, try_reset_read, try_reset_write};
+use crate::backend::{try_create_viewing_key, try_allow_write, try_disallow_write, try_allow_read, try_disallow_read, query_file, try_create_file, try_init, try_remove_file, try_move_file, try_create_multi_files, try_reset_read, try_reset_write, try_you_up_bro};
 use crate::viewing_key::VIEWING_KEY_SIZE;
 use crate::nodes::{pub_query_coins, claim, push_node, get_node, get_node_size, set_node_size};
 
@@ -62,7 +62,7 @@ pub fn query<S: Storage, A: Api, Q: Querier>(
     msg: QueryMsg,
 ) -> StdResult<Binary> {
     match msg {
-
+        QueryMsg::YouUpBro {address} => to_binary(&try_you_up_bro(deps, address)?),
         QueryMsg::GetNodeCoins {address} => to_binary(&pub_query_coins(deps, address)?),
         QueryMsg::GetNodeIP {index} => to_binary(&try_get_ip(deps, index)?),
         QueryMsg::GetNodeList {size} => to_binary(&try_get_top_x(deps, size)?),
@@ -176,7 +176,8 @@ mod tests {
     use super::*;
     use cosmwasm_std::testing::{mock_dependencies, mock_env};
     use cosmwasm_std::{coins, from_binary, HumanAddr};
-    use crate::msg::{FileResponse, HandleAnswer};
+    
+    use crate::msg::{FileResponse, HandleAnswer, WalletInfoResponse};
     use crate::viewing_key::ViewingKey;
 
     fn init_for_test<S: Storage, A: Api, Q: Querier> (
@@ -338,5 +339,21 @@ mod tests {
         // let res = handle(&mut deps, env, msg);
         // assert_eq!(res.is_err(), true);
 
+    }
+
+    #[test]
+    fn test_you_up_bro() {
+        let mut deps = mock_dependencies(20, &[]);
+        let _vk = init_for_test(&mut deps, String::from("anyone"));
+
+        let msg = QueryMsg::YouUpBro {address: String::from("anyone")};
+        let query_res = query(&deps, msg).unwrap();
+        let value:WalletInfoResponse = from_binary(&query_res).unwrap();
+        assert_eq!(value.init, true);
+
+        let msg = QueryMsg::YouUpBro {address: String::from("yeet")};
+        let query_res = query(&deps, msg).unwrap();
+        let value:WalletInfoResponse = from_binary(&query_res).unwrap();
+        assert_eq!(value.init, false);
     }
 }

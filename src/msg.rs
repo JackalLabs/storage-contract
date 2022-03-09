@@ -38,6 +38,7 @@ pub enum QueryMsg {
     GetNodeListSize {},
     GetNodeList{size: u64},
     GetNodeCoins{address: String},
+    YouUpBro{address: String},
 }
 
 #[derive(Serialize, Deserialize, JsonSchema, Debug)]
@@ -48,6 +49,11 @@ pub enum HandleAnswer {
 }
 
 // We define a custom struct for each query response
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
+pub struct WalletInfoResponse {
+    pub init: bool,
+}
+
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 pub struct FileResponse {
     pub file: File,
