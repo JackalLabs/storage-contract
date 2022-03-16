@@ -11,10 +11,14 @@
         "init_address": {
           "type": "object",
           "required": [
-            "contents"
+            "contents",
+            "entropy"
           ],
           "properties": {
             "contents": {
+              "type": "string"
+            },
+            "entropy": {
               "type": "string"
             }
           }
