@@ -66,3 +66,10 @@ store-contract-local:
 clean:
 	cargo clean
 	-rm -f ./contract.wasm ./contract.wasm.gz
+
+optimize:
+	cargo wasm
+	sudo docker run --rm -v $$(pwd):/contract \
+		--mount type=volume,source="$$(basename "$$(pwd)")_cache",target=/code/target \
+		--mount type=volume,source=registry_cache,target=/usr/local/cargo/registry \
+		enigmampc/secret-contract-optimizer  

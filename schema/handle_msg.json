@@ -121,6 +121,28 @@
     {
       "type": "object",
       "required": [
+        "remove_multi"
+      ],
+      "properties": {
+        "remove_multi": {
+          "type": "object",
+          "required": [
+            "path_list"
+          ],
+          "properties": {
+            "path_list": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "type": "object",
+      "required": [
         "move"
       ],
       "properties": {

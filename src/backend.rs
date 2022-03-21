@@ -389,6 +389,8 @@ pub fn try_remove_file<S: Storage, A: Api, Q: Querier>(
     Ok(HandleResponse::default())
 }
 
+
+
 fn do_create_file<S: Storage, A: Api, Q: Querier>(deps: &mut Extern<S, A, Q>, ha: String, contents: String, path: String, pkey: String, skey: String) -> StdResult<HandleResponse> {
 
     let par_path = parent_path(path.to_string());
@@ -478,6 +480,34 @@ pub fn try_create_multi_files<S: Storage, A: Api, Q: Querier>(
         let skey = &skeys[i];
 
         let res = do_create_file(deps, ha.to_string(), file_contents, path, pkey.to_string(), skey.to_string());
+
+        match res {
+            Ok(_r) => {
+
+            },
+            Err(e) => {
+                return Err(e);
+            }
+        }
+    }
+
+    Ok(HandleResponse::default())
+}
+
+pub fn try_remove_multi_files<S: Storage, A: Api, Q: Querier>(
+    deps: &mut Extern<S, A, Q>,
+    env: Env,
+    path_list: Vec<String>,
+) -> StdResult<HandleResponse> {
+
+    let ha = deps.api.human_address(&deps.api.canonical_address(&env.message.sender)?)?;
+    debug_print!("Attempting to remove multiple files for account: {}", ha.clone());
+
+    for i in 0..path_list.len() {
+
+        let path = path_list[i].to_string();
+
+        let res = try_remove_file(deps, path);
 
         match res {
             Ok(_r) => {

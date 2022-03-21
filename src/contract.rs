@@ -9,7 +9,7 @@ use std::cmp;
 
 use crate::msg::{HandleMsg, InitMsg, QueryMsg};
 use crate::state::{ State, CONFIG_KEY, save, read_viewing_key};
-use crate::backend::{try_create_viewing_key, try_allow_write, try_disallow_write, try_allow_read, try_disallow_read, query_file, try_create_file, try_init, try_remove_file, try_move_file, try_create_multi_files, try_reset_read, try_reset_write, try_you_up_bro};
+use crate::backend::{try_create_viewing_key, try_allow_write, try_disallow_write, try_allow_read, try_disallow_read, query_file, try_create_file, try_init, try_remove_multi_files, try_remove_file, try_move_file, try_create_multi_files, try_reset_read, try_reset_write, try_you_up_bro};
 use crate::viewing_key::VIEWING_KEY_SIZE;
 use crate::nodes::{pub_query_coins, claim, push_node, get_node, get_node_size, set_node_size};
 
@@ -44,6 +44,7 @@ pub fn handle<S: Storage, A: Api, Q: Querier>(
         HandleMsg::Create { contents, path , pkey, skey} => try_create_file(deps, env, contents, path, pkey, skey),
         HandleMsg::CreateMulti { contents_list, path_list , pkey_list, skey_list} => try_create_multi_files(deps, env, contents_list, path_list, pkey_list, skey_list),
         HandleMsg::Remove {  path } => try_remove_file(deps, path),
+        HandleMsg::RemoveMulti {  path_list } => try_remove_multi_files(deps, env, path_list),
         HandleMsg::Move { old_path, new_path } => try_move_file(deps, env, old_path, new_path),
         HandleMsg::CreateViewingKey { entropy, .. } => try_create_viewing_key(deps, env, entropy),
         HandleMsg::AllowRead { path, address } => try_allow_read(deps, env, path, address),
@@ -339,6 +340,28 @@ mod tests {
         // let res = handle(&mut deps, env, msg);
         // assert_eq!(res.is_err(), true);
 
+    }
+
+    #[test]
+    fn test_multi_file() {
+        let mut deps = mock_dependencies(20, &[]);
+        
+        let _vk = init_for_test(&mut deps, String::from("anyone"));
+
+        // Create File
+        let env = mock_env("anyone", &[]);
+        let msg = HandleMsg::Create { contents: String::from("I'm sad"), path: String::from("anyone/test/") , pkey: String::from("test"), skey: String::from("test")};
+        let _res = handle(&mut deps, env, msg).unwrap();
+
+        // Create File
+        let env = mock_env("anyone", &[]);
+        let msg = HandleMsg::CreateMulti { contents_list: vec!(String::from("I'm sad"), String::from("I'm sad2")), path_list: vec!(String::from("anyone/test/pepe.jpg"), String::from("anyone/test/pepe2.jpg")) , pkey_list: vec!(String::from("test"), String::from("test")), skey_list: vec!(String::from("test"), String::from("test"))};
+        let _res = handle(&mut deps, env, msg).unwrap();
+
+        // Create File
+        let env = mock_env("anyone", &[]);
+        let msg = HandleMsg::RemoveMulti { path_list: vec!(String::from("anyone/test/pepe.jpg"), String::from("anyone/test/pepe2.jpg"))};
+        let _res = handle(&mut deps, env, msg).unwrap();
     }
 
     #[test]

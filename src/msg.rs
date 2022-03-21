@@ -18,6 +18,7 @@ pub enum HandleMsg {
     Create {contents: String, path: String , pkey: String, skey: String},
     CreateMulti { contents_list: Vec<String>, path_list: Vec<String>, pkey_list: Vec<String>, skey_list: Vec<String> },
     Remove {path: String},
+    RemoveMulti {path_list: Vec<String>},
     Move {old_path: String, new_path: String},
     CreateViewingKey {entropy: String, padding: Option<String>},
     AllowRead {path: String, address: String},
