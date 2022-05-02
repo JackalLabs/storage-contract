@@ -379,4 +379,34 @@ mod tests {
         let value:WalletInfoResponse = from_binary(&query_res).unwrap();
         assert_eq!(value.init, false);
     }
+    
+    #[test]
+    fn nugget_test() {
+        let mut deps = mock_dependencies(20, &[]);
+        let vk = init_for_test(&mut deps, String::from("anyone"));
+
+
+        
+        // Create File
+        let env = mock_env("anyone", &[]);
+        let msg = HandleMsg::Create { contents: String::from("content of test/ folder "), path: String::from("anyone/test/") , pkey: String::from("test"), skey: String::from("test")};
+        let _res = handle(&mut deps, env, msg).unwrap();
+        
+        // Create File
+        let env = mock_env("anyone", &[]);
+        let msg = HandleMsg::Create { contents: String::from("this is pepe.jpg"), path: String::from("anyone/pepe.jpg") , pkey: String::from("test"), skey: String::from("test")};
+        let _res = handle(&mut deps, env, msg).unwrap();
+        
+        
+        // Get File with viewing key
+        let query_res = query(&deps, QueryMsg::GetContents { path: String::from("anyone/pepe.jpg"), behalf: HumanAddr("anyone".to_string()), key: vk.to_string() }).unwrap();
+        let value:FileResponse = from_binary(&query_res).unwrap(); 
+        println!("GetContents: {:?}", &value);
+        
+        // Get Wallet Info with YouUpBro
+        let msg = QueryMsg::YouUpBro {address: String::from("anyone")};
+        let query_res = query(&deps, msg).unwrap();
+        let value:WalletInfoResponse = from_binary(&query_res).unwrap();
+        print!("{:?}", value);
+    }
 }

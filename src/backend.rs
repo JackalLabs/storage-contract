@@ -32,11 +32,12 @@ pub fn try_init<S: Storage, A: Api, Q: Querier>(
     let mut path = adr.to_string();
     path.push_str("/");
 
-    create_file(&mut deps.storage, adr.to_string(), path, contents);
+    create_file(&mut deps.storage, adr.to_string(), path.clone(), contents);
 
     //Register Wallet info
     let wallet_info = WalletInfo { 
-        init : true
+        init : true,
+        all_paths: vec![path],
     };
     let bucket_response = bucket(FILE_LOCATION, &mut deps.storage).save(&adr.as_bytes(), &wallet_info);
     match bucket_response {
@@ -69,10 +70,10 @@ pub fn try_you_up_bro<S: Storage, A: Api, Q: Querier>(
     
     match load_bucket {
         Ok(wallet_info) => {
-            Ok( WalletInfoResponse { init: wallet_info.init})
+            Ok( WalletInfoResponse { init: wallet_info.init, all_paths:wallet_info.all_paths })
         },
         Err(_e) => {
-            Ok( WalletInfoResponse { init: false})
+            Ok( WalletInfoResponse { init: false, all_paths: vec![] })
         }
     }
 
@@ -87,7 +88,7 @@ pub fn try_create_viewing_key<S: Storage, A: Api, Q: Querier>(
     let prng_seed = config.prng_seed;
 
     let key = ViewingKey::new(&env, &prng_seed, (&entropy).as_ref());
-
+    
     let message_sender = deps.api.canonical_address(&env.message.sender)?;
 
     write_viewing_key(&mut deps.storage, &message_sender, &key);
@@ -254,6 +255,7 @@ pub fn try_reset_read<S: Storage, A: Api, Q: Querier>(
 #[derive(Serialize, Deserialize, JsonSchema, PartialEq, Debug, Clone)]
 pub struct WalletInfo{
     init: bool,
+    pub all_paths: Vec<String>,
 }
 
 
@@ -570,11 +572,13 @@ pub fn bucket_load_readonly_file<'a, S: Storage>( store: &'a S, path: String ) -
 }
 
 // QueryMsg
-pub fn query_file<S: Storage, A: Api, Q: Querier>(deps: &Extern<S, A, Q>, path: String, behalf: &HumanAddr) -> StdResult<FileResponse> {
-
+pub fn query_file<S: Storage, A: Api, Q: Querier>(
+    deps: &Extern<S, A, Q>, 
+    path: String, 
+    behalf: &HumanAddr) -> StdResult<FileResponse> {
 
     let f = bucket_load_readonly_file(&deps.storage, path);
-
+ 
     match f {
         Ok(f1) => {
 
@@ -590,8 +594,5 @@ pub fn query_file<S: Storage, A: Api, Q: Querier>(deps: &Extern<S, A, Q>, path: 
             let error_message = String::from("Error querying file.");
             return Err(StdError::generic_err(error_message))
         }
-    }
-
-    
+    }    
 }
-
