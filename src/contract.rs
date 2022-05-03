@@ -385,23 +385,23 @@ mod tests {
         let mut deps = mock_dependencies(20, &[]);
         let vk = init_for_test(&mut deps, String::from("anyone"));
 
-
+        
         
         // Create File
         let env = mock_env("anyone", &[]);
-        let msg = HandleMsg::Create { contents: String::from("content of test/ folder "), path: String::from("anyone/test/") , pkey: String::from("test"), skey: String::from("test")};
+        let msg = HandleMsg::Create { contents: String::from("content of meme/ folder "), path: String::from("anyone/meme/") , pkey: String::from("test"), skey: String::from("test")};
         let _res = handle(&mut deps, env, msg).unwrap();
         
         // Create File
         let env = mock_env("anyone", &[]);
-        let msg = HandleMsg::Create { contents: String::from("this is pepe.jpg"), path: String::from("anyone/pepe.jpg") , pkey: String::from("test"), skey: String::from("test")};
+        let msg = HandleMsg::Create { contents: String::from("this is pepe.jpg inside meme folder"), path: String::from("anyone/meme/pepe.jpg") , pkey: String::from("test"), skey: String::from("test")};
         let _res = handle(&mut deps, env, msg).unwrap();
         
         
         // Get File with viewing key
-        let query_res = query(&deps, QueryMsg::GetContents { path: String::from("anyone/pepe.jpg"), behalf: HumanAddr("anyone".to_string()), key: vk.to_string() }).unwrap();
+        let query_res = query(&deps, QueryMsg::GetContents { path: String::from("anyone/meme/pepe.jpg"), behalf: HumanAddr("anyone".to_string()), key: vk.to_string() }).unwrap();
         let value:FileResponse = from_binary(&query_res).unwrap(); 
-        println!("GetContents: {:?}", &value);
+        // println!("GetContents: {:?}", &value);
         
         // Get Wallet Info with YouUpBro
         let msg = QueryMsg::YouUpBro {address: String::from("anyone")};
