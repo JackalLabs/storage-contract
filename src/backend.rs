@@ -382,16 +382,33 @@ pub fn try_move_file<S: Storage, A: Api, Q: Querier>(
         String::from(""),
         String::from(""),
     )?;
-    try_remove_file(deps, old_path)?;
+    try_remove_file(deps, env, old_path)?;
 
     Ok(HandleResponse::default())
 }
 
 pub fn try_remove_file<S: Storage, A: Api, Q: Querier>(
     deps: &mut Extern<S, A, Q>,
+    env: Env,
     path: String,
 ) -> StdResult<HandleResponse> {
-    bucket_remove_file(&mut deps.storage, path);
+    let ha = deps
+        .api
+        .human_address(&deps.api.canonical_address(&env.message.sender)?)?;
+
+    // Remove path from file bucket 
+    bucket_remove_file(&mut deps.storage, &path);
+
+    // Remove path from Wallet info bucket
+    let wallet_info_bucket: Result<WalletInfo, StdError> =  bucket(FILE_LOCATION, &mut deps.storage).load(&ha.as_str().as_bytes());
+    let mut wallet_info = wallet_info_bucket?;
+    let index = wallet_info.all_paths.iter().position(|r| r == &path).unwrap();
+    wallet_info.all_paths.remove(index);
+
+    bucket(FILE_LOCATION, &mut deps.storage)
+    .save(&ha.as_str().as_bytes(), &wallet_info)
+    .map_err(|err| println!("{:?}", err))
+    .ok();
 
     Ok(HandleResponse::default())
 }
@@ -407,8 +424,6 @@ fn do_create_file<S: Storage, A: Api, Q: Querier>(
     let par_path = parent_path(path.to_string());
 
     let res = bucket_load_readonly_file(&deps.storage, par_path);
-
-    let error_message = String::from("Error Creating File");
 
     match res {
         Ok(f) => {
@@ -428,10 +443,11 @@ fn do_create_file<S: Storage, A: Api, Q: Querier>(
                 write_claim(&mut deps.storage, acl, skey);
 
                 // // Add new path to Wallet info bucket
-                let wallet_info_bucket: Result<WalletInfo, StdError> =  bucket(FILE_LOCATION, &mut deps.storage).load(&ha.as_bytes());
+                let wallet_info_bucket: Result<WalletInfo, StdError> =
+                    bucket(FILE_LOCATION, &mut deps.storage).load(&ha.as_bytes());
                 let mut wallet_info = wallet_info_bucket?;
                 wallet_info.all_paths.push(path);
-                
+
                 bucket(FILE_LOCATION, &mut deps.storage)
                     .save(&ha.as_bytes(), &wallet_info)
                     .map_err(|err| println!("{:?}", err))
@@ -443,6 +459,7 @@ fn do_create_file<S: Storage, A: Api, Q: Querier>(
             return Err(StdError::generic_err(error_message));
         }
         Err(_e) => {
+            let error_message = String::from("Error Creating File");
             return Err(StdError::generic_err(error_message));
         }
     }
@@ -540,7 +557,7 @@ pub fn try_remove_multi_files<S: Storage, A: Api, Q: Querier>(
     for i in 0..path_list.len() {
         let path = path_list[i].to_string();
 
-        let res = try_remove_file(deps, path);
+        let res = try_remove_file(deps, env.clone(), path);
 
         match res {
             Ok(_r) => {}
@@ -582,7 +599,7 @@ pub fn bucket_save_file<'a, S: Storage>(store: &'a mut S, path: String, folder: 
     }
 }
 
-pub fn bucket_remove_file<'a, S: Storage>(store: &'a mut S, path: String) {
+pub fn bucket_remove_file<'a, S: Storage>(store: &'a mut S, path: &String) {
     bucket::<S, File>(FILE_LOCATION, store).remove(&path.as_bytes());
 }
 
