@@ -29,6 +29,7 @@ pub enum HandleMsg {
     ResetWrite {path: String},
     InitNode {ip: String, address: String},
     ClaimReward {path: String, key: String, address: String},
+    ForgetMe { },
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, JsonSchema)]
@@ -40,6 +41,7 @@ pub enum QueryMsg {
     GetNodeList{size: u64},
     GetNodeCoins{address: String},
     YouUpBro{address: String},
+    GetWalletInfo { behalf: HumanAddr, key: String},
 }
 
 #[derive(Serialize, Deserialize, JsonSchema, Debug)]
@@ -53,6 +55,7 @@ pub enum HandleAnswer {
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 pub struct WalletInfoResponse {
     pub init: bool,
+    pub all_paths: Vec<String>
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
@@ -77,6 +80,7 @@ impl QueryMsg {
     pub fn get_validation_params(&self) -> (Vec<&HumanAddr>, ViewingKey) {
         match self {
             Self::GetContents { behalf, key, .. } => (vec![behalf], ViewingKey(key.clone())),
+            Self::GetWalletInfo { behalf, key, .. } => (vec![behalf], ViewingKey(key.clone())),
             _ => panic!("This query type does not require authentication"),
         }
     }

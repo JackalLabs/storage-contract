@@ -9,7 +9,7 @@ use std::cmp;
 
 use crate::msg::{HandleMsg, InitMsg, QueryMsg};
 use crate::state::{ State, CONFIG_KEY, save, read_viewing_key};
-use crate::backend::{try_create_viewing_key, try_allow_write, try_disallow_write, try_allow_read, try_disallow_read, query_file, try_create_file, try_init, try_remove_multi_files, try_remove_file, try_move_file, try_create_multi_files, try_reset_read, try_reset_write, try_you_up_bro};
+use crate::backend::{try_create_viewing_key, try_allow_write, try_disallow_write, try_allow_read, try_disallow_read, query_file, try_create_file, try_init, try_remove_multi_files, try_remove_file, try_move_file, try_create_multi_files, try_reset_read, try_reset_write, try_you_up_bro, query_wallet_info, try_forget_me};
 use crate::viewing_key::VIEWING_KEY_SIZE;
 use crate::nodes::{pub_query_coins, claim, push_node, get_node, get_node_size, set_node_size};
 
@@ -22,7 +22,7 @@ pub fn init<S: Storage, A: Api, Q: Querier>(
     let ha = deps.api.human_address(&deps.api.canonical_address(&env.message.sender)?)?;
 
     let config = State {
-        owner: ha.clone(),
+        owner: ha,
         prng_seed: sha_256(base64::encode(msg.prng_seed).as_bytes()).to_vec(), 
     };
 
@@ -43,7 +43,7 @@ pub fn handle<S: Storage, A: Api, Q: Querier>(
         HandleMsg::InitAddress { contents, entropy } => try_init(deps, env, contents, entropy),
         HandleMsg::Create { contents, path , pkey, skey} => try_create_file(deps, env, contents, path, pkey, skey),
         HandleMsg::CreateMulti { contents_list, path_list , pkey_list, skey_list} => try_create_multi_files(deps, env, contents_list, path_list, pkey_list, skey_list),
-        HandleMsg::Remove {  path } => try_remove_file(deps, path),
+        HandleMsg::Remove {  path } => try_remove_file(deps, env, path),
         HandleMsg::RemoveMulti {  path_list } => try_remove_multi_files(deps, env, path_list),
         HandleMsg::Move { old_path, new_path } => try_move_file(deps, env, old_path, new_path),
         HandleMsg::CreateViewingKey { entropy, .. } => try_create_viewing_key(deps, env, entropy),
@@ -55,6 +55,7 @@ pub fn handle<S: Storage, A: Api, Q: Querier>(
         HandleMsg::ResetWrite { path } => try_reset_write(deps, env, path),
         HandleMsg::InitNode {ip, address} => try_init_node(deps, ip, address),
         HandleMsg::ClaimReward {path, key, address} => claim(deps, path, key, address),
+        HandleMsg::ForgetMe { .. } => try_forget_me(deps, env),
     }
 }
 
@@ -91,6 +92,7 @@ fn authenticated_queries<S: Storage, A: Api, Q: Querier>(
 
             return match msg {
                 QueryMsg::GetContents { path, behalf, .. } => to_binary(&query_file(deps, path, &behalf)?),
+                QueryMsg::GetWalletInfo { behalf, .. } => to_binary(&query_wallet_info(deps, &behalf)?),
                 _ => panic!("How did this even get to this stage. It should have been processed.")
             };
         }
@@ -153,11 +155,11 @@ fn try_get_top_x<S: Storage, A: Api, Q: Querier>(
         x += 1;
     } 
 
-    return Ok(HandleResponse {
+    Ok(HandleResponse {
         messages: vec![],
         log: vec![],
         data: Some(to_binary(&nodes)?),
-    });
+    })
 }
 
 fn try_get_node_list_size<S: Storage, A: Api, Q: Querier>(
@@ -195,13 +197,13 @@ mod tests {
         let env = mock_env(String::from(&address), &[]);
         let msg = HandleMsg::InitAddress { contents: String::from("{}"), entropy: String::from("Entropygoeshereboi") };
         let handle_response = handle(deps, env, msg).unwrap();
-        let vk = match from_binary(&handle_response.data.unwrap()).unwrap() {
+        
+        match from_binary(&handle_response.data.unwrap()).unwrap() {
             HandleAnswer::CreateViewingKey { key } => {
                 key
             },
             _ => panic!("Unexpected result from handle"),
-        };
-        vk
+        }
     }
 
     #[test]
@@ -333,7 +335,7 @@ mod tests {
 
         //Query File as Alice
         let query_res = query(&deps, QueryMsg::GetContents { path: String::from("anyone/pepe.jpg"), behalf: HumanAddr("alice".to_string()), key: vk2.to_string() });
-        assert!(query_res.is_err() == true);
+        assert!(query_res.is_err());
 
         // let env = mock_env("alice", &[]);
         // let msg = HandleMsg::Create { contents: String::from("I'm not sad"), path: String::from("anyone/pepe.jpg") , pkey: String::from("test"), skey: String::from("test")};
@@ -358,7 +360,7 @@ mod tests {
         let msg = HandleMsg::CreateMulti { contents_list: vec!(String::from("I'm sad"), String::from("I'm sad2")), path_list: vec!(String::from("anyone/test/pepe.jpg"), String::from("anyone/test/pepe2.jpg")) , pkey_list: vec!(String::from("test"), String::from("test")), skey_list: vec!(String::from("test"), String::from("test"))};
         let _res = handle(&mut deps, env, msg).unwrap();
 
-        // Create File
+        // Remove Multi File
         let env = mock_env("anyone", &[]);
         let msg = HandleMsg::RemoveMulti { path_list: vec!(String::from("anyone/test/pepe.jpg"), String::from("anyone/test/pepe2.jpg"))};
         let _res = handle(&mut deps, env, msg).unwrap();
@@ -378,5 +380,44 @@ mod tests {
         let query_res = query(&deps, msg).unwrap();
         let value:WalletInfoResponse = from_binary(&query_res).unwrap();
         assert_eq!(value.init, false);
+    }
+    
+    #[test]
+    fn forget_me_test() {
+        let mut deps = mock_dependencies(20, &[]);
+        let vk = init_for_test(&mut deps, String::from("anyone"));
+
+        // Create File
+        let env = mock_env("anyone", &[]);
+        let msg = HandleMsg::Create { contents: String::from("content of meme/ folder "), path: String::from("anyone/meme/") , pkey: String::from("test"), skey: String::from("test")};
+        let _res = handle(&mut deps, env, msg).unwrap();
+        
+        // Create Multi File
+        let env = mock_env("anyone", &[]);
+        let msg = HandleMsg::CreateMulti { contents_list: vec!(String::from("I'm sad"), String::from("I'm sad2")), path_list: vec!(String::from("anyone/meme/pepe.jpg"), String::from("anyone/meme/pepe2.jpg")) , pkey_list: vec!(String::from("test"), String::from("test")), skey_list: vec!(String::from("test"), String::from("test"))};
+        let _res = handle(&mut deps, env, msg).unwrap();
+        
+        // Get WalletInfo with viewing key
+        let query_res = query(&deps, QueryMsg::GetWalletInfo { behalf: HumanAddr("anyone".to_string()), key: vk.to_string() }).unwrap();
+        let value:WalletInfoResponse = from_binary(&query_res).unwrap(); 
+        let arr : Vec<&str> = vec!["anyone/", "anyone/meme/", "anyone/meme/pepe.jpg", "anyone/meme/pepe2.jpg"];
+        assert_eq!(value.all_paths, arr);
+        
+        // Forget Abt Me! It's not you, It's me 
+        let env = mock_env("anyone", &[]);
+        let msg = HandleMsg::ForgetMe {  };
+        let _res = handle(&mut deps, env, msg).unwrap();
+        
+        // Get File with viewing key
+        let query_res = query(&deps, QueryMsg::GetContents { path: String::from("anyone/meme/"), behalf: HumanAddr("anyone".to_string()), key: vk.to_string() });
+        assert!(query_res.is_err());
+
+        // Get WalletInfo with viewing key
+        let query_res = query(&deps, QueryMsg::GetWalletInfo { behalf: HumanAddr("anyone".to_string()), key: vk.to_string() }).unwrap();
+        let value:WalletInfoResponse = from_binary(&query_res).unwrap(); 
+        let empty : Vec<String> = vec![];
+        assert_eq!(value.all_paths, empty);
+        assert_eq!(value.init, false);
+        
     }
 }

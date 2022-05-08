@@ -35,7 +35,7 @@ impl<T: PartialEq + Sized> OrderedSet<T> {
             }
         }
 
-        return false;
+        false
     }
 
     pub fn push(&mut self, item: T) {
