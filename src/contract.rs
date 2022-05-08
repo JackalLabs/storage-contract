@@ -22,7 +22,7 @@ pub fn init<S: Storage, A: Api, Q: Querier>(
     let ha = deps.api.human_address(&deps.api.canonical_address(&env.message.sender)?)?;
 
     let config = State {
-        owner: ha.clone(),
+        owner: ha,
         prng_seed: sha_256(base64::encode(msg.prng_seed).as_bytes()).to_vec(), 
     };
 
@@ -155,11 +155,11 @@ fn try_get_top_x<S: Storage, A: Api, Q: Querier>(
         x += 1;
     } 
 
-    return Ok(HandleResponse {
+    Ok(HandleResponse {
         messages: vec![],
         log: vec![],
         data: Some(to_binary(&nodes)?),
-    });
+    })
 }
 
 fn try_get_node_list_size<S: Storage, A: Api, Q: Querier>(
@@ -197,13 +197,13 @@ mod tests {
         let env = mock_env(String::from(&address), &[]);
         let msg = HandleMsg::InitAddress { contents: String::from("{}"), entropy: String::from("Entropygoeshereboi") };
         let handle_response = handle(deps, env, msg).unwrap();
-        let vk = match from_binary(&handle_response.data.unwrap()).unwrap() {
+        
+        match from_binary(&handle_response.data.unwrap()).unwrap() {
             HandleAnswer::CreateViewingKey { key } => {
                 key
             },
             _ => panic!("Unexpected result from handle"),
-        };
-        vk
+        }
     }
 
     #[test]
@@ -335,7 +335,7 @@ mod tests {
 
         //Query File as Alice
         let query_res = query(&deps, QueryMsg::GetContents { path: String::from("anyone/pepe.jpg"), behalf: HumanAddr("alice".to_string()), key: vk2.to_string() });
-        assert!(query_res.is_err() == true);
+        assert!(query_res.is_err());
 
         // let env = mock_env("alice", &[]);
         // let msg = HandleMsg::Create { contents: String::from("I'm not sad"), path: String::from("anyone/pepe.jpg") , pkey: String::from("test"), skey: String::from("test")};
@@ -410,7 +410,7 @@ mod tests {
         
         // Get File with viewing key
         let query_res = query(&deps, QueryMsg::GetContents { path: String::from("anyone/meme/"), behalf: HumanAddr("anyone".to_string()), key: vk.to_string() });
-        assert_eq!(query_res.is_err(), true);
+        assert!(query_res.is_err());
 
         // Get WalletInfo with viewing key
         let query_res = query(&deps, QueryMsg::GetWalletInfo { behalf: HumanAddr("anyone".to_string()), key: vk.to_string() }).unwrap();

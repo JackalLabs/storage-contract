@@ -27,7 +27,7 @@ pub fn pub_query_coins<S: Storage, A: Api, Q: Querier>(
 }
 
 fn query_coins<'a, S: Storage>(store: &'a S, address: String) -> u32{
-    let r = bucket_read(COIN_COUNT, store).load(&address.as_bytes());
+    let r = bucket_read(COIN_COUNT, store).load(address.as_bytes());
 
     match r {
         Ok(c) => {
@@ -51,10 +51,10 @@ pub fn claim<S: Storage, A: Api, Q: Querier>(
     acl.push_str(&claim_path);
 
 
-    let resp:Result<String, StdError> = bucket_read(NODE_CLAIM_CODES, &deps.storage).load(&acl.as_bytes());
+    let resp:Result<String, StdError> = bucket_read(NODE_CLAIM_CODES, &deps.storage).load(acl.as_bytes());
     let r = resp.unwrap();
 
-    let count_resp:Result<u32, StdError> = bucket_read(COIN_COUNT, &deps.storage).load(&address.as_bytes());
+    let count_resp:Result<u32, StdError> = bucket_read(COIN_COUNT, &deps.storage).load(address.as_bytes());
 
     let mut old_count:u32 = 0;
     match count_resp {
@@ -69,9 +69,9 @@ pub fn claim<S: Storage, A: Api, Q: Querier>(
 
     if claim_code.eq(&r)  {
 
-        let _bucket_response = bucket(COIN_COUNT, &mut deps.storage).save(&address.as_bytes(), &old_count);
+        let _bucket_response = bucket(COIN_COUNT, &mut deps.storage).save(address.as_bytes(), &old_count);
 
-        bucket::<S, String>(NODE_CLAIM_CODES, &mut deps.storage).remove(&claim_path.as_bytes());
+        bucket::<S, String>(NODE_CLAIM_CODES, &mut deps.storage).remove(claim_path.as_bytes());
 
         
     }
@@ -89,7 +89,7 @@ pub fn write_claim<'a, S: Storage>(store: &'a mut S, claim_path: String, claim_c
     let c = &claim_path;
 
 
-    let bucket_response = bucket(NODE_CLAIM_CODES, store).save(&c.as_bytes(), &claim_code);
+    let bucket_response = bucket(NODE_CLAIM_CODES, store).save(c.as_bytes(), &claim_code);
     match bucket_response {
         Ok(bucket_response) => bucket_response,
         Err(e) => panic!("Bucket Error: {}", e)
@@ -139,7 +139,7 @@ pub fn push_node<'a, S: Storage>(store: &'a mut S, ip: String, address: String) 
 }
 
 pub fn set_node_size<'a, S: Storage>( store: &'a mut S, size: u64 ) {
-    let bucket_response = bucket(NODE_MAP_DATA, store).save(&"list_size".as_bytes(), &size);
+    let bucket_response = bucket(NODE_MAP_DATA, store).save("list_size".as_bytes(), &size);
     match bucket_response {
         Ok(bucket_response) => bucket_response,
         Err(e) => panic!("Bucket Error: {}", e)
@@ -147,11 +147,11 @@ pub fn set_node_size<'a, S: Storage>( store: &'a mut S, size: u64 ) {
 }
 
 pub fn get_node_size<'a, S: Storage>( store: &'a S) -> u64{
-    bucket_read(NODE_MAP_DATA, store).load(&"list_size".as_bytes()).unwrap()
+    bucket_read(NODE_MAP_DATA, store).load("list_size".as_bytes()).unwrap()
 }
 
 pub fn save_node_loc<'a, S: Storage>( store: &'a mut S, loc: String, ipaddress: String ) {
-    let bucket_response = bucket(NODE_LOC_LOCATION, store).save(&loc.as_bytes(), &ipaddress);
+    let bucket_response = bucket(NODE_LOC_LOCATION, store).save(loc.as_bytes(), &ipaddress);
     match bucket_response {
         Ok(bucket_response) => bucket_response,
         Err(e) => panic!("Bucket Error: {}", e)
@@ -159,7 +159,7 @@ pub fn save_node_loc<'a, S: Storage>( store: &'a mut S, loc: String, ipaddress: 
 }
 
 pub fn load_node_loc<'a, S: Storage>( store: &'a S, loc: String) -> String{
-    bucket_read(NODE_LOC_LOCATION, store).load(&loc.as_bytes()).unwrap()
+    bucket_read(NODE_LOC_LOCATION, store).load(loc.as_bytes()).unwrap()
 }
 
 
@@ -167,7 +167,7 @@ pub fn save_node_data<'a, S: Storage>( store: &'a mut S, ipaddress: String, node
 
 
 
-    let bucket_response = bucket(NODE_LOCATION, store).save(&ipaddress.as_bytes(), &node_data);
+    let bucket_response = bucket(NODE_LOCATION, store).save(ipaddress.as_bytes(), &node_data);
 
 
     match bucket_response {
@@ -179,6 +179,6 @@ pub fn save_node_data<'a, S: Storage>( store: &'a mut S, ipaddress: String, node
 }
 
 pub fn load_node_data<'a, S: Storage>( store: &'a S, ipaddress: String) -> NodeData{
-    bucket_read(NODE_LOCATION, store).load(&ipaddress.as_bytes()).unwrap()
+    bucket_read(NODE_LOCATION, store).load(ipaddress.as_bytes()).unwrap()
 }
 

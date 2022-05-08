@@ -28,10 +28,10 @@ pub fn try_init<S: Storage, A: Api, Q: Querier>(
     let ha = deps
         .api
         .human_address(&deps.api.canonical_address(&env.message.sender)?)?;
-    let adr = String::from(ha.clone().as_str());
+    let adr = String::from(ha.as_str());
 
     let mut path = adr.to_string();
-    path.push_str("/");
+    path.push('/');
 
     create_file(&mut deps.storage, adr.to_string(), path.clone(), contents);
 
@@ -41,7 +41,7 @@ pub fn try_init<S: Storage, A: Api, Q: Querier>(
         all_paths: vec![path],
     };
     let bucket_response =
-        bucket(FILE_LOCATION, &mut deps.storage).save(&adr.as_bytes(), &wallet_info);
+        bucket(FILE_LOCATION, &mut deps.storage).save(adr.as_bytes(), &wallet_info);
     match bucket_response {
         Ok(bucket_response) => bucket_response,
         Err(e) => panic!("Bucket Error: {}", e),
@@ -69,15 +69,15 @@ pub fn try_forget_me<S: Storage, A: Api, Q: Querier>(
     let ha = deps
         .api
         .human_address(&deps.api.canonical_address(&env.message.sender)?)?;
-    let adr = String::from(ha.clone().as_str());
+    let adr = String::from(ha.as_str());
 
     let load_bucket: Result<WalletInfo, StdError> =
-        bucket_read(FILE_LOCATION, &deps.storage).load(&adr.as_bytes());
+        bucket_read(FILE_LOCATION, &deps.storage).load(adr.as_bytes());
     let mut wallet_info = load_bucket?;
 
     wallet_info.init = false;
     bucket(FILE_LOCATION, &mut deps.storage)
-        .save(&ha.as_str().as_bytes(), &wallet_info)
+        .save(ha.as_str().as_bytes(), &wallet_info)
         .map_err(|err| println!("{:?}", err))
         .ok();
 
@@ -104,7 +104,7 @@ pub fn try_you_up_bro<S: Storage, A: Api, Q: Querier>(
     address: String,
 ) -> StdResult<WalletInfoResponse> {
     let load_bucket: Result<WalletInfo, StdError> =
-        bucket_read(FILE_LOCATION, &deps.storage).load(&address.as_bytes());
+        bucket_read(FILE_LOCATION, &deps.storage).load(address.as_bytes());
 
     match load_bucket {
         Ok(wallet_info) => Ok(WalletInfoResponse {
@@ -327,7 +327,7 @@ impl File {
             }
         }
 
-        return false;
+        false
     }
 
     pub fn can_write(&self, address: String) -> bool {
@@ -339,7 +339,7 @@ impl File {
                 return true;
             }
         }
-        return false;
+        false
     }
 
     pub fn allow_read(&mut self, address: String) -> bool {
@@ -349,7 +349,7 @@ impl File {
 
         self.allow_read_list.push(address);
 
-        return true;
+        true
     }
 
     pub fn allow_write(&mut self, address: String) -> bool {
@@ -369,7 +369,7 @@ impl File {
 
         self.allow_read_list.remove(address);
 
-        return true;
+        true
     }
 
     pub fn disallow_write(&mut self, address: String) -> bool {
@@ -406,7 +406,7 @@ pub fn try_move_file<S: Storage, A: Api, Q: Querier>(
     debug_print!(
         "Attempting to move file from `{}` to `{}`",
         old_path.clone(),
-        new_path.clone()
+        new_path
     );
 
     let duplicated_contents = bucket_load_file(&mut deps.storage, &old_path).contents;
@@ -438,7 +438,7 @@ pub fn try_remove_file<S: Storage, A: Api, Q: Querier>(
 
     // Remove path from Wallet info bucket
     let wallet_info_bucket: Result<WalletInfo, StdError> =
-        bucket(FILE_LOCATION, &mut deps.storage).load(&ha.as_str().as_bytes());
+        bucket(FILE_LOCATION, &mut deps.storage).load(ha.as_str().as_bytes());
     let mut wallet_info = wallet_info_bucket?;
     let index = wallet_info
         .all_paths
@@ -448,7 +448,7 @@ pub fn try_remove_file<S: Storage, A: Api, Q: Querier>(
     wallet_info.all_paths.remove(index);
 
     bucket(FILE_LOCATION, &mut deps.storage)
-        .save(&ha.as_str().as_bytes(), &wallet_info)
+        .save(ha.as_str().as_bytes(), &wallet_info)
         .map_err(|err| println!("{:?}", err))
         .ok();
 
@@ -479,30 +479,30 @@ fn do_create_file<S: Storage, A: Api, Q: Querier>(
                 );
 
                 let adr = String::from(&ha);
-                let mut acl = adr.clone();
+                let mut acl = adr;
                 acl.push_str(&pkey);
 
                 write_claim(&mut deps.storage, acl, skey);
 
                 // // Add new path to Wallet info bucket
                 let wallet_info_bucket: Result<WalletInfo, StdError> =
-                    bucket(FILE_LOCATION, &mut deps.storage).load(&ha.as_bytes());
+                    bucket(FILE_LOCATION, &mut deps.storage).load(ha.as_bytes());
                 let mut wallet_info = wallet_info_bucket?;
                 wallet_info.all_paths.push(path);
 
                 bucket(FILE_LOCATION, &mut deps.storage)
-                    .save(&ha.as_bytes(), &wallet_info)
+                    .save(ha.as_bytes(), &wallet_info)
                     .map_err(|err| println!("{:?}", err))
                     .ok();
 
                 return Ok(HandleResponse::default());
             }
             let error_message = String::from("Not authorized to create file");
-            return Err(StdError::generic_err(error_message));
+            Err(StdError::generic_err(error_message))
         }
         Err(_e) => {
             let error_message = String::from("Error Creating File");
-            return Err(StdError::generic_err(error_message));
+            Err(StdError::generic_err(error_message))
         }
     }
 }
@@ -511,7 +511,7 @@ fn parent_path(mut path: String) -> String {
     if path.ends_with('/') {
         path.pop();
     }
-    let split = path.split("/");
+    let split = path.split('/');
     let vec = split.collect::<Vec<&str>>();
 
     let mut par_path = String::new();
@@ -554,7 +554,7 @@ pub fn try_create_multi_files<S: Storage, A: Api, Q: Querier>(
         .human_address(&deps.api.canonical_address(&env.message.sender)?)?;
     debug_print!(
         "Attempting to create multiple files for account: {}",
-        ha.clone()
+        ha
     );
 
     for i in 0..contents_list.len() {
@@ -593,7 +593,7 @@ pub fn try_remove_multi_files<S: Storage, A: Api, Q: Querier>(
         .human_address(&deps.api.canonical_address(&env.message.sender)?)?;
     debug_print!(
         "Attempting to remove multiple files for account: {}",
-        ha.clone()
+        ha
     );
 
     for i in 0..path_list.len() {
@@ -634,7 +634,7 @@ pub fn make_file(owner: &str, contents: &str) -> File {
 }
 
 pub fn bucket_save_file<'a, S: Storage>(store: &'a mut S, path: String, folder: File) {
-    let bucket_response = bucket(FILE_LOCATION, store).save(&path.as_bytes(), &folder);
+    let bucket_response = bucket(FILE_LOCATION, store).save(path.as_bytes(), &folder);
     match bucket_response {
         Ok(bucket_response) => bucket_response,
         Err(e) => panic!("Bucket Error: {}", e),
@@ -642,27 +642,27 @@ pub fn bucket_save_file<'a, S: Storage>(store: &'a mut S, path: String, folder: 
 }
 
 pub fn bucket_remove_file<'a, S: Storage>(store: &'a mut S, path: &String) {
-    bucket::<S, File>(FILE_LOCATION, store).remove(&path.as_bytes());
+    bucket::<S, File>(FILE_LOCATION, store).remove(path.as_bytes());
 }
 
 pub fn file_exists<'a, S: Storage>(store: &'a mut S, path: String) -> bool {
-    let f: Result<File, StdError> = bucket(FILE_LOCATION, store).load(&path.as_bytes());
+    let f: Result<File, StdError> = bucket(FILE_LOCATION, store).load(path.as_bytes());
 
     match f {
-        Ok(_v) => return true,
-        Err(_e) => return false,
-    };
+        Ok(_v) => true,
+        Err(_e) => false,
+    }
 }
 
 pub fn bucket_load_file<'a, S: Storage>(store: &'a mut S, path: &String) -> File {
-    bucket(FILE_LOCATION, store).load(&path.as_bytes()).unwrap()
+    bucket(FILE_LOCATION, store).load(path.as_bytes()).unwrap()
 }
 
 pub fn bucket_load_readonly_file<'a, S: Storage>(
     store: &'a S,
     path: String,
 ) -> Result<File, StdError> {
-    bucket_read(FILE_LOCATION, store).load(&path.as_bytes())
+    bucket_read(FILE_LOCATION, store).load(path.as_bytes())
 }
 
 // QueryMsg
@@ -680,12 +680,12 @@ pub fn query_file<S: Storage, A: Api, Q: Querier>(
             }
 
             let error_message = String::from("Sorry bud! Unauthorized to read file.");
-            return Err(StdError::generic_err(error_message));
+            Err(StdError::generic_err(error_message))
         }
 
         Err(_err) => {
             let error_message = String::from("Error querying file.");
-            return Err(StdError::generic_err(error_message));
+            Err(StdError::generic_err(error_message))
         }
     }
 }
@@ -696,7 +696,7 @@ pub fn query_wallet_info<S: Storage, A: Api, Q: Querier>(
 ) -> StdResult<WalletInfoResponse> {
     let address = behalf.as_str();
     let load_bucket: Result<WalletInfo, StdError> =
-        bucket_read(FILE_LOCATION, &deps.storage).load(&address.as_bytes());
+        bucket_read(FILE_LOCATION, &deps.storage).load(address.as_bytes());
 
     match load_bucket {
         Ok(wallet_info) => Ok(WalletInfoResponse {
