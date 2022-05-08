@@ -29,6 +29,7 @@ pub enum HandleMsg {
     ResetWrite {path: String},
     InitNode {ip: String, address: String},
     ClaimReward {path: String, key: String, address: String},
+    ForgetMe { },
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, JsonSchema)]

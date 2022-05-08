@@ -62,6 +62,43 @@ pub fn try_init<S: Storage, A: Api, Q: Querier>(
     })
 }
 
+pub fn try_forget_me<S: Storage, A: Api, Q: Querier>(
+    deps: &mut Extern<S, A, Q>,
+    env: Env,
+) -> StdResult<HandleResponse> {
+    let ha = deps
+        .api
+        .human_address(&deps.api.canonical_address(&env.message.sender)?)?;
+    let adr = String::from(ha.clone().as_str());
+
+    let load_bucket: Result<WalletInfo, StdError> =
+        bucket_read(FILE_LOCATION, &deps.storage).load(&adr.as_bytes());
+    let mut wallet_info = load_bucket?;
+
+    wallet_info.init = false;
+    bucket(FILE_LOCATION, &mut deps.storage)
+        .save(&ha.as_str().as_bytes(), &wallet_info)
+        .map_err(|err| println!("{:?}", err))
+        .ok();
+
+    let all_paths = &wallet_info.all_paths;
+    for i in 0..all_paths.len() {
+        let path = all_paths[i].to_string();
+
+        let res = try_remove_file(&mut *deps, env.clone(), path);
+
+        match res {
+            Ok(_r) => {}
+            Err(e) => {
+                return Err(e);
+            }
+        }
+    }
+
+
+    Ok(HandleResponse::default())
+}
+
 pub fn try_you_up_bro<S: Storage, A: Api, Q: Querier>(
     deps: &Extern<S, A, Q>,
     address: String,
@@ -396,19 +433,24 @@ pub fn try_remove_file<S: Storage, A: Api, Q: Querier>(
         .api
         .human_address(&deps.api.canonical_address(&env.message.sender)?)?;
 
-    // Remove path from file bucket 
+    // Remove path from file bucket
     bucket_remove_file(&mut deps.storage, &path);
 
     // Remove path from Wallet info bucket
-    let wallet_info_bucket: Result<WalletInfo, StdError> =  bucket(FILE_LOCATION, &mut deps.storage).load(&ha.as_str().as_bytes());
+    let wallet_info_bucket: Result<WalletInfo, StdError> =
+        bucket(FILE_LOCATION, &mut deps.storage).load(&ha.as_str().as_bytes());
     let mut wallet_info = wallet_info_bucket?;
-    let index = wallet_info.all_paths.iter().position(|r| r == &path).unwrap();
+    let index = wallet_info
+        .all_paths
+        .iter()
+        .position(|r| r == &path)
+        .unwrap();
     wallet_info.all_paths.remove(index);
 
     bucket(FILE_LOCATION, &mut deps.storage)
-    .save(&ha.as_str().as_bytes(), &wallet_info)
-    .map_err(|err| println!("{:?}", err))
-    .ok();
+        .save(&ha.as_str().as_bytes(), &wallet_info)
+        .map_err(|err| println!("{:?}", err))
+        .ok();
 
     Ok(HandleResponse::default())
 }

@@ -9,7 +9,7 @@ use std::cmp;
 
 use crate::msg::{HandleMsg, InitMsg, QueryMsg};
 use crate::state::{ State, CONFIG_KEY, save, read_viewing_key};
-use crate::backend::{try_create_viewing_key, try_allow_write, try_disallow_write, try_allow_read, try_disallow_read, query_file, try_create_file, try_init, try_remove_multi_files, try_remove_file, try_move_file, try_create_multi_files, try_reset_read, try_reset_write, try_you_up_bro, query_wallet_info};
+use crate::backend::{try_create_viewing_key, try_allow_write, try_disallow_write, try_allow_read, try_disallow_read, query_file, try_create_file, try_init, try_remove_multi_files, try_remove_file, try_move_file, try_create_multi_files, try_reset_read, try_reset_write, try_you_up_bro, query_wallet_info, try_forget_me};
 use crate::viewing_key::VIEWING_KEY_SIZE;
 use crate::nodes::{pub_query_coins, claim, push_node, get_node, get_node_size, set_node_size};
 
@@ -55,6 +55,7 @@ pub fn handle<S: Storage, A: Api, Q: Querier>(
         HandleMsg::ResetWrite { path } => try_reset_write(deps, env, path),
         HandleMsg::InitNode {ip, address} => try_init_node(deps, ip, address),
         HandleMsg::ClaimReward {path, key, address} => claim(deps, path, key, address),
+        HandleMsg::ForgetMe { .. } => try_forget_me(deps, env),
     }
 }
 
@@ -382,7 +383,7 @@ mod tests {
     }
     
     #[test]
-    fn nugget_test() {
+    fn forget_me_test() {
         let mut deps = mock_dependencies(20, &[]);
         let vk = init_for_test(&mut deps, String::from("anyone"));
 
@@ -396,25 +397,27 @@ mod tests {
         let msg = HandleMsg::CreateMulti { contents_list: vec!(String::from("I'm sad"), String::from("I'm sad2")), path_list: vec!(String::from("anyone/meme/pepe.jpg"), String::from("anyone/meme/pepe2.jpg")) , pkey_list: vec!(String::from("test"), String::from("test")), skey_list: vec!(String::from("test"), String::from("test"))};
         let _res = handle(&mut deps, env, msg).unwrap();
         
-        // Get File with viewing key
-        let query_res = query(&deps, QueryMsg::GetContents { path: String::from("anyone/meme/pepe.jpg"), behalf: HumanAddr("anyone".to_string()), key: vk.to_string() }).unwrap();
-        let value:FileResponse = from_binary(&query_res).unwrap(); 
-        println!("GetContents: {:?}", &value);
-        
-        // Remove File
-        let env = mock_env("anyone", &[]);
-        let msg = HandleMsg::Remove { path: String::from("anyone/meme/")};
-        let _res = handle(&mut deps, env, msg).unwrap();
-
-        // Get Wallet Info with YouUpBro
-        let msg = QueryMsg::YouUpBro {address: String::from("anyone")};
-        let query_res = query(&deps, msg).unwrap();
-        let value:WalletInfoResponse = from_binary(&query_res).unwrap();
-        print!("You Up Bro? {:?}", value);
-
-        // Get File with viewing key
+        // Get WalletInfo with viewing key
         let query_res = query(&deps, QueryMsg::GetWalletInfo { behalf: HumanAddr("anyone".to_string()), key: vk.to_string() }).unwrap();
         let value:WalletInfoResponse = from_binary(&query_res).unwrap(); 
-        println!("GetWalletInfo: {:?}", &value);
+        let arr : Vec<&str> = vec!["anyone/", "anyone/meme/", "anyone/meme/pepe.jpg", "anyone/meme/pepe2.jpg"];
+        assert_eq!(value.all_paths, arr);
+        
+        // Forget Abt Me! It's not you, It's me 
+        let env = mock_env("anyone", &[]);
+        let msg = HandleMsg::ForgetMe {  };
+        let _res = handle(&mut deps, env, msg).unwrap();
+        
+        // Get File with viewing key
+        let query_res = query(&deps, QueryMsg::GetContents { path: String::from("anyone/meme/"), behalf: HumanAddr("anyone".to_string()), key: vk.to_string() });
+        assert_eq!(query_res.is_err(), true);
+
+        // Get WalletInfo with viewing key
+        let query_res = query(&deps, QueryMsg::GetWalletInfo { behalf: HumanAddr("anyone".to_string()), key: vk.to_string() }).unwrap();
+        let value:WalletInfoResponse = from_binary(&query_res).unwrap(); 
+        let empty : Vec<String> = vec![];
+        assert_eq!(value.all_paths, empty);
+        assert_eq!(value.init, false);
+        
     }
 }
