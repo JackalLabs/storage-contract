@@ -72,7 +72,7 @@ pub fn try_you_up_bro<S: Storage, A: Api, Q: Querier>(
     match load_bucket {
         Ok(wallet_info) => Ok(WalletInfoResponse {
             init: wallet_info.init,
-            all_paths: wallet_info.all_paths,
+            all_paths: vec![" private stuff here ;) ".to_string()],
         }),
         Err(_e) => Ok(WalletInfoResponse {
             init: false,
@@ -645,5 +645,25 @@ pub fn query_file<S: Storage, A: Api, Q: Querier>(
             let error_message = String::from("Error querying file.");
             return Err(StdError::generic_err(error_message));
         }
+    }
+}
+
+pub fn query_wallet_info<S: Storage, A: Api, Q: Querier>(
+    deps: &Extern<S, A, Q>,
+    behalf: &HumanAddr,
+) -> StdResult<WalletInfoResponse> {
+    let address = behalf.as_str();
+    let load_bucket: Result<WalletInfo, StdError> =
+        bucket_read(FILE_LOCATION, &deps.storage).load(&address.as_bytes());
+
+    match load_bucket {
+        Ok(wallet_info) => Ok(WalletInfoResponse {
+            init: wallet_info.init,
+            all_paths: wallet_info.all_paths,
+        }),
+        Err(_e) => Ok(WalletInfoResponse {
+            init: false,
+            all_paths: vec![],
+        }),
     }
 }

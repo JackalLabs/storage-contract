@@ -9,7 +9,7 @@ use std::cmp;
 
 use crate::msg::{HandleMsg, InitMsg, QueryMsg};
 use crate::state::{ State, CONFIG_KEY, save, read_viewing_key};
-use crate::backend::{try_create_viewing_key, try_allow_write, try_disallow_write, try_allow_read, try_disallow_read, query_file, try_create_file, try_init, try_remove_multi_files, try_remove_file, try_move_file, try_create_multi_files, try_reset_read, try_reset_write, try_you_up_bro};
+use crate::backend::{try_create_viewing_key, try_allow_write, try_disallow_write, try_allow_read, try_disallow_read, query_file, try_create_file, try_init, try_remove_multi_files, try_remove_file, try_move_file, try_create_multi_files, try_reset_read, try_reset_write, try_you_up_bro, query_wallet_info};
 use crate::viewing_key::VIEWING_KEY_SIZE;
 use crate::nodes::{pub_query_coins, claim, push_node, get_node, get_node_size, set_node_size};
 
@@ -91,6 +91,7 @@ fn authenticated_queries<S: Storage, A: Api, Q: Querier>(
 
             return match msg {
                 QueryMsg::GetContents { path, behalf, .. } => to_binary(&query_file(deps, path, &behalf)?),
+                QueryMsg::GetWalletInfo { behalf, .. } => to_binary(&query_wallet_info(deps, &behalf)?),
                 _ => panic!("How did this even get to this stage. It should have been processed.")
             };
         }
@@ -398,13 +399,7 @@ mod tests {
         // Get File with viewing key
         let query_res = query(&deps, QueryMsg::GetContents { path: String::from("anyone/meme/pepe.jpg"), behalf: HumanAddr("anyone".to_string()), key: vk.to_string() }).unwrap();
         let value:FileResponse = from_binary(&query_res).unwrap(); 
-        // println!("GetContents: {:?}", &value);
-        
-        // Get Wallet Info with YouUpBro
-        let msg = QueryMsg::YouUpBro {address: String::from("anyone")};
-        let query_res = query(&deps, msg).unwrap();
-        let value:WalletInfoResponse = from_binary(&query_res).unwrap();
-        print!("{:?}", value);
+        println!("GetContents: {:?}", &value);
         
         // Remove File
         let env = mock_env("anyone", &[]);
@@ -415,7 +410,11 @@ mod tests {
         let msg = QueryMsg::YouUpBro {address: String::from("anyone")};
         let query_res = query(&deps, msg).unwrap();
         let value:WalletInfoResponse = from_binary(&query_res).unwrap();
-        print!("{:?}", value);
+        print!("You Up Bro? {:?}", value);
 
+        // Get File with viewing key
+        let query_res = query(&deps, QueryMsg::GetWalletInfo { behalf: HumanAddr("anyone".to_string()), key: vk.to_string() }).unwrap();
+        let value:WalletInfoResponse = from_binary(&query_res).unwrap(); 
+        println!("GetWalletInfo: {:?}", &value);
     }
 }

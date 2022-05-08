@@ -40,6 +40,7 @@ pub enum QueryMsg {
     GetNodeList{size: u64},
     GetNodeCoins{address: String},
     YouUpBro{address: String},
+    GetWalletInfo { behalf: HumanAddr, key: String},
 }
 
 #[derive(Serialize, Deserialize, JsonSchema, Debug)]
@@ -78,6 +79,7 @@ impl QueryMsg {
     pub fn get_validation_params(&self) -> (Vec<&HumanAddr>, ViewingKey) {
         match self {
             Self::GetContents { behalf, key, .. } => (vec![behalf], ViewingKey(key.clone())),
+            Self::GetWalletInfo { behalf, key, .. } => (vec![behalf], ViewingKey(key.clone())),
             _ => panic!("This query type does not require authentication"),
         }
     }
