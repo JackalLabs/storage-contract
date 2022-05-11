@@ -230,6 +230,34 @@ mod tests {
     }
 
     #[test]
+    fn double_init_address_test(){
+        let mut deps = mock_dependencies(20, &coins(2, "token"));
+
+        // Init Contract
+        let msg = InitMsg {prng_seed:String::from("lets init bro")};
+        let env = mock_env("creator", &[]);
+        let _res = init(&mut deps, env, msg).unwrap();
+
+        // Init Address
+        let env = mock_env(String::from("anyone"), &[]);
+        let msg = HandleMsg::InitAddress { contents: String::from("{}"), entropy: String::from("Entropygoeshereboi") };
+        let handle_response = handle(&mut deps, env, msg).unwrap();
+        let vk = match from_binary(&handle_response.data.unwrap()).unwrap() {
+            HandleAnswer::CreateViewingKey { key } => {
+                key
+            },
+            _ => panic!("Unexpected result from handle"),
+        };
+        println!("{:?}", &vk);
+
+        // // Init Address Again
+        let env = mock_env(String::from("anyone"), &[]);
+        let msg = HandleMsg::InitAddress { contents: String::from("{}"), entropy: String::from("Entropygoeshereboi") };
+        let handle_response = handle(&mut deps, env, msg);
+        assert!(handle_response.is_err());
+    }
+
+    #[test]
     fn test_node_setup() {
 
         let mut deps = mock_dependencies(20, &coins(2, "token"));

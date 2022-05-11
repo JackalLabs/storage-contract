@@ -29,37 +29,45 @@ pub fn try_init<S: Storage, A: Api, Q: Querier>(
         .api
         .human_address(&deps.api.canonical_address(&env.message.sender)?)?;
     let adr = String::from(ha.as_str());
-
     let mut path = adr.to_string();
     path.push('/');
 
-    create_file(&mut deps.storage, adr.to_string(), path.clone(), contents);
+    let already_init = file_exists(&mut deps.storage, &path);
 
-    //Register Wallet info
-    let wallet_info = WalletInfo {
-        init: true,
-        all_paths: vec![path],
-    };
-    let bucket_response =
-        bucket(FILE_LOCATION, &mut deps.storage).save(adr.as_bytes(), &wallet_info);
-    match bucket_response {
-        Ok(bucket_response) => bucket_response,
-        Err(e) => panic!("Bucket Error: {}", e),
+    match already_init {
+        false => {
+            create_file(&mut deps.storage, adr.to_string(), path.clone(), contents);
+
+            //Register Wallet info
+            let wallet_info = WalletInfo {
+                init: true,
+                all_paths: vec![path],
+            };
+            let bucket_response =
+                bucket(FILE_LOCATION, &mut deps.storage).save(adr.as_bytes(), &wallet_info);
+            match bucket_response {
+                Ok(bucket_response) => bucket_response,
+                Err(e) => panic!("Bucket Error: {}", e),
+            }
+
+            // Let's create viewing key
+            let config: State = load(&mut deps.storage, CONFIG_KEY)?;
+            let prng_seed = config.prng_seed;
+            let key = ViewingKey::new(&env, &prng_seed, (&entropy).as_ref());
+            let message_sender = deps.api.canonical_address(&env.message.sender)?;
+            write_viewing_key(&mut deps.storage, &message_sender, &key);
+
+            Ok(HandleResponse {
+                messages: vec![],
+                log: vec![],
+                data: Some(to_binary(&HandleAnswer::CreateViewingKey { key })?),
+            })
+        }
+        true => {
+            let error_message = format!("User has already been initiated");
+            Err(StdError::generic_err(error_message))
+        }
     }
-
-    // Let's create viewing key
-    let config: State = load(&mut deps.storage, CONFIG_KEY)?;
-    let prng_seed = config.prng_seed;
-    let key = ViewingKey::new(&env, &prng_seed, (&entropy).as_ref());
-    let message_sender = deps.api.canonical_address(&env.message.sender)?;
-    write_viewing_key(&mut deps.storage, &message_sender, &key);
-
-    // Ok(HandleResponse::default())
-    Ok(HandleResponse {
-        messages: vec![],
-        log: vec![],
-        data: Some(to_binary(&HandleAnswer::CreateViewingKey { key })?),
-    })
 }
 
 pub fn try_forget_me<S: Storage, A: Api, Q: Querier>(
@@ -94,7 +102,6 @@ pub fn try_forget_me<S: Storage, A: Api, Q: Querier>(
             }
         }
     }
-
 
     Ok(HandleResponse::default())
 }
@@ -552,10 +559,7 @@ pub fn try_create_multi_files<S: Storage, A: Api, Q: Querier>(
     let ha = deps
         .api
         .human_address(&deps.api.canonical_address(&env.message.sender)?)?;
-    debug_print!(
-        "Attempting to create multiple files for account: {}",
-        ha
-    );
+    debug_print!("Attempting to create multiple files for account: {}", ha);
 
     for i in 0..contents_list.len() {
         let file_contents = contents_list[i].clone();
@@ -591,10 +595,7 @@ pub fn try_remove_multi_files<S: Storage, A: Api, Q: Querier>(
     let ha = deps
         .api
         .human_address(&deps.api.canonical_address(&env.message.sender)?)?;
-    debug_print!(
-        "Attempting to remove multiple files for account: {}",
-        ha
-    );
+    debug_print!("Attempting to remove multiple files for account: {}", ha);
 
     for i in 0..path_list.len() {
         let path = path_list[i].to_string();
@@ -645,7 +646,7 @@ pub fn bucket_remove_file<'a, S: Storage>(store: &'a mut S, path: &String) {
     bucket::<S, File>(FILE_LOCATION, store).remove(path.as_bytes());
 }
 
-pub fn file_exists<'a, S: Storage>(store: &'a mut S, path: String) -> bool {
+pub fn file_exists<'a, S: Storage>(store: &'a mut S, path: &String) -> bool {
     let f: Result<File, StdError> = bucket(FILE_LOCATION, store).load(path.as_bytes());
 
     match f {
