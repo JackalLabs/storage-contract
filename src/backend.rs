@@ -15,8 +15,9 @@ use crate::ordered_set::OrderedSet;
 use crate::state::{load, write_viewing_key, State, CONFIG_KEY};
 use crate::viewing_key::ViewingKey;
 
-// static FOLDER_LOCATION: &[u8] = b"FOLDERS";
+// Bucket namespace list:
 static FILE_LOCATION: &[u8] = b"FILES";
+static WALLET_INFO_LOCATION: &[u8] = b"WALLET_INFO";
 
 // HandleMsg::InitAddress
 pub fn try_init<S: Storage, A: Api, Q: Querier>(
@@ -44,7 +45,7 @@ pub fn try_init<S: Storage, A: Api, Q: Querier>(
                 all_paths: vec![path],
             };
             let bucket_response =
-                bucket(FILE_LOCATION, &mut deps.storage).save(adr.as_bytes(), &wallet_info);
+                bucket(WALLET_INFO_LOCATION, &mut deps.storage).save(adr.as_bytes(), &wallet_info);
             match bucket_response {
                 Ok(bucket_response) => bucket_response,
                 Err(e) => panic!("Bucket Error: {}", e),
@@ -80,11 +81,11 @@ pub fn try_forget_me<S: Storage, A: Api, Q: Querier>(
     let adr = String::from(ha.as_str());
 
     let load_bucket: Result<WalletInfo, StdError> =
-        bucket_read(FILE_LOCATION, &deps.storage).load(adr.as_bytes());
+        bucket_read(WALLET_INFO_LOCATION, &deps.storage).load(adr.as_bytes());
     let mut wallet_info = load_bucket?;
 
     wallet_info.init = false;
-    bucket(FILE_LOCATION, &mut deps.storage)
+    bucket(WALLET_INFO_LOCATION, &mut deps.storage)
         .save(ha.as_str().as_bytes(), &wallet_info)
         .map_err(|err| println!("{:?}", err))
         .ok();
@@ -111,7 +112,7 @@ pub fn try_you_up_bro<S: Storage, A: Api, Q: Querier>(
     address: String,
 ) -> StdResult<WalletInfoResponse> {
     let load_bucket: Result<WalletInfo, StdError> =
-        bucket_read(FILE_LOCATION, &deps.storage).load(address.as_bytes());
+        bucket_read(WALLET_INFO_LOCATION, &deps.storage).load(address.as_bytes());
 
     match load_bucket {
         Ok(wallet_info) => Ok(WalletInfoResponse {
@@ -450,7 +451,7 @@ pub fn try_remove_file<S: Storage, A: Api, Q: Querier>(
         d.all_paths.remove(index);
         Ok(d)
     };
-    bucket(FILE_LOCATION, &mut deps.storage)
+    bucket(WALLET_INFO_LOCATION, &mut deps.storage)
         .update(ha.as_str().as_bytes(), new_data)
         .unwrap();
 
@@ -492,7 +493,7 @@ fn do_create_file<S: Storage, A: Api, Q: Querier>(
                     d.all_paths.push(path);
                     Ok(d)
                 };
-                bucket(FILE_LOCATION, &mut deps.storage)
+                bucket(WALLET_INFO_LOCATION, &mut deps.storage)
                     .update(ha.as_bytes(), new_data)
                     .unwrap();
 
@@ -691,7 +692,7 @@ pub fn query_wallet_info<S: Storage, A: Api, Q: Querier>(
 ) -> StdResult<WalletInfoResponse> {
     let address = behalf.as_str();
     let load_bucket: Result<WalletInfo, StdError> =
-        bucket_read(FILE_LOCATION, &deps.storage).load(address.as_bytes());
+        bucket_read(WALLET_INFO_LOCATION, &deps.storage).load(address.as_bytes());
 
     match load_bucket {
         Ok(wallet_info) => Ok(WalletInfoResponse {
