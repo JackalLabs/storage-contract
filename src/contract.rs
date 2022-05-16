@@ -305,14 +305,14 @@ mod tests {
         };
         let handle_response = handle(&mut deps, env, create_vk_msg).unwrap();
         
-        let _vk = match from_binary(&handle_response.data.unwrap()).unwrap() {
+        let vk = match from_binary(&handle_response.data.unwrap()).unwrap() {
             HandleAnswer::CreateViewingKey { key } => {
-                // println!("viewing key here: {}",key);
                 key
             },
             _ => panic!("Unexpected result from handle"),
         };
-
+        let test_key = ViewingKey("anubis_key_u25NSWPI5+wpGW7WP6eXtcBpA4RmyZ1CrJRvYFWDNQM=".to_string());
+        assert_eq!(vk, test_key);
     }
 
     #[test]
