@@ -376,11 +376,11 @@ mod tests {
     fn test_multi_file() {
         let mut deps = mock_dependencies(20, &[]);
         
-        let _vk = init_for_test(&mut deps, String::from("anyone"));
+        let vk = init_for_test(&mut deps, String::from("anyone"));
 
-        // Create File
+        // Create folder test/
         let env = mock_env("anyone", &[]);
-        let msg = HandleMsg::Create { contents: String::from("I'm sad"), path: String::from("anyone/test/") , pkey: String::from("test"), skey: String::from("test")};
+        let msg = HandleMsg::Create { contents: String::from("<content inside test/ folder>"), path: String::from("anyone/test/") , pkey: String::from("test"), skey: String::from("test")};
         let _res = handle(&mut deps, env, msg).unwrap();
 
         // Create File
@@ -392,6 +392,16 @@ mod tests {
         let env = mock_env("anyone", &[]);
         let msg = HandleMsg::RemoveMulti { path_list: vec!(String::from("anyone/test/pepe.jpg"), String::from("anyone/test/pepe2.jpg"))};
         let _res = handle(&mut deps, env, msg).unwrap();
+
+        // Get File
+        let query_res = query(&deps, QueryMsg::GetContents { path: String::from("anyone/test/pepe.jpg"), behalf: HumanAddr("anyone".to_string()), key: vk.to_string() });
+        assert!(query_res.is_err());
+
+        // Get WalletInfo with viewing key
+        let query_res = query(&deps, QueryMsg::GetWalletInfo { behalf: HumanAddr("anyone".to_string()), key: vk.to_string() }).unwrap();
+        let value:WalletInfoResponse = from_binary(&query_res).unwrap(); 
+        let arr : Vec<String> = vec!["anyone/".to_string(), "anyone/test/".to_string()];
+        assert_eq!(value.all_paths, arr);
     }
 
     #[test]
