@@ -432,6 +432,36 @@ pub fn try_move_file<S: Storage, A: Api, Q: Querier>(
     Ok(HandleResponse::default())
 }
 
+pub fn try_move_multi_files<S: Storage, A: Api, Q: Querier>(
+    deps: &mut Extern<S, A, Q>,
+    env: Env,
+    old_path_list: Vec<String>,
+    new_path_list: Vec<String>,
+) -> StdResult<HandleResponse> {
+    debug_print!("Attempting to move multiple files");
+
+    for i in 0..old_path_list.len() {
+        let old_path = &old_path_list[i];
+        let new_path = &new_path_list[i];
+
+        let res = try_move_file(
+            deps,
+            env.clone(),
+            old_path.to_string(),
+            new_path.to_string()
+        );
+
+        match res {
+            Ok(_r) => {}
+            Err(e) => {
+                return Err(e);
+            }
+        }
+    }
+    Ok(HandleResponse::default())
+
+}
+
 pub fn try_remove_file<S: Storage, A: Api, Q: Querier>(
     deps: &mut Extern<S, A, Q>,
     env: Env,
@@ -468,7 +498,7 @@ fn do_create_file<S: Storage, A: Api, Q: Querier>(
 ) -> StdResult<HandleResponse> {
     let par_path = parent_path(path.to_string());
 
-    let res = bucket_load_readonly_file(&deps.storage, par_path);
+    let res = bucket_load_readonly_file(&deps.storage, &par_path);
 
     match res {
         Ok(f) => {
@@ -503,7 +533,7 @@ fn do_create_file<S: Storage, A: Api, Q: Querier>(
             Err(StdError::generic_err(error_message))
         }
         Err(_e) => {
-            let error_message = String::from("Error Creating File");
+            let error_message = format!("{} doesn't exist", &par_path);
             Err(StdError::generic_err(error_message))
         }
     }
@@ -656,7 +686,7 @@ pub fn bucket_load_file<'a, S: Storage>(store: &'a mut S, path: &String) -> File
 
 pub fn bucket_load_readonly_file<'a, S: Storage>(
     store: &'a S,
-    path: String,
+    path: &String,
 ) -> Result<File, StdError> {
     bucket_read(FILE_LOCATION, store).load(path.as_bytes())
 }
@@ -667,7 +697,7 @@ pub fn query_file<S: Storage, A: Api, Q: Querier>(
     path: String,
     behalf: &HumanAddr,
 ) -> StdResult<FileResponse> {
-    let f = bucket_load_readonly_file(&deps.storage, path);
+    let f = bucket_load_readonly_file(&deps.storage, &path);
 
     match f {
         Ok(f1) => {

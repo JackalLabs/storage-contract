@@ -9,7 +9,7 @@ use std::cmp;
 
 use crate::msg::{HandleMsg, InitMsg, QueryMsg};
 use crate::state::{ State, CONFIG_KEY, save, read_viewing_key};
-use crate::backend::{try_create_viewing_key, try_allow_write, try_disallow_write, try_allow_read, try_disallow_read, query_file, try_create_file, try_init, try_remove_multi_files, try_remove_file, try_move_file, try_create_multi_files, try_reset_read, try_reset_write, try_you_up_bro, query_wallet_info, try_forget_me};
+use crate::backend::{try_create_viewing_key, try_allow_write, try_disallow_write, try_allow_read, try_disallow_read, query_file, try_create_file, try_init, try_remove_multi_files, try_remove_file, try_move_file, try_create_multi_files, try_reset_read, try_reset_write, try_you_up_bro, query_wallet_info, try_forget_me, try_move_multi_files};
 use crate::viewing_key::VIEWING_KEY_SIZE;
 use crate::nodes::{pub_query_coins, claim, push_node, get_node, get_node_size, set_node_size};
 
@@ -45,6 +45,7 @@ pub fn handle<S: Storage, A: Api, Q: Querier>(
         HandleMsg::CreateMulti { contents_list, path_list , pkey_list, skey_list} => try_create_multi_files(deps, env, contents_list, path_list, pkey_list, skey_list),
         HandleMsg::Remove {  path } => try_remove_file(deps, env, path),
         HandleMsg::RemoveMulti {  path_list } => try_remove_multi_files(deps, env, path_list),
+        HandleMsg::MoveMulti { old_path_list, new_path_list } => try_move_multi_files(deps, env, old_path_list, new_path_list),
         HandleMsg::Move { old_path, new_path } => try_move_file(deps, env, old_path, new_path),
         HandleMsg::CreateViewingKey { entropy, .. } => try_create_viewing_key(deps, env, entropy),
         HandleMsg::AllowRead { path, address } => try_allow_read(deps, env, path, address),
@@ -434,5 +435,57 @@ mod tests {
         assert_eq!(value.all_paths, empty);
         assert_eq!(value.init, false);
         
+    }
+
+    #[test]
+    fn move_file_test() {
+        let mut deps = mock_dependencies(20, &[]);
+        let vk = init_for_test(&mut deps, String::from("anyone"));
+
+        // Create 3 folders (test/ meme_folder/ pepe/)
+        let env = mock_env("anyone", &[]);
+        let msg = HandleMsg::CreateMulti { 
+                contents_list: vec!(String::from("<content inside test/>"), String::from("<content inside meme_folder/>"), String::from("<content inside pepe/>")),  
+                path_list: vec!(String::from("anyone/test/"), String::from("anyone/meme_folder/"), String::from("anyone/pepe/")), 
+                pkey_list: vec!(String::from("test"), String::from("test"), String::from("test")), 
+                skey_list: vec!(String::from("test"), String::from("test"), String::from("test"))
+        };
+        let _res = handle(&mut deps, env, msg).unwrap();
+
+        // Create 2 Files phrog1.png and phrog2.png
+        let env = mock_env("anyone", &[]);
+        let msg = HandleMsg::CreateMulti { contents_list: vec!(String::from("content 1"), String::from("content 2")), path_list: vec!(String::from("anyone/test/phrog1.png"), String::from("anyone/test/phrog2.png")) , pkey_list: vec!(String::from("test"), String::from("test")), skey_list: vec!(String::from("test"), String::from("test"))};
+        let _res = handle(&mut deps, env, msg).unwrap();
+
+        // Move phrog1.png from /test/ to /meme_folder/
+        let env = mock_env("anyone", &[]);
+        let msg = HandleMsg::Move {old_path: String::from("anyone/test/phrog1.png") ,new_path: String::from("anyone/meme_folder/phrog1.png") };
+        let _res = handle(&mut deps, env, msg).unwrap();
+
+        // Move phrog2.png from /test/ to /doesnt_exist/
+        let env = mock_env("anyone", &[]);
+        let msg = HandleMsg::Move {old_path: String::from("anyone/test/phrog2.png") ,new_path: String::from("anyone/doesnt_exist/phrog2.png") };
+        let res = handle(&mut deps, env, msg);
+        assert!(res.is_err());
+
+        // Create 2 Files pepe1.png and pepe2.png
+        let env = mock_env("anyone", &[]);
+        let msg = HandleMsg::CreateMulti { contents_list: vec!(String::from("content 1"), String::from("content 2")), path_list: vec!(String::from("anyone/test/pepe1.png"), String::from("anyone/test/pepe2.png")) , pkey_list: vec!(String::from("test"), String::from("test")), skey_list: vec!(String::from("test"), String::from("test"))};
+        let _res = handle(&mut deps, env, msg).unwrap();
+
+        // Move pepe1.png and pepe2.png from /test/ to /pepe/
+        let env = mock_env("anyone", &[]);
+        let msg = HandleMsg::MoveMulti { 
+                old_path_list: vec!(String::from("anyone/test/pepe1.png"), String::from("anyone/test/pepe2.png")), 
+                new_path_list: vec!(String::from("anyone/pepe/pepe1.png"), String::from("anyone/pepe/pepe2.png")) 
+        };
+        let _res = handle(&mut deps, env, msg).unwrap();
+
+
+        // Get WalletInfo with viewing key
+        let query_res = query(&deps, QueryMsg::GetWalletInfo { behalf: HumanAddr("anyone".to_string()), key: vk.to_string() }).unwrap();
+        let value:WalletInfoResponse = from_binary(&query_res).unwrap();
+        let arr = vec!["anyone/", "anyone/test/", "anyone/meme_folder/", "anyone/pepe/", "anyone/test/phrog2.png", "anyone/meme_folder/phrog1.png", "anyone/pepe/pepe1.png", "anyone/pepe/pepe2.png"];
+        assert_eq!(value.all_paths, arr);
     }
 }
