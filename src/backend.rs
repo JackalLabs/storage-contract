@@ -444,20 +444,15 @@ pub fn try_remove_file<S: Storage, A: Api, Q: Querier>(
     bucket_remove_file(&mut deps.storage, &path);
 
     // Remove path from Wallet info bucket
-    let wallet_info_bucket: Result<WalletInfo, StdError> =
-        bucket(FILE_LOCATION, &mut deps.storage).load(ha.as_str().as_bytes());
-    let mut wallet_info = wallet_info_bucket?;
-    let index = wallet_info
-        .all_paths
-        .iter()
-        .position(|r| r == &path)
-        .unwrap();
-    wallet_info.all_paths.remove(index);
-
+    let new_data = |mayd: Option<WalletInfo>| -> StdResult<WalletInfo> {
+        let mut d = mayd.ok_or(StdError::not_found("Data"))?;
+        let index = d.all_paths.iter().position(|r| r == &path).unwrap();
+        d.all_paths.remove(index);
+        Ok(d)
+    };
     bucket(FILE_LOCATION, &mut deps.storage)
-        .save(ha.as_str().as_bytes(), &wallet_info)
-        .map_err(|err| println!("{:?}", err))
-        .ok();
+        .update(ha.as_str().as_bytes(), new_data)
+        .unwrap();
 
     Ok(HandleResponse::default())
 }
@@ -491,16 +486,15 @@ fn do_create_file<S: Storage, A: Api, Q: Querier>(
 
                 write_claim(&mut deps.storage, acl, skey);
 
-                // // Add new path to Wallet info bucket
-                let wallet_info_bucket: Result<WalletInfo, StdError> =
-                    bucket(FILE_LOCATION, &mut deps.storage).load(ha.as_bytes());
-                let mut wallet_info = wallet_info_bucket?;
-                wallet_info.all_paths.push(path);
-
+                // Add new path to Wallet info bucket
+                let new_data = |mayd: Option<WalletInfo>| -> StdResult<WalletInfo> {
+                    let mut d = mayd.ok_or(StdError::not_found("Data"))?;
+                    d.all_paths.push(path);
+                    Ok(d)
+                };
                 bucket(FILE_LOCATION, &mut deps.storage)
-                    .save(ha.as_bytes(), &wallet_info)
-                    .map_err(|err| println!("{:?}", err))
-                    .ok();
+                    .update(ha.as_bytes(), new_data)
+                    .unwrap();
 
                 return Ok(HandleResponse::default());
             }
