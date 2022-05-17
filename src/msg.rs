@@ -22,7 +22,7 @@ pub enum HandleMsg {
     Move {old_path: String, new_path: String},
     MoveMulti {old_path_list: Vec<String>, new_path_list: Vec<String>},
     CreateViewingKey {entropy: String, padding: Option<String>},
-    AllowRead {path: String, address: String},
+    AllowRead {path: String, address_list: Vec<String>},
     DisallowRead {path: String, address: String},
     ResetRead {path: String},
     AllowWrite {path: String, address_list: Vec<String>},

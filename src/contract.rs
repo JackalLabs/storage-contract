@@ -48,7 +48,7 @@ pub fn handle<S: Storage, A: Api, Q: Querier>(
         HandleMsg::MoveMulti { old_path_list, new_path_list } => try_move_multi_files(deps, env, old_path_list, new_path_list),
         HandleMsg::Move { old_path, new_path } => try_move_file(deps, env, old_path, new_path),
         HandleMsg::CreateViewingKey { entropy, .. } => try_create_viewing_key(deps, env, entropy),
-        HandleMsg::AllowRead { path, address } => try_allow_read(deps, env, path, address),
+        HandleMsg::AllowRead { path, address_list } => try_allow_read(deps, env, path, address_list),
         HandleMsg::DisallowRead { path, address } => try_disallow_read(deps, env, path, address),
         HandleMsg::ResetRead { path } => try_reset_read(deps, env, path),
         HandleMsg::AllowWrite { path, address_list } => try_allow_write(deps, env, path, address_list),
@@ -317,11 +317,7 @@ mod tests {
         
         // Allow Read Alice
         let env = mock_env("anyone", &[]);
-        let msg = HandleMsg::AllowRead { path: String::from("anyone/pepe.jpg"), address: String::from("alice") };
-        let _res = handle(&mut deps, env, msg).unwrap();
-        // Allow Read Bob
-        let env = mock_env("anyone", &[]);
-        let msg = HandleMsg::AllowRead { path: String::from("anyone/pepe.jpg"), address: String::from("bob") };
+        let msg = HandleMsg::AllowRead { path: String::from("anyone/pepe.jpg"), address_list: vec!(String::from("alice"), String::from("bob")) };
         let _res = handle(&mut deps, env, msg).unwrap();
         
         // Query File
@@ -505,9 +501,14 @@ mod tests {
         let msg = HandleMsg::Create { contents: String::from("I'm sad"), path: String::from("anyone/pepe.jpg") , pkey: String::from("test"), skey: String::from("test")};
         let _res = handle(&mut deps, env, msg).unwrap();
         
-        // Allow Write for Alice, Bob and Charlie
+        // Allow WRITE for Alice, Bob and Charlie
         let env = mock_env("anyone", &[]);
         let msg = HandleMsg::AllowWrite { path: String::from("anyone/test/"), address_list: vec!(String::from("alice"), String::from("bob"), String::from("charlie")) };
+        let _res = handle(&mut deps, env, msg).unwrap();
+
+        // Allow READ for Alice, Bob and Charlie
+        let env = mock_env("anyone", &[]);
+        let msg = HandleMsg::AllowRead { path: String::from("anyone/test/"), address_list: vec!(String::from("alice"), String::from("bob"), String::from("charlie")) };
         let _res = handle(&mut deps, env, msg).unwrap();
         
         // Get File with viewing key

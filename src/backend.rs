@@ -235,7 +235,7 @@ pub fn try_allow_read<S: Storage, A: Api, Q: Querier>(
     deps: &mut Extern<S, A, Q>,
     env: Env,
     path: String,
-    address: String,
+    address_list: Vec<String>,
 ) -> StdResult<HandleResponse> {
     let signer = deps
         .api
@@ -248,9 +248,12 @@ pub fn try_allow_read<S: Storage, A: Api, Q: Querier>(
         return Err(StdError::generic_err("Unathorized to allow read"));
     }
 
-    let mut f = bucket_load_file(&mut deps.storage, &path);
-    f.allow_read(address);
-    bucket_save_file(&mut deps.storage, &path, f);
+    for i in 0..address_list.len() {
+        let address = &address_list[i];
+        let mut f = bucket_load_file(&mut deps.storage, &path);
+        f.allow_read(address.to_string());
+        bucket_save_file(&mut deps.storage, &path, f);
+    }
     Ok(HandleResponse::default())
 }
 
