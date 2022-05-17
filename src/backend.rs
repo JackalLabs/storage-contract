@@ -338,6 +338,11 @@ impl File {
                 return true;
             }
         }
+        for i in 0..self.allow_write_list.len() {
+            if String::from(self.allow_write_list.get(i).unwrap()).eq(&address) {
+                return true;
+            }
+        }
 
         false
     }

@@ -493,6 +493,7 @@ mod tests {
     fn permission_test() {
         let mut deps = mock_dependencies(20, &[]);
         let vk = init_for_test(&mut deps, String::from("anyone"));
+        let vk2 = init_for_test(&mut deps, String::from("alice"));
 
         // Create Folder Test
         let env = mock_env("anyone", &[]);
@@ -510,7 +511,7 @@ mod tests {
         let _res = handle(&mut deps, env, msg).unwrap();
         
         // Get File with viewing key
-        let query_res = query(&deps, QueryMsg::GetContents { path: String::from("anyone/test/"), behalf: HumanAddr("anyone".to_string()), key: vk.to_string() });
+        let query_res = query(&deps, QueryMsg::GetContents { path: String::from("anyone/test/"), behalf: HumanAddr("alice".to_string()), key: vk2.to_string() });
         let value: FileResponse = from_binary(&query_res.unwrap()).unwrap();
         println!("{:?}", value.file);
     }
