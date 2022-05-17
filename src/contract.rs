@@ -51,7 +51,7 @@ pub fn handle<S: Storage, A: Api, Q: Querier>(
         HandleMsg::AllowRead { path, address } => try_allow_read(deps, env, path, address),
         HandleMsg::DisallowRead { path, address } => try_disallow_read(deps, env, path, address),
         HandleMsg::ResetRead { path } => try_reset_read(deps, env, path),
-        HandleMsg::AllowWrite { path, address } => try_allow_write(deps, env, path, address),
+        HandleMsg::AllowWrite { path, address_list } => try_allow_write(deps, env, path, address_list),
         HandleMsg::DisallowWrite { path, address } => try_disallow_write(deps, env, path, address),
         HandleMsg::ResetWrite { path } => try_reset_write(deps, env, path),
         HandleMsg::InitNode {ip, address} => try_init_node(deps, ip, address),
@@ -487,5 +487,31 @@ mod tests {
         let value:WalletInfoResponse = from_binary(&query_res).unwrap();
         let arr = vec!["anyone/", "anyone/test/", "anyone/meme_folder/", "anyone/pepe/", "anyone/test/phrog2.png", "anyone/meme_folder/phrog1.png", "anyone/pepe/pepe1.png", "anyone/pepe/pepe2.png"];
         assert_eq!(value.all_paths, arr);
+    }
+
+    #[test]
+    fn permission_test() {
+        let mut deps = mock_dependencies(20, &[]);
+        let vk = init_for_test(&mut deps, String::from("anyone"));
+
+        // Create Folder Test
+        let env = mock_env("anyone", &[]);
+        let msg = HandleMsg::Create { contents: String::from("<content of test/ folder>"), path: String::from("anyone/test/") , pkey: String::from("test"), skey: String::from("test")};
+        let _res = handle(&mut deps, env, msg).unwrap();
+
+        // Create File
+        let env = mock_env("anyone", &[]);
+        let msg = HandleMsg::Create { contents: String::from("I'm sad"), path: String::from("anyone/pepe.jpg") , pkey: String::from("test"), skey: String::from("test")};
+        let _res = handle(&mut deps, env, msg).unwrap();
+        
+        // Allow Write for Alice, Bob and Charlie
+        let env = mock_env("anyone", &[]);
+        let msg = HandleMsg::AllowWrite { path: String::from("anyone/test/"), address_list: vec!(String::from("alice"), String::from("bob"), String::from("charlie")) };
+        let _res = handle(&mut deps, env, msg).unwrap();
+        
+        // Get File with viewing key
+        let query_res = query(&deps, QueryMsg::GetContents { path: String::from("anyone/test/"), behalf: HumanAddr("anyone".to_string()), key: vk.to_string() });
+        let value: FileResponse = from_binary(&query_res.unwrap()).unwrap();
+        println!("{:?}", value.file);
     }
 }

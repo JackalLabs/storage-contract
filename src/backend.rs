@@ -163,7 +163,7 @@ pub fn try_allow_write<S: Storage, A: Api, Q: Querier>(
     deps: &mut Extern<S, A, Q>,
     env: Env,
     path: String,
-    address: String,
+    address_list: Vec<String>,
 ) -> StdResult<HandleResponse> {
     let signer = deps
         .api
@@ -176,9 +176,13 @@ pub fn try_allow_write<S: Storage, A: Api, Q: Querier>(
         return Err(StdError::generic_err("Unauthorized to allow write"));
     }
 
-    let mut f = bucket_load_file(&mut deps.storage, &path);
-    f.allow_write(address);
-    bucket_save_file(&mut deps.storage, path, f);
+    for i in 0..address_list.len() {
+        let address = &address_list[i];
+        let mut f = bucket_load_file(&mut deps.storage, &path);
+        f.allow_write(address.to_string());
+        bucket_save_file(&mut deps.storage, &path, f);
+    }
+
     Ok(HandleResponse::default())
 }
 
@@ -201,7 +205,7 @@ pub fn try_disallow_write<S: Storage, A: Api, Q: Querier>(
 
     let mut f = bucket_load_file(&mut deps.storage, &path);
     f.disallow_write(address);
-    bucket_save_file(&mut deps.storage, path, f);
+    bucket_save_file(&mut deps.storage, &path, f);
     Ok(HandleResponse::default())
 }
 
@@ -223,7 +227,7 @@ pub fn try_reset_write<S: Storage, A: Api, Q: Querier>(
 
     let mut f = bucket_load_file(&mut deps.storage, &path);
     f.allow_write_list = OrderedSet::new();
-    bucket_save_file(&mut deps.storage, path, f);
+    bucket_save_file(&mut deps.storage, &path, f);
     Ok(HandleResponse::default())
 }
 
@@ -246,7 +250,7 @@ pub fn try_allow_read<S: Storage, A: Api, Q: Querier>(
 
     let mut f = bucket_load_file(&mut deps.storage, &path);
     f.allow_read(address);
-    bucket_save_file(&mut deps.storage, path, f);
+    bucket_save_file(&mut deps.storage, &path, f);
     Ok(HandleResponse::default())
 }
 
@@ -269,7 +273,7 @@ pub fn try_disallow_read<S: Storage, A: Api, Q: Querier>(
 
     let mut f = bucket_load_file(&mut deps.storage, &path);
     f.disallow_read(address);
-    bucket_save_file(&mut deps.storage, path, f);
+    bucket_save_file(&mut deps.storage, &path, f);
     Ok(HandleResponse::default())
 }
 
@@ -291,7 +295,7 @@ pub fn try_reset_read<S: Storage, A: Api, Q: Querier>(
 
     let mut f = bucket_load_file(&mut deps.storage, &path);
     f.allow_read_list = OrderedSet::new();
-    bucket_save_file(&mut deps.storage, path, f);
+    bucket_save_file(&mut deps.storage, &path, f);
     Ok(HandleResponse::default())
 }
 
@@ -646,7 +650,7 @@ pub fn create_file<'a, S: Storage>(
 ) {
     let file = make_file(&owner, &contents);
 
-    bucket_save_file(store, path, file);
+    bucket_save_file(store, &path, file);
 }
 
 pub fn make_file(owner: &str, contents: &str) -> File {
@@ -659,7 +663,7 @@ pub fn make_file(owner: &str, contents: &str) -> File {
     }
 }
 
-pub fn bucket_save_file<'a, S: Storage>(store: &'a mut S, path: String, folder: File) {
+pub fn bucket_save_file<'a, S: Storage>(store: &'a mut S, path: &String, folder: File) {
     let bucket_response = bucket(FILE_LOCATION, store).save(path.as_bytes(), &folder);
     match bucket_response {
         Ok(bucket_response) => bucket_response,

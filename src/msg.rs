@@ -25,7 +25,7 @@ pub enum HandleMsg {
     AllowRead {path: String, address: String},
     DisallowRead {path: String, address: String},
     ResetRead {path: String},
-    AllowWrite {path: String, address: String},
+    AllowWrite {path: String, address_list: Vec<String>},
     DisallowWrite {path: String, address: String},
     ResetWrite {path: String},
     InitNode {ip: String, address: String},
