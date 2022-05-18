@@ -190,7 +190,7 @@ pub fn try_disallow_write<S: Storage, A: Api, Q: Querier>(
     deps: &mut Extern<S, A, Q>,
     env: Env,
     path: String,
-    address: String,
+    address_list: Vec<String>,
 ) -> StdResult<HandleResponse> {
     let signer = deps
         .api
@@ -202,10 +202,12 @@ pub fn try_disallow_write<S: Storage, A: Api, Q: Querier>(
     if !par.can_write(signer.to_string()) {
         return Err(StdError::generic_err("Unauthorized to disallow write"));
     }
-
-    let mut f = bucket_load_file(&mut deps.storage, &path);
-    f.disallow_write(address);
-    bucket_save_file(&mut deps.storage, &path, f);
+    for i in 0..address_list.len() {
+        let address = &address_list[i];
+        let mut f = bucket_load_file(&mut deps.storage, &path);
+        f.disallow_write(address.to_string());
+        bucket_save_file(&mut deps.storage, &path, f);
+    }
     Ok(HandleResponse::default())
 }
 
@@ -261,7 +263,7 @@ pub fn try_disallow_read<S: Storage, A: Api, Q: Querier>(
     deps: &mut Extern<S, A, Q>,
     env: Env,
     path: String,
-    address: String,
+    address_list: Vec<String>,
 ) -> StdResult<HandleResponse> {
     let signer = deps
         .api
@@ -274,9 +276,12 @@ pub fn try_disallow_read<S: Storage, A: Api, Q: Querier>(
         return Err(StdError::generic_err("Unauthorized to disallow read"));
     }
 
-    let mut f = bucket_load_file(&mut deps.storage, &path);
-    f.disallow_read(address);
-    bucket_save_file(&mut deps.storage, &path, f);
+    for i in 0..address_list.len() {
+        let address = &address_list[i];
+        let mut f = bucket_load_file(&mut deps.storage, &path);
+        f.disallow_read(address.to_string());
+        bucket_save_file(&mut deps.storage, &path, f);
+    }
     Ok(HandleResponse::default())
 }
 

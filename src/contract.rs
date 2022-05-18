@@ -49,10 +49,10 @@ pub fn handle<S: Storage, A: Api, Q: Querier>(
         HandleMsg::Move { old_path, new_path } => try_move_file(deps, env, old_path, new_path),
         HandleMsg::CreateViewingKey { entropy, .. } => try_create_viewing_key(deps, env, entropy),
         HandleMsg::AllowRead { path, address_list } => try_allow_read(deps, env, path, address_list),
-        HandleMsg::DisallowRead { path, address } => try_disallow_read(deps, env, path, address),
+        HandleMsg::DisallowRead { path, address_list } => try_disallow_read(deps, env, path, address_list),
         HandleMsg::ResetRead { path } => try_reset_read(deps, env, path),
         HandleMsg::AllowWrite { path, address_list } => try_allow_write(deps, env, path, address_list),
-        HandleMsg::DisallowWrite { path, address } => try_disallow_write(deps, env, path, address),
+        HandleMsg::DisallowWrite { path, address_list } => try_disallow_write(deps, env, path, address_list),
         HandleMsg::ResetWrite { path } => try_reset_write(deps, env, path),
         HandleMsg::InitNode {ip, address} => try_init_node(deps, ip, address),
         HandleMsg::ClaimReward {path, key, address} => claim(deps, path, key, address),
@@ -183,6 +183,7 @@ mod tests {
     
     use crate::msg::{FileResponse, HandleAnswer, WalletInfoResponse};
     use crate::viewing_key::ViewingKey;
+    use crate::backend::make_file;
 
     fn init_for_test<S: Storage, A: Api, Q: Querier> (
         deps: &mut Extern<S, A, Q>,
@@ -510,10 +511,25 @@ mod tests {
         let env = mock_env("anyone", &[]);
         let msg = HandleMsg::AllowRead { path: String::from("anyone/test/"), address_list: vec!(String::from("alice"), String::from("bob"), String::from("charlie")) };
         let _res = handle(&mut deps, env, msg).unwrap();
-        
-        // Get File with viewing key
+
+        // Get File with Alice's viewing key
         let query_res = query(&deps, QueryMsg::GetContents { path: String::from("anyone/test/"), behalf: HumanAddr("alice".to_string()), key: vk2.to_string() });
+        assert!(query_res.is_ok());
+        
+        // DISAllow WRITE for Alice, Bob and Charlie
+        let env = mock_env("anyone", &[]);
+        let msg = HandleMsg::DisallowWrite { path: String::from("anyone/test/"), address_list: vec!(String::from("alice"), String::from("bob"), String::from("charlie")) };
+        let _res = handle(&mut deps, env, msg).unwrap();
+
+        // DISAllow WRITE for Alice, Bob and Charlie
+        let env = mock_env("anyone", &[]);
+        let msg = HandleMsg::DisallowRead { path: String::from("anyone/test/"), address_list: vec!(String::from("alice"), String::from("bob"), String::from("charlie")) };
+        let _res = handle(&mut deps, env, msg).unwrap();
+
+        // Get File with Anyone's viewing key
+        let query_res = query(&deps, QueryMsg::GetContents { path: String::from("anyone/test/"), behalf: HumanAddr("anyone".to_string()), key: vk.to_string() });
         let value: FileResponse = from_binary(&query_res.unwrap()).unwrap();
-        println!("{:?}", value.file);
+        let test = make_file("anyone", "<content of test/ folder>");
+        assert_eq!(test, value.file);
     }
 }
