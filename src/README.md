@@ -1,13 +1,14 @@
 # JACKAL Storage Contract
-* [Introduction](#Introduction)
-* [Sections](#Sections)
-    * [Init](#Init)
-    * [Handle](#Handle)
-            * [InitAddress](#InitAddress)
-            * [CreateViewingKey](#CreateViewingKey)
-     * [Query](#Query)
-            * [GetContents](#GetContents)
-            * [GetWalletInfo](#GetWalletInfo)
+- [Introduction](#Introduction)
+-  [Sections](#Sections)
+    - [Init](#Init)
+    - [Handle](#Handle)
+        - [InitAddress](#InitAddress)
+        -  [CreateViewingKey](#CreateViewingKey)
+     - [Query](#Query)
+       - [GetContents](#GetContents)
+        - [GetWalletInfo](#GetWalletInfo)
+
 
 # Introduction
 Contract implementation of JACKAL file system.
