@@ -9,7 +9,7 @@ use std::cmp;
 
 use crate::msg::{HandleMsg, InitMsg, QueryMsg};
 use crate::state::{ State, CONFIG_KEY, save, read_viewing_key};
-use crate::backend::{try_create_viewing_key, try_allow_write, try_disallow_write, try_allow_read, try_disallow_read, query_file, try_create_file, try_init, try_remove_multi_files, try_remove_file, try_move_file, try_create_multi_files, try_reset_read, try_reset_write, try_you_up_bro, query_wallet_info, try_forget_me, try_move_multi_files};
+use crate::backend::{try_create_viewing_key, try_allow_write, try_disallow_write, try_allow_read, try_disallow_read, query_file, try_create_file, try_init, try_remove_multi_files, try_remove_file, try_move_file, try_create_multi_files, try_reset_read, try_reset_write, try_you_up_bro, query_wallet_info, try_forget_me, try_move_multi_files, try_clone_parent_permission};
 use crate::viewing_key::VIEWING_KEY_SIZE;
 use crate::nodes::{pub_query_coins, claim, push_node, get_node, get_node_size, set_node_size};
 
@@ -54,6 +54,7 @@ pub fn handle<S: Storage, A: Api, Q: Querier>(
         HandleMsg::AllowWrite { path, address_list } => try_allow_write(deps, env, path, address_list),
         HandleMsg::DisallowWrite { path, address_list } => try_disallow_write(deps, env, path, address_list),
         HandleMsg::ResetWrite { path } => try_reset_write(deps, env, path),
+        HandleMsg::CloneParentPermission { path } => try_clone_parent_permission(deps, env, path),
         HandleMsg::InitNode {ip, address} => try_init_node(deps, ip, address),
         HandleMsg::ClaimReward {path, key, address} => claim(deps, path, key, address),
         HandleMsg::ForgetMe { .. } => try_forget_me(deps, env),
@@ -531,5 +532,52 @@ mod tests {
         let value: FileResponse = from_binary(&query_res.unwrap()).unwrap();
         let test = make_file("anyone", "<content of test/ folder>");
         assert_eq!(test, value.file);
+    }
+
+    #[test]
+    fn clone_permission_test() {
+        let mut deps = mock_dependencies(20, &[]);
+        let vk = init_for_test(&mut deps, String::from("anyone"));
+
+
+        // Create Folder Test
+        let env = mock_env("anyone", &[]);
+        let msg = HandleMsg::Create { contents: String::from("<content of layer1 folder>"), path: String::from("anyone/layer1/") , pkey: String::from("pkey"), skey: String::from("skey")};
+        let _res = handle(&mut deps, env, msg).unwrap();
+        // Create Folder Test
+        let env = mock_env("anyone", &[]);
+        let msg = HandleMsg::Create { contents: String::from("<content of layer2 folder>"), path: String::from("anyone/layer1/layer2/") , pkey: String::from("pkey"), skey: String::from("skey")};
+        let _res = handle(&mut deps, env, msg).unwrap();    
+        // Create Folder Test
+        let env = mock_env("anyone", &[]);
+        let msg = HandleMsg::Create { contents: String::from("<content of layer3 folder>"), path: String::from("anyone/layer1/layer2/layer3/") , pkey: String::from("pkey"), skey: String::from("skey")};
+        let _res = handle(&mut deps, env, msg).unwrap();
+        // Create Folder Test
+        let env = mock_env("anyone", &[]);
+        let msg = HandleMsg::Create { contents: String::from("<content of layer4 folder>"), path: String::from("anyone/layer1/layer2/layer3/layer4/") , pkey: String::from("pkey"), skey: String::from("skey")};
+        let _res = handle(&mut deps, env, msg).unwrap();
+
+        // Allow WRITE for Alice, Bob and Charlie
+        let env = mock_env("anyone", &[]);
+        let msg = HandleMsg::AllowWrite { path: String::from("anyone/layer1/layer2/"), address_list: vec!(String::from("alice"), String::from("bob"), String::from("charlie")) };
+        let _res = handle(&mut deps, env, msg).unwrap();
+        // Allow READ for Pepe, Satoshi and Nugget
+        let env = mock_env("anyone", &[]);
+        let msg = HandleMsg::AllowRead { path: String::from("anyone/layer1/layer2/"), address_list: vec!(String::from("pepe"), String::from("satoshi"), String::from("nugget")) };
+        let _res = handle(&mut deps, env, msg).unwrap();
+
+        // Clone Permission of all layer2's children
+        let env = mock_env("anyone", &[]);
+        let _msg = handle(&mut deps, env, HandleMsg::CloneParentPermission {path: String::from("anyone/layer1/layer2/") });
+
+        // Now we query those children to double check the permisions
+        // Get Folder layer3/
+        let query_res = query(&deps, QueryMsg::GetContents { path: String::from("anyone/layer1/layer2/layer3/"), behalf: HumanAddr("anyone".to_string()), key: vk.to_string() });
+        let value: FileResponse = from_binary(&query_res.unwrap()).unwrap();
+        println!("{:#?}", value);
+        // Get Folder layer4/
+        let query_res = query(&deps, QueryMsg::GetContents { path: String::from("anyone/layer1/layer2/layer3/layer4/"), behalf: HumanAddr("anyone".to_string()), key: vk.to_string() });
+        let value: FileResponse = from_binary(&query_res.unwrap()).unwrap();
+        println!("{:#?}", value);
     }
 }

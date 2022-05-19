@@ -159,6 +159,46 @@ pub struct PermissionBlock {
     permission_type: PermType,
 }
 
+//This will match all (Read & Write) permissions of ALL children inside parent_path including grandchildrens too
+pub fn try_clone_parent_permission<S: Storage, A: Api, Q: Querier>(
+    deps: &mut Extern<S, A, Q>,
+    env: Env,
+    parent_path: String,
+) -> StdResult<HandleResponse> {
+    let signer = deps
+        .api
+        .human_address(&deps.api.canonical_address(&env.message.sender)?)?;
+
+    let par = bucket_load_file(&mut deps.storage, &parent_path);
+    if !par.can_write(signer.to_string()) {
+        return Err(StdError::generic_err("Unauthorized to mess with this"));
+    }
+    let read_list = par.allow_read_list;
+    let write_list = par.allow_write_list;
+
+    let address = signer.as_str();
+    let wallet_info: WalletInfo = bucket_read(WALLET_INFO_LOCATION, &deps.storage).load(address.as_bytes())?;
+    let all_paths = wallet_info.all_paths;
+    
+    for path in all_paths.iter(){
+        if path.contains(&parent_path){
+            if path != &parent_path{
+                let copy_data = |mayd: Option<File>| -> StdResult<File> {
+                    let mut d = mayd.ok_or(StdError::not_found("Data"))?;
+                    d.allow_read_list = read_list.clone();
+                    d.allow_write_list = write_list.clone();
+                    Ok(d)
+                };
+                bucket(FILE_LOCATION, &mut deps.storage)
+                    .update(&path.as_bytes(), copy_data)
+                    .unwrap();
+            }
+        }
+    }
+    
+    Ok(HandleResponse::default())
+}
+
 pub fn try_allow_write<S: Storage, A: Api, Q: Querier>(
     deps: &mut Extern<S, A, Q>,
     env: Env,
@@ -465,7 +505,7 @@ pub fn try_move_multi_files<S: Storage, A: Api, Q: Querier>(
             deps,
             env.clone(),
             old_path.to_string(),
-            new_path.to_string()
+            new_path.to_string(),
         );
 
         match res {
@@ -476,7 +516,6 @@ pub fn try_move_multi_files<S: Storage, A: Api, Q: Querier>(
         }
     }
     Ok(HandleResponse::default())
-
 }
 
 pub fn try_remove_file<S: Storage, A: Api, Q: Querier>(

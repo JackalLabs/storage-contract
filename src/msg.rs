@@ -28,6 +28,7 @@ pub enum HandleMsg {
     AllowWrite {path: String, address_list: Vec<String>},
     DisallowWrite {path: String, address_list: Vec<String>},
     ResetWrite {path: String},
+    CloneParentPermission {path: String},
     InitNode {ip: String, address: String},
     ClaimReward {path: String, key: String, address: String},
     ForgetMe { },
