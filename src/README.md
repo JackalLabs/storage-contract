@@ -1,3 +1,4 @@
+
 # JACKAL Storage Contract
 - [Introduction](#Introduction)
 -  [Sections](#Sections)
@@ -15,9 +16,17 @@
         -  [DisallowWrite](#--DisallowWrite)
         -  [ResetWrite](#--ResetWrite)
         -  [CloneParentPermission](#--CloneParentPermission)
+        -  [InitNode](#--InitNode)
+        -  [ClaimReward](#--ClaimReward)
+        -  [ForgetMe](#--ForgetMe)
      - [Query](#Query))  
-        - [GetContents](#GetContents)
-        - [GetWalletInfo](#GetWalletInfo)
+        - [GetContents](#--GetContents)
+        - [GetWalletInfo](#--GetWalletInfo)
+        - [YouUpBro](#--YouUpBro)
+        - [GetNodeIP](#--GetNodeIP)
+        - [GetNodeListSize](#--GetNodeListSize)
+        - [GetNodeList](#--GetNodeList)
+        - [GetNodeCoins](#--GetNodeCoins)
 
 
 # Introduction
@@ -169,24 +178,14 @@ For node to claim reward
 |key  | String  |   
 |address  | String  |   
 
-### - NameHere
-
-Description goes here
-
+### - ForgetMe
+Reset and remove everything you have in JACKAL Storage.
 ##### Request
 |Name|Type|Description|                                                                                       
 |--|--|--|
-|path  | String  | 
-|address  | String  |   
+| N/A |   | 
 
-##### Response
-```json
-{
-  "data": {
-    "name": "data"
-  }
-}
-```
+
 
 ## Queries
 
@@ -217,7 +216,7 @@ Get content of a file
 ```
 
 #### - GetWalletInfo
-Return init(bool) and all paths that have been created
+Returns init (bool) and all paths that have been created
 ##### Request
 |Name|Type|Description|                                                                                       
 |--|--|--|
@@ -229,5 +228,82 @@ Return init(bool) and all paths that have been created
 {
   "init": true,
   "all_path": "["scrt10wn3radre555/", "scrt10wn3radre555/alpha/"]"
+}
+```
+
+#### - YouUpBro
+Returns a bool indicate if a wallet has already ran InitAddress
+##### Request
+|Name|Type|Description|                                                                                       
+|--|--|--|
+|address | String  | address you want to check
+
+
+##### Response
+```json
+{
+  "init": true,
+  "all_path": "[]"
+}
+```
+
+### - GetNodeIP
+
+get node ip
+##### Request
+|Name|Type|Description|                                                                                       
+|--|--|--|
+|index  | u64  | 
+
+##### Response
+```json
+{
+  "data": "192.168.0.1"
+}
+```
+
+
+### - GetNodeListSize
+
+get node list size
+##### Request
+|Name|Type|Description|                                                                                       
+|--|--|--|
+|N/A  |   | 
+
+##### Response
+```json
+{
+  "data": 5
+}
+```
+
+### - GetNodeList
+
+get node list
+##### Request
+|Name|Type|Description|                                                                                       
+|--|--|--|
+|size  | u64  | 
+
+##### Response
+```json
+{
+  "data": []
+}
+```
+
+### - GetNodeCoins
+
+get node coins
+##### Request
+|Name|Type|Description|                                                                                       
+|--|--|--|
+|address  |  string | 
+
+##### Response
+```json
+{
+  "data": 11
 }
 ```
