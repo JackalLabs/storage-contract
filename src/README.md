@@ -3,10 +3,20 @@
 -  [Sections](#Sections)
     - [Init](#Init)
     - [Handle](#Handle)
-        - [InitAddress](#InitAddress)
-        -  [CreateViewingKey](#CreateViewingKey)
-     - [Query](#Query)
-       - [GetContents](#GetContents)
+        - [InitAddress](#--InitAddress)
+        -  [CreateViewingKey](#--CreateViewingKey)
+        -  [CreateMulti](#--CreateMulti)
+        -  [RemoveMulti](#--RemoveMulti)
+        -  [MoveMulti](#--MoveMulti)
+        -  [AllowRead](#--AllowRead)
+        -  [DisallowRead](#--DisallowRead)
+        -  [ResetRead](#--ResetRead)
+        -  [AllowWrite](#--AllowWrite)
+        -  [DisallowWrite](#--DisallowWrite)
+        -  [ResetWrite](#--ResetWrite)
+        -  [CloneParentPermission](#--CloneParentPermission)
+     - [Query](#Query))  
+        - [GetContents](#GetContents)
         - [GetWalletInfo](#GetWalletInfo)
 
 
@@ -71,23 +81,103 @@ Remove file(s)
 ##### Request
 |Name|Type|Description|                                                                                       
 |--|--|--|
-|path_list  | string[]  |   
+|path_list  | string[]  |   list of paths you want to remove
 
 ### - MoveMulti
 Move file(s) to a new path
 ##### Request
 |Name|Type|Description|                                                                                       
 |--|--|--|
-|old_path_list  | string[]  |   
-|new_path_list  | string[]  |   
+|old_path_list  | string[]  |   list of paths to move from
+|new_path_list  | string[]  |  list of new paths 
 
-### - NameHere
-Description goes here
+### - AllowRead
+Input address(es) to give READ access to a certain path
 ##### Request
 |Name|Type|Description|                                                                                       
 |--|--|--|
-|content  | String  | 
-|entropy  | String  |   
+|path  | String  | path to modify permission
+|address_list  | String[]  | list of address to get access
+
+### - DisallowRead
+Input address(es) to remove READ access to a certain path
+##### Request
+|Name|Type|Description|                                                                                       
+|--|--|--|
+|path  | String  | path to modify permission
+|address_list  | String[]  |  list of address to remove from access list
+
+### - ResetRead
+Remove ALL READ access to a certain path
+##### Request
+|Name|Type|Description|                                                                                       
+|--|--|--|
+|path  | String  | path to reset READ permission
+
+### - AllowWrite
+Input address(es) to give WRITE access to a certain path
+##### Request
+|Name|Type|Description|                                                                                       
+|--|--|--|
+|path  | String  | path to modify permission
+|address_list  | String[]  |  list of address to get access 
+
+### - DisallowWrite
+Input address(es) to remove WRITE access to a certain path
+##### Request
+|Name|Type|Description|                                                                                       
+|--|--|--|
+|path  | String  | path to modify permission
+|address_list  | String[]  |  list of address to remove from access list
+
+### - ResetWrite
+Remove ALL WRITE access to a certain path
+##### Request
+|Name|Type|Description|                                                                                       
+|--|--|--|
+|path  | String  | path to reset WRITE permission
+
+### - CloneParentPermission
+Input a path and this will give all the children/grandchildren the same permissions that the given path has
+##### Request
+|Name|Type|Description|                                                                                       
+|--|--|--|
+|path  | String  | parent path you want to clone permission 
+```
+Example: /meme/ folder contains /pepe/ and /peepoo
+- "bob" has write access to /meme/
+- "alice" has read access to /meme/
+After running CloneParentPermission,
+- "bob" will have write access to /meme/, /pepe/, and /peepoo/
+- "alice" will have read access to /meme/, /pepe/, and /peepoo/
+```
+
+### - InitNode
+Init a new node
+##### Request
+|Name|Type|Description|                                                                                       
+|--|--|--|
+|ip  | String  | 
+|address  | String  |   
+
+### - ClaimReward
+For node to claim reward
+##### Request
+|Name|Type|Description|                                                                                       
+|--|--|--|
+|path  | String  | 
+|key  | String  |   
+|address  | String  |   
+
+### - NameHere
+
+Description goes here
+
+##### Request
+|Name|Type|Description|                                                                                       
+|--|--|--|
+|path  | String  | 
+|address  | String  |   
 
 ##### Response
 ```json
@@ -97,7 +187,6 @@ Description goes here
   }
 }
 ```
-
 
 ## Queries
 
@@ -136,10 +225,9 @@ Return init(bool) and all paths that have been created
 |key    | String  | viewing key
 
 ##### Response
-```json
+```
 {
   "init": true,
   "all_path": "["scrt10wn3radre555/", "scrt10wn3radre555/alpha/"]"
-  
 }
 ```
