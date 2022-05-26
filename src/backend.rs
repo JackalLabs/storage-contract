@@ -791,3 +791,5 @@ pub fn query_wallet_info<S: Storage, A: Api, Q: Querier>(
         }),
     }
 }
+
+//this is owner re assign 
