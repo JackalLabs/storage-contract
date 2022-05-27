@@ -52,7 +52,7 @@ For first time user. Create root folder and viewing_key
 ##### Response
 ```json
 {
-  "data": {
+  "create_viewing_key": {
     "key": "anubis_key_Th1s1sAn3xAMpl3+WfrGzBWrVdsh8="
   }
 }
@@ -69,7 +69,7 @@ For first time user. Create root folder and viewing_key
 ##### Response
 ```json
 {
-  "data": {
+  "create_viewing_key": {
     "key": "anubis_key_Th1s1sAn3xAMpl3+WfrGzBWrVdsh8="
   }
 }
