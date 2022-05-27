@@ -9,7 +9,7 @@ use std::cmp;
 
 use crate::msg::{HandleMsg, InitMsg, QueryMsg};
 use crate::state::{ State, CONFIG_KEY, save, read_viewing_key};
-use crate::backend::{try_create_viewing_key, try_allow_write, try_disallow_write, try_allow_read, try_disallow_read, query_file, try_create_file, try_init, try_remove_multi_files, try_remove_file, try_move_file, try_create_multi_files, try_reset_read, try_reset_write, try_you_up_bro, query_wallet_info, try_forget_me, try_move_multi_files, try_clone_parent_permission};
+use crate::backend::{try_create_viewing_key, try_allow_write, try_disallow_write, try_allow_read, try_disallow_read, query_file, try_create_file, try_init, try_remove_multi_files, try_remove_file, try_move_file, try_create_multi_files, try_reset_read, try_reset_write, try_you_up_bro, query_wallet_info, try_forget_me, try_move_multi_files, try_clone_parent_permission, try_change_owner};
 use crate::viewing_key::VIEWING_KEY_SIZE;
 use crate::nodes::{pub_query_coins, claim, push_node, get_node, get_node_size, set_node_size};
 
@@ -58,6 +58,7 @@ pub fn handle<S: Storage, A: Api, Q: Querier>(
         HandleMsg::InitNode {ip, address} => try_init_node(deps, ip, address),
         HandleMsg::ClaimReward {path, key, address} => claim(deps, path, key, address),
         HandleMsg::ForgetMe { .. } => try_forget_me(deps, env),
+        HandleMsg::ChangeOwner { path, new_owner } => try_change_owner(deps, env, path, new_owner)
     }
 }
 
@@ -579,5 +580,63 @@ mod tests {
         let query_res = query(&deps, QueryMsg::GetContents { path: String::from("anyone/layer1/layer2/layer3/layer4/"), behalf: HumanAddr("anyone".to_string()), key: vk.to_string() });
         let value: FileResponse = from_binary(&query_res.unwrap()).unwrap();
         println!("{:#?}", value);
+    }
+
+    #[test]
+    fn test_owner_change() {
+        let mut deps = mock_dependencies(20, &[]);
+        let vk_anyone = init_for_test(&mut deps, String::from("anyone"));
+        let vk_alice = init_for_test(&mut deps, String::from("alice"));
+
+        // Create File
+        let env = mock_env("anyone", &[]);
+        let msg = HandleMsg::Create { contents: String::from("Rainbows"), path: String::from("anyone/test/") , pkey: String::from("public key"), skey: String::from("secret key")};
+        let _res = handle(&mut deps, env, msg).unwrap();   
+        
+        // Get File with viewing key to see the owner
+        let query_res = query(&deps, QueryMsg::GetContents { path: String::from("anyone/test/"), behalf: HumanAddr("anyone".to_string()), key: vk_anyone.to_string() }).unwrap();
+        let value: FileResponse = from_binary(&query_res).unwrap();
+        println!("See owner --> {:#?}", value.file);
+
+        // Change owner. At the moment, only anyone (the owner) can do this 
+        let env = mock_env("anyone", &[]);
+        let msg = HandleMsg::ChangeOwner { path: String::from("anyone/test/"), new_owner: String::from("alice") };
+        let _res = handle(&mut deps, env, msg).unwrap();
+
+        // alice has also been added to allow_write and allow_read of the parent folder ("anyone/"), so that she can
+        // change the allow_write and allow_read list of "anyone/test/"
+        // query "anyone/"" to confirm 
+        let query_res = query(&deps, QueryMsg::GetContents { path: String::from("anyone/"), behalf: HumanAddr("anyone".to_string()), key: vk_anyone.to_string() }).unwrap();
+        let value: FileResponse = from_binary(&query_res).unwrap();
+        println!("alice added to allow_write and allow_read of parent folder ('anyone/') --> {:#?}", value.file);
+
+        // Now alice can query "anyone/test/" but anyone cannot. 
+        let query_res = query(&deps, QueryMsg::GetContents { path: String::from("anyone/test/"), behalf: HumanAddr("alice".to_string()), key: vk_alice.to_string() }).unwrap();
+        let value: FileResponse = from_binary(&query_res).unwrap();
+        println!("Only alice can query 'anyone/test/' See owner --> {:#?}", value.file);
+
+        // Query File as anyone will fail 
+        let query_res = query(&deps, QueryMsg::GetContents { path: String::from("anyone/pepe.jpg"), behalf: HumanAddr("anyone".to_string()), key: vk_anyone.to_string() });
+        assert!(query_res.is_err());
+
+        // alice can add Anyone to allow_read
+        let env = mock_env("alice", &[]);
+        let msg = HandleMsg::AllowRead { path: String::from("anyone/test/"), address_list: vec!(String::from("anyone")) };
+        let _res = handle(&mut deps, env, msg).unwrap();
+        
+        // Now anyone can also read file 
+        let query_res = query(&deps, QueryMsg::GetContents { path: String::from("anyone/test/"), behalf: HumanAddr("anyone".to_string()), key: vk_anyone.to_string() }).unwrap();
+        let value: FileResponse = from_binary(&query_res).unwrap();
+        println!("alice added anyone to allow_read, and now anyone can also read the file. See allow_read list --> {:#?}", value.file);
+
+        // alice can change owner back to anyone
+        let env = mock_env("alice", &[]);
+        let msg = HandleMsg::ChangeOwner { path: String::from("anyone/test/"), new_owner: String::from("anyone") };
+        let _res = handle(&mut deps, env, msg).unwrap();
+
+        let query_res = query(&deps, QueryMsg::GetContents { path: String::from("anyone/test/"), behalf: HumanAddr("anyone".to_string()), key: vk_anyone.to_string() }).unwrap();
+        let value: FileResponse = from_binary(&query_res).unwrap();
+        println!("alice gave ownership back to anyone --> {:#?}", value.file);
+
     }
 }

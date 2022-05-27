@@ -460,6 +460,11 @@ impl File {
     pub fn is_public(&self) -> bool {
         self.public
     }
+
+    pub fn change_owner(&mut self, new_owner: String) {
+        self.owner = new_owner;
+    }
+
 }
 
 pub fn try_move_file<S: Storage, A: Api, Q: Querier>(
@@ -792,4 +797,36 @@ pub fn query_wallet_info<S: Storage, A: Api, Q: Querier>(
     }
 }
 
-//this is owner re assign 
+pub fn try_change_owner<S: Storage, A: Api, Q: Querier>(
+    deps: &mut Extern<S, A, Q>,
+    env: Env,
+    path: String,
+    new_owner: String,
+) -> StdResult<HandleResponse> {
+    let signer = deps
+        .api
+        .human_address(&deps.api.canonical_address(&env.message.sender)?)?;
+
+    let mut f = bucket_load_file(&mut deps.storage, &path);
+
+    let par_path = parent_path(path.to_string());
+    let mut par = bucket_load_file(&mut deps.storage, &par_path);
+    let borrowed_new_owner = &new_owner; 
+    //we need to borrow new_owner because we are using it multiple times 
+
+    if f.can_write(signer.to_string()){
+        f.change_owner(borrowed_new_owner.to_string());
+        bucket_save_file(&mut deps.storage, &path, f);
+
+        //give the new owner read and write privileges in the parent folder so that
+        //the new owner can change the allow_read and allow_write list of the given file. 
+        par.allow_write(borrowed_new_owner.to_string());
+        par.allow_read(borrowed_new_owner.to_string());
+        bucket_save_file(&mut deps.storage, &par_path, par);
+    }
+    else {
+        return Err(StdError::generic_err("Unauthorized to change owner"));
+    }
+
+    Ok(HandleResponse::default())
+}
