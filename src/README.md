@@ -195,22 +195,22 @@ Get content of a file
 |Name|Type|Description|                                                                                       
 |--|--|--|
 |behalf | String  | user address
-|path   | String  | path of the file you want to query
+|path   | String  | path of the file you want to query (ex: secret1d56acq6rny0uR0M0mqPhaTtrjqcju8fxhes346/folder/)
 |key    | String  | viewing key
 
 ##### Response
 ```json
 {
   "file": {
-    "contents": ""
-     "owner": "scrt10wn3radre555",
-     "public": false, 
-     "allow_read_list": {
-	     "data": ["alice", "bob"]
-	     },
-	 "allow_write_list": {
-	     "data": ["charlie"]
-	     },
+    "allow_read_list": {
+      "data": ["alice", "bob"]
+     },
+    "allow_write_list": {
+      "data": ["charlie"]
+     },
+    "contents": "",
+    "owner": "scrt10wn3radre555",
+    "public": false, 
   }
 }
 ```
