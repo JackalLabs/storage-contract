@@ -609,7 +609,7 @@ mod tests {
         println!("Only alice can query 'anyone/test/' See owner --> {:#?}", value.file);
 
         // Query File as anyone will fail 
-        let query_res = query(&deps, QueryMsg::GetContents { path: String::from("anyone/pepe.jpg"), behalf: HumanAddr("anyone".to_string()), key: vk_anyone.to_string() });
+        let query_res = query(&deps, QueryMsg::GetContents { path: String::from("anyone/test/"), behalf: HumanAddr("anyone".to_string()), key: vk_anyone.to_string() });
         assert!(query_res.is_err());
 
         // alice can add Anyone to allow_read
