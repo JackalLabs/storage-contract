@@ -603,13 +603,6 @@ mod tests {
         let msg = HandleMsg::ChangeOwner { path: String::from("anyone/test/"), new_owner: String::from("alice") };
         let _res = handle(&mut deps, env, msg).unwrap();
 
-        // alice has also been added to allow_write and allow_read of the parent folder ("anyone/"), so that she can
-        // change the allow_write and allow_read list of "anyone/test/"
-        // query "anyone/"" to confirm 
-        let query_res = query(&deps, QueryMsg::GetContents { path: String::from("anyone/"), behalf: HumanAddr("anyone".to_string()), key: vk_anyone.to_string() }).unwrap();
-        let value: FileResponse = from_binary(&query_res).unwrap();
-        println!("alice added to allow_write and allow_read of parent folder ('anyone/') --> {:#?}", value.file);
-
         // Now alice can query "anyone/test/" but anyone cannot. 
         let query_res = query(&deps, QueryMsg::GetContents { path: String::from("anyone/test/"), behalf: HumanAddr("alice".to_string()), key: vk_alice.to_string() }).unwrap();
         let value: FileResponse = from_binary(&query_res).unwrap();
