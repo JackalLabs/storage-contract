@@ -32,6 +32,7 @@ pub enum HandleMsg {
     InitNode {ip: String, address: String},
     ClaimReward {path: String, key: String, address: String},
     ForgetMe { },
+    ChangeOwner {path: String, new_owner: String}
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, JsonSchema)]

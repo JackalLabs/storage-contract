@@ -209,18 +209,16 @@ pub fn try_allow_write<S: Storage, A: Api, Q: Querier>(
         .api
         .human_address(&deps.api.canonical_address(&env.message.sender)?)?;
 
-    let par_path = parent_path(path.to_string());
-    let par = bucket_load_file(&mut deps.storage, &par_path);
-
-    if !par.can_write(signer.to_string()) {
+    let mut f = bucket_load_file(&mut deps.storage, &path);
+    
+    if !f.can_write(signer.to_string()) {
         return Err(StdError::generic_err("Unauthorized to allow write"));
     }
 
     for i in 0..address_list.len() {
         let address = &address_list[i];
-        let mut f = bucket_load_file(&mut deps.storage, &path);
         f.allow_write(address.to_string());
-        bucket_save_file(&mut deps.storage, &path, f);
+        bucket_save_file(&mut deps.storage, &path, f.clone());
     }
 
     Ok(HandleResponse::default())
@@ -236,17 +234,15 @@ pub fn try_disallow_write<S: Storage, A: Api, Q: Querier>(
         .api
         .human_address(&deps.api.canonical_address(&env.message.sender)?)?;
 
-    let par_path = parent_path(path.to_string());
-    let par = bucket_load_file(&mut deps.storage, &par_path);
+    let mut f = bucket_load_file(&mut deps.storage, &path);
 
-    if !par.can_write(signer.to_string()) {
+    if !f.can_write(signer.to_string()) {
         return Err(StdError::generic_err("Unauthorized to disallow write"));
     }
     for i in 0..address_list.len() {
         let address = &address_list[i];
-        let mut f = bucket_load_file(&mut deps.storage, &path);
         f.disallow_write(address.to_string());
-        bucket_save_file(&mut deps.storage, &path, f);
+        bucket_save_file(&mut deps.storage, &path, f.clone());
     }
     Ok(HandleResponse::default())
 }
@@ -260,14 +256,12 @@ pub fn try_reset_write<S: Storage, A: Api, Q: Querier>(
         .api
         .human_address(&deps.api.canonical_address(&env.message.sender)?)?;
 
-    let par_path = parent_path(path.to_string());
-    let par = bucket_load_file(&mut deps.storage, &par_path);
+    let mut f = bucket_load_file(&mut deps.storage, &path);
 
-    if !par.can_write(signer.to_string()) {
+    if !f.can_write(signer.to_string()) {
         return Err(StdError::generic_err("Unauthorized to reset write list"));
     }
 
-    let mut f = bucket_load_file(&mut deps.storage, &path);
     f.allow_write_list = OrderedSet::new();
     bucket_save_file(&mut deps.storage, &path, f);
     Ok(HandleResponse::default())
@@ -283,18 +277,16 @@ pub fn try_allow_read<S: Storage, A: Api, Q: Querier>(
         .api
         .human_address(&deps.api.canonical_address(&env.message.sender)?)?;
 
-    let par_path = parent_path(path.to_string());
-    let par = bucket_load_file(&mut deps.storage, &par_path);
-
-    if !par.can_write(signer.to_string()) {
-        return Err(StdError::generic_err("Unathorized to allow read"));
+    let mut f = bucket_load_file(&mut deps.storage, &path);
+    
+    if !f.can_write(signer.to_string()) {
+        return Err(StdError::generic_err("Unauthorized to allow write"));
     }
 
     for i in 0..address_list.len() {
         let address = &address_list[i];
-        let mut f = bucket_load_file(&mut deps.storage, &path);
         f.allow_read(address.to_string());
-        bucket_save_file(&mut deps.storage, &path, f);
+        bucket_save_file(&mut deps.storage, &path, f.clone());
     }
     Ok(HandleResponse::default())
 }
@@ -309,18 +301,16 @@ pub fn try_disallow_read<S: Storage, A: Api, Q: Querier>(
         .api
         .human_address(&deps.api.canonical_address(&env.message.sender)?)?;
 
-    let par_path = parent_path(path.to_string());
-    let par = bucket_load_file(&mut deps.storage, &par_path);
+    let mut f = bucket_load_file(&mut deps.storage, &path);
 
-    if !par.can_write(signer.to_string()) {
+    if !f.can_write(signer.to_string()) {
         return Err(StdError::generic_err("Unauthorized to disallow read"));
     }
 
     for i in 0..address_list.len() {
         let address = &address_list[i];
-        let mut f = bucket_load_file(&mut deps.storage, &path);
         f.disallow_read(address.to_string());
-        bucket_save_file(&mut deps.storage, &path, f);
+        bucket_save_file(&mut deps.storage, &path, f.clone());
     }
     Ok(HandleResponse::default())
 }
@@ -334,14 +324,12 @@ pub fn try_reset_read<S: Storage, A: Api, Q: Querier>(
         .api
         .human_address(&deps.api.canonical_address(&env.message.sender)?)?;
 
-    let par_path = parent_path(path.to_string());
-    let par = bucket_load_file(&mut deps.storage, &par_path);
+    let mut f = bucket_load_file(&mut deps.storage, &path);
 
-    if !par.can_write(signer.to_string()) {
+    if !f.can_write(signer.to_string()) {
         return Err(StdError::generic_err("Unauthorized to reset read list"));
     }
 
-    let mut f = bucket_load_file(&mut deps.storage, &path);
     f.allow_read_list = OrderedSet::new();
     bucket_save_file(&mut deps.storage, &path, f);
     Ok(HandleResponse::default())
@@ -460,6 +448,11 @@ impl File {
     pub fn is_public(&self) -> bool {
         self.public
     }
+
+    pub fn change_owner(&mut self, new_owner: String) {
+        self.owner = new_owner;
+    }
+
 }
 
 pub fn try_move_file<S: Storage, A: Api, Q: Querier>(
@@ -790,4 +783,27 @@ pub fn query_wallet_info<S: Storage, A: Api, Q: Querier>(
             all_paths: vec![],
         }),
     }
+}
+
+pub fn try_change_owner<S: Storage, A: Api, Q: Querier>(
+    deps: &mut Extern<S, A, Q>,
+    env: Env,
+    path: String,
+    new_owner: String,
+) -> StdResult<HandleResponse> {
+    let signer = deps
+        .api
+        .human_address(&deps.api.canonical_address(&env.message.sender)?)?;
+
+    let mut f = bucket_load_file(&mut deps.storage, &path);
+
+    if f.can_write(signer.to_string()){
+        f.change_owner(new_owner.to_string());
+        bucket_save_file(&mut deps.storage, &path, f);
+    }
+    else {
+        return Err(StdError::generic_err("Unauthorized to change owner"));
+    }
+
+    Ok(HandleResponse::default())
 }
