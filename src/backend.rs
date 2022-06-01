@@ -807,3 +807,4 @@ pub fn try_change_owner<S: Storage, A: Api, Q: Querier>(
 
     Ok(HandleResponse::default())
 }
+//new forget_me
