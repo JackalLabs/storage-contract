@@ -9,7 +9,7 @@ use std::cmp;
 
 use crate::msg::{HandleMsg, InitMsg, QueryMsg};
 use crate::state::{ State, CONFIG_KEY, save, read_viewing_key};
-use crate::backend::{try_create_viewing_key, try_allow_write, try_disallow_write, try_allow_read, try_disallow_read, query_file, try_create_file, try_init, try_remove_multi_files, try_remove_file, try_move_file, try_create_multi_files, try_reset_read, try_reset_write, try_you_up_bro, query_wallet_info, try_forget_me, try_move_multi_files, try_clone_parent_permission, try_change_owner};
+use crate::backend::{try_create_viewing_key, try_allow_write, try_disallow_write, try_allow_read, try_disallow_read, query_file, try_create_file, try_init, try_remove_multi_files, try_remove_file, try_move_file, try_create_multi_files, try_reset_read, try_reset_write, try_you_up_bro, query_wallet_info, try_forget_me, try_move_multi_files, try_change_owner};
 use crate::viewing_key::VIEWING_KEY_SIZE;
 use crate::nodes::{pub_query_coins, claim, push_node, get_node, get_node_size, set_node_size};
 
@@ -54,7 +54,6 @@ pub fn handle<S: Storage, A: Api, Q: Querier>(
         HandleMsg::AllowWrite { path, address_list } => try_allow_write(deps, env, path, address_list),
         HandleMsg::DisallowWrite { path, address_list } => try_disallow_write(deps, env, path, address_list),
         HandleMsg::ResetWrite { path } => try_reset_write(deps, env, path),
-        HandleMsg::CloneParentPermission { path } => try_clone_parent_permission(deps, env, path),
         HandleMsg::InitNode {ip, address} => try_init_node(deps, ip, address),
         HandleMsg::ClaimReward {path, key, address} => claim(deps, path, key, address),
         HandleMsg::ForgetMe { .. } => try_forget_me(deps, env),
@@ -185,7 +184,7 @@ mod tests {
     
     use crate::msg::{FileResponse, HandleAnswer, WalletInfoResponse};
     use crate::viewing_key::ViewingKey;
-    use crate::backend::make_file;
+    use crate::backend::{make_file, File};
 
     fn init_for_test<S: Storage, A: Api, Q: Querier> (
         deps: &mut Extern<S, A, Q>,
@@ -377,8 +376,10 @@ mod tests {
         // Get WalletInfo with viewing key
         let query_res = query(&deps, QueryMsg::GetWalletInfo { behalf: HumanAddr("anyone".to_string()), key: vk.to_string() }).unwrap();
         let value:WalletInfoResponse = from_binary(&query_res).unwrap(); 
-        let arr : Vec<String> = vec!["anyone/".to_string(), "anyone/test/".to_string()];
-        assert_eq!(value.all_paths, arr);
+        // let arr : Vec<String> = vec!["anyone/".to_string(), "anyone/test/".to_string()];
+        // assert_eq!(value.all_paths, arr);
+        println!("{:#?}", value);
+
     }
 
     #[test]
@@ -396,7 +397,7 @@ mod tests {
         let value:WalletInfoResponse = from_binary(&query_res).unwrap();
         assert_eq!(value.init, false);
     }
-    
+
     #[test]
     fn forget_me_test() {
         let mut deps = mock_dependencies(20, &[]);
@@ -404,7 +405,7 @@ mod tests {
 
         // Create File
         let env = mock_env("anyone", &[]);
-        let msg = HandleMsg::Create { contents: String::from("content of meme/ folder "), path: String::from("anyone/meme/") , pkey: String::from("test"), skey: String::from("test")};
+        let msg = HandleMsg::Create { contents: String::from("content of meme/ folder "), path: String::from("anyone/meme/") , pkey: String::from("public key"), skey: String::from("secret key")};
         let _res = handle(&mut deps, env, msg).unwrap();
         
         // Create Multi File
@@ -414,26 +415,31 @@ mod tests {
         
         // Get WalletInfo with viewing key
         let query_res = query(&deps, QueryMsg::GetWalletInfo { behalf: HumanAddr("anyone".to_string()), key: vk.to_string() }).unwrap();
-        let value:WalletInfoResponse = from_binary(&query_res).unwrap(); 
-        let arr : Vec<&str> = vec!["anyone/", "anyone/meme/", "anyone/meme/pepe.jpg", "anyone/meme/pepe2.jpg"];
-        assert_eq!(value.all_paths, arr);
+        let wallet:WalletInfoResponse = from_binary(&query_res).unwrap(); 
+        println!("{:#?}", wallet);
+
+        // Get File with viewing key
+        let query_res = query(&deps, QueryMsg::GetContents { path: String::from("anyone/meme/"), behalf: HumanAddr("anyone".to_string()), key: vk.to_string() }).unwrap();
+        let file: FileResponse = from_binary(&query_res).unwrap(); 
+        println!("{:#?}", file);
         
         // Forget Abt Me! It's not you, It's me 
         let env = mock_env("anyone", &[]);
         let msg = HandleMsg::ForgetMe {  };
         let _res = handle(&mut deps, env, msg).unwrap();
         
-        // Get File with viewing key
+        // Try and get the file with viewing key again
         let query_res = query(&deps, QueryMsg::GetContents { path: String::from("anyone/meme/"), behalf: HumanAddr("anyone".to_string()), key: vk.to_string() });
         assert!(query_res.is_err());
+        println!("{:#?}", query_res);
 
         // Get WalletInfo with viewing key
         let query_res = query(&deps, QueryMsg::GetWalletInfo { behalf: HumanAddr("anyone".to_string()), key: vk.to_string() }).unwrap();
         let value:WalletInfoResponse = from_binary(&query_res).unwrap(); 
-        let empty : Vec<String> = vec![];
-        assert_eq!(value.all_paths, empty);
         assert_eq!(value.init, false);
-        
+        assert_eq!(value.namespace, "anyone1".to_string());
+        assert_eq!(value.counter, 1);
+        println!("{:#?}", value);
     }
 
     #[test]
@@ -480,12 +486,12 @@ mod tests {
         };
         let _res = handle(&mut deps, env, msg).unwrap();
 
-
         // Get WalletInfo with viewing key
         let query_res = query(&deps, QueryMsg::GetWalletInfo { behalf: HumanAddr("anyone".to_string()), key: vk.to_string() }).unwrap();
         let value:WalletInfoResponse = from_binary(&query_res).unwrap();
-        let arr = vec!["anyone/", "anyone/test/", "anyone/meme_folder/", "anyone/pepe/", "anyone/test/phrog2.png", "anyone/meme_folder/phrog1.png", "anyone/pepe/pepe1.png", "anyone/pepe/pepe2.png"];
-        assert_eq!(value.all_paths, arr);
+        // let arr = vec!["anyone/", "anyone/test/", "anyone/meme_folder/", "anyone/pepe/", "anyone/test/phrog2.png", "anyone/meme_folder/phrog1.png", "anyone/pepe/pepe1.png", "anyone/pepe/pepe2.png"];
+        // assert_eq!(value.all_paths, arr);
+        println!("{:#?}", value);
     }
 
     #[test]
@@ -536,53 +542,6 @@ mod tests {
     }
 
     #[test]
-    fn clone_permission_test() {
-        let mut deps = mock_dependencies(20, &[]);
-        let vk = init_for_test(&mut deps, String::from("anyone"));
-
-
-        // Create Folder Test
-        let env = mock_env("anyone", &[]);
-        let msg = HandleMsg::Create { contents: String::from("<content of layer1 folder>"), path: String::from("anyone/layer1/") , pkey: String::from("pkey"), skey: String::from("skey")};
-        let _res = handle(&mut deps, env, msg).unwrap();
-        // Create Folder Test
-        let env = mock_env("anyone", &[]);
-        let msg = HandleMsg::Create { contents: String::from("<content of layer2 folder>"), path: String::from("anyone/layer1/layer2/") , pkey: String::from("pkey"), skey: String::from("skey")};
-        let _res = handle(&mut deps, env, msg).unwrap();    
-        // Create Folder Test
-        let env = mock_env("anyone", &[]);
-        let msg = HandleMsg::Create { contents: String::from("<content of layer3 folder>"), path: String::from("anyone/layer1/layer2/layer3/") , pkey: String::from("pkey"), skey: String::from("skey")};
-        let _res = handle(&mut deps, env, msg).unwrap();
-        // Create Folder Test
-        let env = mock_env("anyone", &[]);
-        let msg = HandleMsg::Create { contents: String::from("<content of layer4 folder>"), path: String::from("anyone/layer1/layer2/layer3/layer4/") , pkey: String::from("pkey"), skey: String::from("skey")};
-        let _res = handle(&mut deps, env, msg).unwrap();
-
-        // Allow WRITE for Alice, Bob and Charlie
-        let env = mock_env("anyone", &[]);
-        let msg = HandleMsg::AllowWrite { path: String::from("anyone/layer1/layer2/"), address_list: vec!(String::from("alice"), String::from("bob"), String::from("charlie")) };
-        let _res = handle(&mut deps, env, msg).unwrap();
-        // Allow READ for Pepe, Satoshi and Nugget
-        let env = mock_env("anyone", &[]);
-        let msg = HandleMsg::AllowRead { path: String::from("anyone/layer1/layer2/"), address_list: vec!(String::from("pepe"), String::from("satoshi"), String::from("nugget")) };
-        let _res = handle(&mut deps, env, msg).unwrap();
-
-        // Clone Permission of all layer2's children
-        let env = mock_env("anyone", &[]);
-        let _msg = handle(&mut deps, env, HandleMsg::CloneParentPermission {path: String::from("anyone/layer1/layer2/") });
-
-        // Now we query those children to double check the permisions
-        // Get Folder layer3/
-        let query_res = query(&deps, QueryMsg::GetContents { path: String::from("anyone/layer1/layer2/layer3/"), behalf: HumanAddr("anyone".to_string()), key: vk.to_string() });
-        let value: FileResponse = from_binary(&query_res.unwrap()).unwrap();
-        println!("{:#?}", value);
-        // Get Folder layer4/
-        let query_res = query(&deps, QueryMsg::GetContents { path: String::from("anyone/layer1/layer2/layer3/layer4/"), behalf: HumanAddr("anyone".to_string()), key: vk.to_string() });
-        let value: FileResponse = from_binary(&query_res.unwrap()).unwrap();
-        println!("{:#?}", value);
-    }
-
-    #[test]
     fn test_owner_change() {
         let mut deps = mock_dependencies(20, &[]);
         let vk_anyone = init_for_test(&mut deps, String::from("anyone"));
@@ -621,6 +580,7 @@ mod tests {
         let query_res = query(&deps, QueryMsg::GetContents { path: String::from("anyone/test/"), behalf: HumanAddr("anyone".to_string()), key: vk_anyone.to_string() }).unwrap();
         let value: FileResponse = from_binary(&query_res).unwrap();
         println!("alice added anyone to allow_read, and now anyone can also read the file. See allow_read list --> {:#?}", value.file);
+
 
         // alice can change owner back to anyone
         let env = mock_env("alice", &[]);
