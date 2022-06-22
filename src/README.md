@@ -153,12 +153,12 @@ Input a path and this will give all the children/grandchildren the same permissi
 |--|--|--|
 |path  | String  | parent path you want to clone permission 
 ```
-Example: /meme/ folder contains /pepe/ and /peepoo
+Example: /meme/ folder contains /pepe/ and /pepo
 - "bob" has write access to /meme/
 - "alice" has read access to /meme/
 After running CloneParentPermission,
-- "bob" will have write access to /meme/, /pepe/, and /peepoo/
-- "alice" will have read access to /meme/, /pepe/, and /peepoo/
+- "bob" will have write access to /meme/, /pepe/, and /pepo/
+- "alice" will have read access to /meme/, /pepe/, and /pepo/
 ```
 
 ### - InitNode
