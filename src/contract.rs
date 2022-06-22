@@ -100,7 +100,8 @@ fn authenticated_queries<S: Storage, A: Api, Q: Querier>(
         }
     }
 
-    Err(StdError::unauthorized())
+    Err(StdError::NotFound { kind: String::from("Your viewing key does not match 'behalf' address."), backtrace: None })
+    
 }
 
 fn try_init_node<S: Storage, A: Api, Q: Querier>(
@@ -235,6 +236,7 @@ mod tests {
         let msg = HandleMsg::InitAddress { contents: String::from("{}"), entropy: String::from("Entropygoeshereboi") };
         let handle_response = handle(&mut deps, env, msg);
         assert!(handle_response.is_err());
+        println!("{:#?}", handle_response);
     }
 
     #[test]
@@ -299,30 +301,58 @@ mod tests {
     fn test_create_file() {
         let mut deps = mock_dependencies(20, &[]);
         let vk = init_for_test(&mut deps, String::from("anyone"));
-
         let vk2 = init_for_test(&mut deps, String::from("alice"));
 
-        // Create File
+        // Create File - Nug: We don't actually use "anyone/test" throughout this test. Should we just delete this paragraph? - Bi
         let env = mock_env("anyone", &[]);
         let msg = HandleMsg::Create { contents: String::from("I'm sad"), path: String::from("anyone/test/") , pkey: String::from("test"), skey: String::from("test")};
         let _res = handle(&mut deps, env, msg).unwrap();
 
         // Create File
         let env = mock_env("anyone", &[]);
-        let msg = HandleMsg::Create { contents: String::from("I'm sad"), path: String::from("anyone/pepe.jpg") , pkey: String::from("test"), skey: String::from("test")};
+        let msg = HandleMsg::Create { contents: String::from("I'm lonely"), path: String::from("anyone/pepe.jpg") , pkey: String::from("test"), skey: String::from("test")};
         let _res = handle(&mut deps, env, msg).unwrap();
-        
-        
-        // Get File with viewing key
+
+        // anyone attempts to create file in a folder that doesn't exist. Will fail. Print error and run: 'cargo test test_create_file -- --nocapture' to see error message
+        let env = mock_env("anyone", &[]);
+        let msg = HandleMsg::Create { contents: String::from("Abdul"), path: String::from("Stacy/crazy_man.jpg") , pkey: String::from("test"), skey: String::from("test")};
+        let res = handle(&mut deps, env, msg);
+        assert!(res.is_err());
+        println!("{:#?}", res);        
+
+        // Dave attempts to create file in anyone's directory. Will fail. Print error and run: 'cargo test test_create_file -- --nocapture' to see error message
+        let env = mock_env("Dave", &[]);
+        let msg = HandleMsg::Create { contents: String::from("Hasbullah"), path: String::from("anyone/silly_man.jpg") , pkey: String::from("test"), skey: String::from("test")};
+        let res = handle(&mut deps, env, msg);
+        assert!(res.is_err());
+        println!("{:#?}", res);
+
+        //anyone queries their own file with their viewing key. Will succeed.
+        let query_res = query(&deps, QueryMsg::GetContents { path: String::from("anyone/pepe.jpg"), behalf: HumanAddr("anyone".to_string()), key: vk.to_string() }).unwrap();
+        let value: FileResponse = from_binary(&query_res).unwrap();
+        println!(" anyone/pepe.jpg:\n {:#?}", value.file);
+
+        //anyone tries to query their file with the wrong viewing key. Error will say: Your viewing key does not match "behalf" address. Before it just said "unauthorized", which is not clear
+        let query_res = query(&deps, QueryMsg::GetContents { path: String::from("anyone/pepe.jpg"), behalf: HumanAddr("anyone".to_string()), key: "wrong_key".to_string() });
+        assert!(query_res.is_err());
+        println!("{:#?}", query_res);
+
+        // alice attempts to use her viewing key to query anyone's file. Will fail because alice does not have read permission for the file
         let query_res = query(&deps, QueryMsg::GetContents { path: String::from("anyone/pepe.jpg"), behalf: HumanAddr("alice".to_string()), key: vk2.to_string() });
-        assert_eq!(query_res.is_err(), true);
+        assert!(query_res.is_err());
+        println!("{:#?}", query_res);
         
-        // Allow Read Alice
+        // Add alice and bob to file's allow read permissions
         let env = mock_env("anyone", &[]);
         let msg = HandleMsg::AllowRead { path: String::from("anyone/pepe.jpg"), address_list: vec!(String::from("alice"), String::from("bob")) };
         let _res = handle(&mut deps, env, msg).unwrap();
-        
-        // Query File
+
+        //alice's query will now succeed
+        let query_res = query(&deps, QueryMsg::GetContents { path: String::from("anyone/pepe.jpg"), behalf: HumanAddr("alice".to_string()), key: vk2.to_string() }).unwrap();
+        let value: FileResponse = from_binary(&query_res).unwrap();
+        println!("alice successfully queries the file:\n{:#?}", value.file);
+
+        // Query File to show read permissions before resetting 
         let query_res = query(&deps, QueryMsg::GetContents { path: String::from("anyone/pepe.jpg"), behalf: HumanAddr("anyone".to_string()), key: vk.to_string() }).unwrap();
         let value: FileResponse = from_binary(&query_res).unwrap();
         println!("Before Reset --> {:#?}", value.file);
@@ -337,14 +367,97 @@ mod tests {
         let value: FileResponse = from_binary(&query_res).unwrap();
         println!("After Reset --> {:#?}", value.file);
 
-        //Query File as Alice
+        //querying file as alice will now fail
         let query_res = query(&deps, QueryMsg::GetContents { path: String::from("anyone/pepe.jpg"), behalf: HumanAddr("alice".to_string()), key: vk2.to_string() });
         assert!(query_res.is_err());
+        println!("alice's query will now fail because she was removed from allow read list:\n{:#?}", query_res);
 
-        // let env = mock_env("alice", &[]);
-        // let msg = HandleMsg::Create { contents: String::from("I'm not sad"), path: String::from("anyone/pepe.jpg") , pkey: String::from("test"), skey: String::from("test")};
-        // let res = handle(&mut deps, env, msg);
-        // assert_eq!(res.is_err(), true);
+    }
+
+    #[test]
+    fn test_remove_file() {
+        let mut deps = mock_dependencies(20, &[]);
+        let vk = init_for_test(&mut deps, String::from("anyone"));
+        let vk2 = init_for_test(&mut deps, String::from("alice"));
+        //let vk2 = init_for_test(&mut deps, String::from("alice"));
+
+        // Create File No. 1
+        let env = mock_env("anyone", &[]);
+        let msg = HandleMsg::Create { contents: String::from("I'm sad"), path: String::from("anyone/pepe.jpg") , pkey: String::from("test"), skey: String::from("test")};
+        let _res = handle(&mut deps, env, msg).unwrap();
+
+        // Create File No. 2
+        let env = mock_env("anyone", &[]);
+        let msg = HandleMsg::Create { contents: String::from("I'm lonely"), path: String::from("anyone/hasbullah.jpg") , pkey: String::from("test"), skey: String::from("test")};
+        let _res = handle(&mut deps, env, msg).unwrap();
+
+        // Create File No. 3
+        let env = mock_env("anyone", &[]);
+        let msg = HandleMsg::Create { contents: String::from("I'm happy now :)"), path: String::from("anyone/sunshine.jpg") , pkey: String::from("test"), skey: String::from("test")};
+        let _res = handle(&mut deps, env, msg).unwrap();
+
+        // anyone queries their own file with their viewing key. Will succeed.
+        let query_res = query(&deps, QueryMsg::GetContents { path: String::from("anyone/pepe.jpg"), behalf: HumanAddr("anyone".to_string()), key: vk.to_string() }).unwrap();
+        let value: FileResponse = from_binary(&query_res).unwrap();
+        println!(" anyone/pepe.jpg:\n {:#?}", value.file);
+
+        // Some random user tries to remove anyone's file no. 1. Will fail.
+        let env = mock_env("random user", &[]);
+        let msg = HandleMsg::Remove {path: String::from("anyone/pepe.jpg")};
+        let res = handle(&mut deps, env, msg);
+        assert!(res.is_err());
+        println!("random user failed to remove file:\n{:#?}", res);
+
+        // anyone tries to remove a file that doesn't exist. Will fail.
+        let env = mock_env("anyone", &[]);
+        let msg = HandleMsg::Remove {path: String::from("anyone/DoesNotExist")};
+        let res = handle(&mut deps, env, msg);
+        assert!(res.is_err());
+        println!("Failed to remove a file that doesn't exist:\n{:#?}", res);
+
+        // Remove file no. 1. Will succeed.
+        let env = mock_env("anyone", &[]);
+        let msg = HandleMsg::Remove {path: String::from("anyone/pepe.jpg")};
+        let res = handle(&mut deps, env, msg).unwrap();
+        println!("Removed file:\n{:#?}", res);
+
+        //anyone tries to query the deleted file. Will fail.
+        let query_res = query(&deps, QueryMsg::GetContents { path: String::from("anyone/pepe.jpg"), behalf: HumanAddr("anyone".to_string()), key: vk.to_string() });
+        assert!(query_res.is_err());
+        println!(" Querying deleted file failed:\n {:#?}", query_res);
+
+        //remove files no. 2 and 3
+        let env = mock_env("anyone", &[]);
+        let msg = HandleMsg::RemoveMulti { path_list: vec![String::from("anyone/hasbullah.jpg"), String::from("anyone/sunshine.jpg")] };
+        let res = handle(&mut deps, env, msg).unwrap();
+        println!("Successfully removed 2 files:\n{:#?}", res);
+
+        // Create file to be given to new owner and then that owner can delete
+        let env = mock_env("anyone", &[]);
+        let msg = HandleMsg::Create { contents: String::from("King pepe"), path: String::from("anyone/King_pepe.jpg") , pkey: String::from("test"), skey: String::from("test")};
+        let _res = handle(&mut deps, env, msg).unwrap();
+
+        let env = mock_env("anyone", &[]);
+        let msg = HandleMsg::ChangeOwner { path: String::from("anyone/King_pepe.jpg"), new_owner: String::from("alice") };
+        let _res = handle(&mut deps, env, msg).unwrap();
+
+        // anyone tries to remove a file that doesn't belong to them anymore. Will fail
+        let env = mock_env("anyone", &[]);
+        let msg = HandleMsg::Remove {path: String::from("anyone/King_pepe.jpg")};
+        let res = handle(&mut deps, env, msg);
+        assert!(res.is_err());
+        println!("anyone failed to remove a file that doesn't belong to them anymore:\n{:#?}", res);
+
+        // alice can remove the file now because it belongs to her
+        let env = mock_env("alice", &[]);
+        let msg = HandleMsg::Remove {path: String::from("anyone/King_pepe.jpg")};
+        let res = handle(&mut deps, env, msg).unwrap();
+        println!("Alice successfully removed the file that she just received from anyone:\n{:#?}", res);
+
+        //alice tries to query the deleted file. Will fail.
+        let query_res = query(&deps, QueryMsg::GetContents { path: String::from("anyone/King_pepe.jpg"), behalf: HumanAddr("alice".to_string()), key: vk2.to_string() });
+        assert!(query_res.is_err());
+        println!(" Querying the file that alice just deleted will fail:\n {:#?}", query_res);
 
     }
 
@@ -393,9 +506,9 @@ mod tests {
         assert_eq!(value.init, true);
 
         let msg = QueryMsg::YouUpBro {address: String::from("yeet")};
-        let query_res = query(&deps, msg).unwrap();
-        let value:WalletInfoResponse = from_binary(&query_res).unwrap();
-        assert_eq!(value.init, false);
+        let query_res = query(&deps, msg);
+        assert!(query_res.is_err());
+        println!("{:#?}", query_res);
     }
 
     #[test]
@@ -467,11 +580,24 @@ mod tests {
         let msg = HandleMsg::Move {old_path: String::from("anyone/test/phrog1.png") ,new_path: String::from("anyone/meme_folder/phrog1.png") };
         let _res = handle(&mut deps, env, msg).unwrap();
 
+        // Try to query "anyone/test/phrog1.png" to ensure it's no longer there
+        let query_res = query(&deps, QueryMsg::GetContents { path: String::from("anyone/test/phrog1.png"), behalf: HumanAddr("anyone".to_string()), key: vk.to_string() });
+        assert!(query_res.is_err());
+        println!("Confirming that 'anyone/test/phrog1.png' no longer contains a file:\n{:#?}", query_res);
+
+        // Dave, who doesn't own the file or has write permission in meme_folder/, tries to Move phrog1.png from meme_folder/ back to /test/ - will fail with clear error message
+        let env = mock_env("Dave", &[]);
+        let msg = HandleMsg::Move {old_path: String::from("anyone/meme_folder/phrog1.png"), new_path: String::from("anyone/test/phrog1.png") };
+        let res = handle(&mut deps, env, msg);
+        assert!(res.is_err());
+        println!("Dave fails to move phrog1.png:\n{:#?}", res);
+
         // Move phrog2.png from /test/ to /doesnt_exist/
         let env = mock_env("anyone", &[]);
         let msg = HandleMsg::Move {old_path: String::from("anyone/test/phrog2.png") ,new_path: String::from("anyone/doesnt_exist/phrog2.png") };
         let res = handle(&mut deps, env, msg);
         assert!(res.is_err());
+        println!("Trying to move phrog2.png to a folder that doesn't exist:\n{:#?}", res);
 
         // Create 2 Files pepe1.png and pepe2.png
         let env = mock_env("anyone", &[]);
@@ -489,9 +615,137 @@ mod tests {
         // Get WalletInfo with viewing key
         let query_res = query(&deps, QueryMsg::GetWalletInfo { behalf: HumanAddr("anyone".to_string()), key: vk.to_string() }).unwrap();
         let value:WalletInfoResponse = from_binary(&query_res).unwrap();
-        // let arr = vec!["anyone/", "anyone/test/", "anyone/meme_folder/", "anyone/pepe/", "anyone/test/phrog2.png", "anyone/meme_folder/phrog1.png", "anyone/pepe/pepe1.png", "anyone/pepe/pepe2.png"];
-        // assert_eq!(value.all_paths, arr);
         println!("{:#?}", value);
+    }
+
+    #[test]
+    fn change_owner_and_move_test() {
+        let mut deps = mock_dependencies(20, &[]);
+        let vk = init_for_test(&mut deps, String::from("anyone"));
+        let vk2 = init_for_test(&mut deps, String::from("alice"));
+
+        // Create 3 folders (test/ meme_folder/ pepe/)
+        let env = mock_env("anyone", &[]);
+        let msg = HandleMsg::CreateMulti { 
+                contents_list: vec!(String::from("<content inside test/>"), String::from("<content inside meme_folder/>"), String::from("<content inside junior/>")),  
+                path_list: vec!(String::from("anyone/test/"), String::from("anyone/meme_folder/"), String::from("anyone/junior/")), 
+                pkey_list: vec!(String::from("test"), String::from("test"), String::from("test")), 
+                skey_list: vec!(String::from("test"), String::from("test"), String::from("test"))
+        };
+        let _res = handle(&mut deps, env, msg).unwrap();
+
+        // Create 2 Files bunny1.png and bunny2.png
+        let env = mock_env("anyone", &[]);
+        let msg = HandleMsg::CreateMulti { contents_list: vec!(String::from("bunny1"), String::from("bunny2")), path_list: vec!(String::from("anyone/test/bunny1.png"), String::from("anyone/test/bunny2.png")) , pkey_list: vec!(String::from("test"), String::from("test")), skey_list: vec!(String::from("test"), String::from("test"))};
+        let _res = handle(&mut deps, env, msg).unwrap();
+
+        // Given ownership of bunny1.png to alice
+        let env = mock_env("anyone", &[]);
+        let msg = HandleMsg::ChangeOwner { path: String::from("anyone/test/bunny1.png"), new_owner: String::from("alice") };
+        let _res = handle(&mut deps, env, msg).unwrap();
+
+        // Get bunny1 with alice's viewing key to ensure alice is now owner
+        let query_res = query(&deps, QueryMsg::GetContents { path: String::from("anyone/test/bunny1.png"), behalf: HumanAddr("alice".to_string()), key: vk2.to_string() });
+        let value: FileResponse = from_binary(&query_res.unwrap()).unwrap();
+        println!("alice owns bunny1:\n {:#?}", value.file);
+
+        // alice tries to move bunny1 to anyone/meme_folder, which will fail because she does not own anyone/
+        let env = mock_env("alice", &[]);
+        let msg = HandleMsg::Move {old_path: String::from("anyone/test/bunny1.png") ,new_path: String::from("anyone/meme_folder/bunny1.png") };
+        let res = handle(&mut deps, env, msg);
+        assert!(res.is_err());
+        println!("Alice fails to move bunny1 to anyone/meme_folder:\n {:#?}", res);
+
+        // lets make a folder inside of alice's root directory to store her new bunny in 
+        let env = mock_env("alice", &[]);
+        let msg = HandleMsg::Create { contents: "bunnys go here".to_string(), path: String::from("alice/bunny_home/"), pkey: "test".to_string(), skey: "test".to_string() };
+        let _res = handle(&mut deps, env, msg).unwrap();
+        println!("Successfully created alice/bunny_home/:\n {:#?}", _res);
+
+        // Get alice/bunny_home/ with Alice's viewing key to ensure it exists
+        let query_res = query(&deps, QueryMsg::GetContents { path: String::from("alice/bunny_home/"), behalf: HumanAddr("alice".to_string()), key: vk2.to_string() });
+        let value: FileResponse = from_binary(&query_res.unwrap()).unwrap();
+        println!("alice/bunny_home:\n {:#?}", value.file);
+
+        //now alice can move bunny1 into alice/bunny_home/
+        let env = mock_env("alice", &[]);
+        let msg = HandleMsg::Move {old_path: String::from("anyone/test/bunny1.png") ,new_path: String::from("alice/bunny_home/bunny1.png") };
+        let res = handle(&mut deps, env, msg).unwrap();
+        println!("Alice successfully moves bunny1 to alice/bunny_home/:\n {:#?}", res);
+
+        // Get bunny1 with alice's viewing key to ensure it is in alice/bunny_home
+        let query_res = query(&deps, QueryMsg::GetContents { path: String::from("alice/bunny_home/bunny1.png"), behalf: HumanAddr("alice".to_string()), key: vk2.to_string() });
+        let value: FileResponse = from_binary(&query_res.unwrap()).unwrap();
+        println!("bunny1 is in alice/bunny_home:\n {:#?}", value);          
+
+        // Try to query "anyone/test/bunny1.png" to ensure it's no longer there
+        let query_res = query(&deps, QueryMsg::GetContents { path: String::from("anyone/test/bunny1.png"), behalf: HumanAddr("alice".to_string()), key: vk2.to_string() });
+        assert!(query_res.is_err());
+        println!("Confirming that 'anyone/test/bunny1.png' no longer contains a file:\n{:#?}", query_res);
+
+    }
+    
+    #[test]
+
+    //The idea behind giving someone write permissions is to allow someone else to add files to a folder that you own? 
+    fn alice_moving_within_anyone_rootfolder() {
+
+        let mut deps = mock_dependencies(20, &[]);
+        let vk = init_for_test(&mut deps, String::from("anyone"));
+        let vk2 = init_for_test(&mut deps, String::from("alice"));
+
+        // Create 2 folders (test/, junior/)
+        let env = mock_env("anyone", &[]);
+        let msg = HandleMsg::CreateMulti { 
+                contents_list: vec!(String::from("<content inside test/>"), String::from("<content inside junior/>")),  
+                path_list: vec!(String::from("anyone/test/"), String::from("anyone/junior/")), 
+                pkey_list: vec!(String::from("test"), String::from("test")), 
+                skey_list: vec!(String::from("test"), String::from("test"))
+        };
+        let _res = handle(&mut deps, env, msg).unwrap();       
+
+        // Create bunny.png
+        let env = mock_env("anyone", &[]);
+        let msg = HandleMsg::Create { contents: String::from("bunny"), path: String::from("anyone/test/bunny.png"), pkey: String::from("test"), skey: String::from("test") };
+        let _res = handle(&mut deps, env, msg).unwrap();
+
+        // Given ownership of bunny.png to alice
+        let env = mock_env("anyone", &[]);
+        let msg = HandleMsg::ChangeOwner { path: String::from("anyone/test/bunny.png"), new_owner: String::from("alice") };
+        let _res = handle(&mut deps, env, msg).unwrap();
+
+        // Get bunny with alice's viewing key to ensure alice is now owner
+        let query_res = query(&deps, QueryMsg::GetContents { path: String::from("anyone/test/bunny.png"), behalf: HumanAddr("alice".to_string()), key: vk2.to_string() });
+        let value: FileResponse = from_binary(&query_res.unwrap()).unwrap();
+        println!("alice owns bunny:\n {:#?}", value.file);
+
+        // alice tries to move bunny to anyone/junior, which will fail because she does not own or have write access to anyone/junior/
+        let env = mock_env("alice", &[]);
+        let msg = HandleMsg::Move {old_path: String::from("anyone/test/bunny.png") ,new_path: String::from("anyone/junior/bunny.png") };
+        let res = handle(&mut deps, env, msg);
+        assert!(res.is_err());
+        println!("Alice fails to move bunny to anyone/junior:\n {:#?}", res);
+
+        // add alice to write permissions of anyone/junior/
+        let env = mock_env("anyone", &[]);
+        let msg = HandleMsg::AllowWrite { path: "anyone/junior/".to_string(), address_list: vec!["alice".to_string()] };
+        let _res = handle(&mut deps, env, msg).unwrap();        
+
+        // alice again tries to move bunny to anyone/junior, will succeed
+        let env = mock_env("alice", &[]);
+        let msg = HandleMsg::Move {old_path: String::from("anyone/test/bunny.png") ,new_path: String::from("anyone/junior/bunny.png") };
+        let res = handle(&mut deps, env, msg).unwrap();
+        println!("Alice successfully moves bunny to anyone/junior:\n {:#?}", res); 
+
+        // Get bunny with alice's viewing key to ensure it is in anyone/junior
+        let query_res = query(&deps, QueryMsg::GetContents { path: String::from("anyone/junior/bunny.png"), behalf: HumanAddr("alice".to_string()), key: vk2.to_string() });
+        let value: FileResponse = from_binary(&query_res.unwrap()).unwrap();
+        println!("bunny is in anyone/junior:\n {:#?}", value.file);        
+
+        // Try to query "anyone/test/bunny.png" to ensure it's no longer there
+        let query_res = query(&deps, QueryMsg::GetContents { path: String::from("anyone/test/bunny.png"), behalf: HumanAddr("alice".to_string()), key: vk2.to_string() });
+        assert!(query_res.is_err());
+        println!("Confirming that 'anyone/test/bunny.png' no longer contains a file:\n{:#?}", query_res);
     }
 
     #[test]
