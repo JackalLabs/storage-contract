@@ -130,7 +130,6 @@ pub fn try_forget_me<S: Storage, A: Api, Q: Querier>(
     Ok(HandleResponse::default())
 }
 
-//This previously returned a wallet with init = false and namespace = "empty", but this is illogical so we will return a NotFound error.
 pub fn try_you_up_bro<S: Storage, A: Api, Q: Querier>(
     deps: &Extern<S, A, Q>,
     address: String,
