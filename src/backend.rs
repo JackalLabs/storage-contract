@@ -144,9 +144,11 @@ pub fn try_you_up_bro<S: Storage, A: Api, Q: Querier>(
             namespace: wallet_info.namespace,
             counter: wallet_info.counter
         }),
-        Err(_e) => Err(StdError::NotFound { 
-            kind: String::from("Wallet not found. This wallet address has not been initalized or you have entered the wrong address."),
-            backtrace: None })
+        Err(_e) => Ok(WalletInfoResponse {
+            init: false,
+            namespace: String::from("empty"),
+            counter: 0
+        })  
     }
 }
 
@@ -462,20 +464,26 @@ pub fn try_move_file<S: Storage, A: Api, Q: Querier>(
 
     //only the owner of a file should be able to move it 
     //if we only need to read from a file, we should utilize bucket_read because it's more gas efficient than bucket_load
-    let file = bucket_load_readonly_file(&mut deps.storage, &old_path, &namespace)?;
-    if env.message.sender.to_string() != file.owner {
+    let file = bucket_load_readonly_file(&mut deps.storage, &old_path, &namespace);
+    let file_res = match file {
+        Ok(f) => f,
+        Err(_) => return Err(StdError::NotFound { kind: String::from("File move unsuccessful. This file does not exist. Check path is correct"), backtrace: None })
+    };
+
+    if env.message.sender.to_string() != file_res.owner {
         return Err(StdError::GenericErr { msg: "You do not own this file and cannot move it".to_string(), backtrace: None })
     }
 
-    let duplicated_contents = file.contents;
+    let duplicated_contents = file_res.contents;
+    
     //this was previously try_create_file
     let new_file = do_create_file(
         deps,
         env.message.sender.to_string(),
         duplicated_contents,
         new_path,
-        String::from(""),//Nug: do we need to put something here?
-        String::from(""),//Nug: do we need to put something here?
+        String::from(""),//Nug/Marston: do we need to put something here?
+        String::from(""),//Nug/Marston: do we need to put something here?
     );
 
     match new_file {
@@ -522,6 +530,7 @@ pub fn try_move_multi_files<S: Storage, A: Api, Q: Querier>(
             new_path.to_string(),
         )?;
     }
+
     //match statement not needed here because errors
     //already properly handled at try_move_file 
     

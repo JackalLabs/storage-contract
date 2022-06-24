@@ -506,9 +506,9 @@ mod tests {
         assert_eq!(value.init, true);
 
         let msg = QueryMsg::YouUpBro {address: String::from("yeet")};
-        let query_res = query(&deps, msg);
-        assert!(query_res.is_err());
-        println!("{:#?}", query_res);
+        let query_res = query(&deps, msg).unwrap();
+        let value:WalletInfoResponse = from_binary(&query_res).unwrap();
+        assert_eq!(value.init, false);
     }
 
     #[test]
