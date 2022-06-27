@@ -9,14 +9,13 @@ use cosmwasm_storage::{bucket, bucket_read};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
-use crate::msg::{FileResponse, HandleAnswer, WalletInfoResponse};
+use crate::msg::{FileResponse, HandleAnswer, WalletInfoResponse, ResponseStatus::Success};
 use crate::nodes::write_claim;
 use crate::ordered_set::OrderedSet;
 use crate::state::{load, write_viewing_key, State, CONFIG_KEY};
 use crate::viewing_key::ViewingKey;
 
 // Bucket namespace list:
-static FILE_LOCATION: &[u8] = b"FILES";
 static WALLET_INFO_LOCATION: &[u8] = b"WALLET_INFO";
 
 // HandleMsg::InitAddress
@@ -33,23 +32,35 @@ pub fn try_init<S: Storage, A: Api, Q: Querier>(
     let mut path = adr.to_string();
     path.push('/');
 
-    let already_init = file_exists(&mut deps.storage, &path);
+    let namespace = get_namespace(&deps.storage, &adr).unwrap_or(String::from("namespace does not exist!"));
+    let already_init = file_exists(&mut deps.storage, &path, &namespace);
 
     match already_init {
         false => {
-            create_file(&mut deps.storage, adr.to_string(), path.clone(), contents);
+            //Register Wallet info:
+            //   One of two things could happen:
+            //a) They already have a wallet info saved, so we just pull it out and set init to true.
+            //b) They don't have a wallet info saved, so may_load will return None, which prompts a return of a default walletinfo that can be altered and saved asap.
+            let loaded_wallet: Result<Option<WalletInfo>, StdError> = bucket(WALLET_INFO_LOCATION, &mut deps.storage).may_load(adr.as_bytes());
+            let unwrapped_wallet = loaded_wallet.expect("Wallet not found."); //Option will always be unwrapped, but providing error message for clarity.
+            let mut returned_wallet = return_wallet(unwrapped_wallet);
+            
+            if returned_wallet.namespace == "empty".to_string() {
+                returned_wallet.init = true;
+                let new_namespace = format!("{}{}", adr, 0);
+                returned_wallet.namespace = new_namespace;
+            } else {
+                returned_wallet.init = true;
+            }
 
-            //Register Wallet info
-            let wallet_info = WalletInfo {
-                init: true,
-                all_paths: vec![path],
-            };
             let bucket_response =
-                bucket(WALLET_INFO_LOCATION, &mut deps.storage).save(adr.as_bytes(), &wallet_info);
+                bucket(WALLET_INFO_LOCATION, &mut deps.storage).save(adr.as_bytes(), &returned_wallet);
             match bucket_response {
                 Ok(bucket_response) => bucket_response,
                 Err(e) => panic!("Bucket Error: {}", e),
             }
+
+            create_file(deps, adr.to_string(), path.clone(), contents);
 
             // Let's create viewing key
             let config: State = load(&mut deps.storage, CONFIG_KEY)?;
@@ -71,6 +82,27 @@ pub fn try_init<S: Storage, A: Api, Q: Querier>(
     }
 }
 
+pub fn return_wallet(x: Option<WalletInfo>) -> WalletInfo {
+    match x {
+        Some(i) => i,//if exists, their wallet init could be false or true, and their namespace is present, 
+        //If none, it means the user has never called init before, so we return a wallet info that can be altered and saved right away
+        None => WalletInfo { init: false, namespace: "empty".to_string(), counter: 0 }, 
+        
+    }
+}
+
+pub fn get_namespace<'a, S: Storage>(store: &'a S, sender: &String) -> StdResult<String> {
+    let loaded_wallet: Result<WalletInfo, StdError> = bucket_read(WALLET_INFO_LOCATION, store).load(sender.as_bytes());
+    let unwrapped_wallet = loaded_wallet?;
+    Ok(unwrapped_wallet.namespace) 
+}
+
+pub fn get_counter<'a, S: Storage>(store: &'a S, sender: &String) -> StdResult<i32> {
+    let loaded_wallet: Result<WalletInfo, StdError> = bucket_read(WALLET_INFO_LOCATION, store).load(sender.as_bytes());
+    let unwrapped_wallet = loaded_wallet?;
+    Ok(unwrapped_wallet.counter) 
+}
+
 pub fn try_forget_me<S: Storage, A: Api, Q: Querier>(
     deps: &mut Extern<S, A, Q>,
     env: Env,
@@ -85,24 +117,15 @@ pub fn try_forget_me<S: Storage, A: Api, Q: Querier>(
     let mut wallet_info = load_bucket?;
 
     wallet_info.init = false;
+    let new_counter = wallet_info.counter + 1;
+    wallet_info.counter = new_counter; 
+    let new_namespace = format!("{}{}", adr, new_counter);
+    wallet_info.namespace = new_namespace;
+
     bucket(WALLET_INFO_LOCATION, &mut deps.storage)
         .save(ha.as_str().as_bytes(), &wallet_info)
         .map_err(|err| println!("{:?}", err))
         .ok();
-
-    let all_paths = &wallet_info.all_paths;
-    for i in 0..all_paths.len() {
-        let path = all_paths[i].to_string();
-
-        let res = try_remove_file(&mut *deps, env.clone(), path);
-
-        match res {
-            Ok(_r) => {}
-            Err(e) => {
-                return Err(e);
-            }
-        }
-    }
 
     Ok(HandleResponse::default())
 }
@@ -117,12 +140,14 @@ pub fn try_you_up_bro<S: Storage, A: Api, Q: Querier>(
     match load_bucket {
         Ok(wallet_info) => Ok(WalletInfoResponse {
             init: wallet_info.init,
-            all_paths: vec![" private stuff here ;) ".to_string()],
+            namespace: wallet_info.namespace,
+            counter: wallet_info.counter
         }),
         Err(_e) => Ok(WalletInfoResponse {
             init: false,
-            all_paths: vec![],
-        }),
+            namespace: String::from("empty"),
+            counter: 0
+        })  
     }
 }
 
@@ -159,46 +184,6 @@ pub struct PermissionBlock {
     permission_type: PermType,
 }
 
-//This will match all (Read & Write) permissions of ALL children inside parent_path including grandchildrens too
-pub fn try_clone_parent_permission<S: Storage, A: Api, Q: Querier>(
-    deps: &mut Extern<S, A, Q>,
-    env: Env,
-    parent_path: String,
-) -> StdResult<HandleResponse> {
-    let signer = deps
-        .api
-        .human_address(&deps.api.canonical_address(&env.message.sender)?)?;
-
-    let par = bucket_load_file(&mut deps.storage, &parent_path);
-    if !par.can_write(signer.to_string()) {
-        return Err(StdError::generic_err("Unauthorized to mess with this"));
-    }
-    let read_list = par.allow_read_list;
-    let write_list = par.allow_write_list;
-
-    let address = signer.as_str();
-    let wallet_info: WalletInfo = bucket_read(WALLET_INFO_LOCATION, &deps.storage).load(address.as_bytes())?;
-    let all_paths = wallet_info.all_paths;
-    
-    for path in all_paths.iter(){
-        if path.contains(&parent_path){
-            if path != &parent_path{
-                let copy_data = |mayd: Option<File>| -> StdResult<File> {
-                    let mut d = mayd.ok_or(StdError::not_found("Data"))?;
-                    d.allow_read_list = read_list.clone();
-                    d.allow_write_list = write_list.clone();
-                    Ok(d)
-                };
-                bucket(FILE_LOCATION, &mut deps.storage)
-                    .update(&path.as_bytes(), copy_data)
-                    .unwrap();
-            }
-        }
-    }
-    
-    Ok(HandleResponse::default())
-}
-
 pub fn try_allow_write<S: Storage, A: Api, Q: Querier>(
     deps: &mut Extern<S, A, Q>,
     env: Env,
@@ -209,7 +194,8 @@ pub fn try_allow_write<S: Storage, A: Api, Q: Querier>(
         .api
         .human_address(&deps.api.canonical_address(&env.message.sender)?)?;
 
-    let mut f = bucket_load_file(&mut deps.storage, &path);
+    let namespace = get_namespace_from_path(deps, path.clone()).unwrap_or(String::from("namespace does not exist!"));
+    let mut f = bucket_load_file(&mut deps.storage, &path, &namespace)?;
     
     if !f.can_write(signer.to_string()) {
         return Err(StdError::generic_err("Unauthorized to allow write"));
@@ -218,7 +204,7 @@ pub fn try_allow_write<S: Storage, A: Api, Q: Querier>(
     for i in 0..address_list.len() {
         let address = &address_list[i];
         f.allow_write(address.to_string());
-        bucket_save_file(&mut deps.storage, &path, f.clone());
+        bucket_save_file(&mut deps.storage, &path, f.clone(), &namespace);
     }
 
     Ok(HandleResponse::default())
@@ -234,15 +220,16 @@ pub fn try_disallow_write<S: Storage, A: Api, Q: Querier>(
         .api
         .human_address(&deps.api.canonical_address(&env.message.sender)?)?;
 
-    let mut f = bucket_load_file(&mut deps.storage, &path);
-
+    let namespace = get_namespace_from_path(deps, path.clone()).unwrap_or(String::from("namespace does not exist!"));
+    let mut f = bucket_load_file(&mut deps.storage, &path, &namespace)?;
+    
     if !f.can_write(signer.to_string()) {
         return Err(StdError::generic_err("Unauthorized to disallow write"));
     }
     for i in 0..address_list.len() {
         let address = &address_list[i];
         f.disallow_write(address.to_string());
-        bucket_save_file(&mut deps.storage, &path, f.clone());
+        bucket_save_file(&mut deps.storage, &path, f.clone(), &namespace);
     }
     Ok(HandleResponse::default())
 }
@@ -253,17 +240,18 @@ pub fn try_reset_write<S: Storage, A: Api, Q: Querier>(
     path: String,
 ) -> StdResult<HandleResponse> {
     let signer = deps
-        .api
-        .human_address(&deps.api.canonical_address(&env.message.sender)?)?;
-
-    let mut f = bucket_load_file(&mut deps.storage, &path);
-
+    .api
+    .human_address(&deps.api.canonical_address(&env.message.sender)?)?;
+    
+    let namespace = get_namespace_from_path(deps, path.clone()).unwrap_or(String::from("namespace does not exist!"));
+    let mut f = bucket_load_file(&mut deps.storage, &path, &namespace)?;
+    
     if !f.can_write(signer.to_string()) {
         return Err(StdError::generic_err("Unauthorized to reset write list"));
     }
-
+    
     f.allow_write_list = OrderedSet::new();
-    bucket_save_file(&mut deps.storage, &path, f);
+    bucket_save_file(&mut deps.storage, &path, f, &namespace);
     Ok(HandleResponse::default())
 }
 
@@ -274,10 +262,11 @@ pub fn try_allow_read<S: Storage, A: Api, Q: Querier>(
     address_list: Vec<String>,
 ) -> StdResult<HandleResponse> {
     let signer = deps
-        .api
-        .human_address(&deps.api.canonical_address(&env.message.sender)?)?;
-
-    let mut f = bucket_load_file(&mut deps.storage, &path);
+    .api
+    .human_address(&deps.api.canonical_address(&env.message.sender)?)?;
+    
+    let namespace = get_namespace_from_path(deps, path.clone()).unwrap_or(String::from("namespace does not exist!"));
+    let mut f = bucket_load_file(&mut deps.storage, &path, &namespace)?;
     
     if !f.can_write(signer.to_string()) {
         return Err(StdError::generic_err("Unauthorized to allow write"));
@@ -286,7 +275,7 @@ pub fn try_allow_read<S: Storage, A: Api, Q: Querier>(
     for i in 0..address_list.len() {
         let address = &address_list[i];
         f.allow_read(address.to_string());
-        bucket_save_file(&mut deps.storage, &path, f.clone());
+        bucket_save_file(&mut deps.storage, &path, f.clone(), &namespace);
     }
     Ok(HandleResponse::default())
 }
@@ -298,19 +287,20 @@ pub fn try_disallow_read<S: Storage, A: Api, Q: Querier>(
     address_list: Vec<String>,
 ) -> StdResult<HandleResponse> {
     let signer = deps
-        .api
-        .human_address(&deps.api.canonical_address(&env.message.sender)?)?;
-
-    let mut f = bucket_load_file(&mut deps.storage, &path);
-
+    .api
+    .human_address(&deps.api.canonical_address(&env.message.sender)?)?;
+    
+    let namespace = get_namespace_from_path(deps, path.clone()).unwrap_or(String::from("namespace does not exist!"));
+    let mut f = bucket_load_file(&mut deps.storage, &path, &namespace)?;
+    
     if !f.can_write(signer.to_string()) {
         return Err(StdError::generic_err("Unauthorized to disallow read"));
     }
-
+    
     for i in 0..address_list.len() {
         let address = &address_list[i];
         f.disallow_read(address.to_string());
-        bucket_save_file(&mut deps.storage, &path, f.clone());
+        bucket_save_file(&mut deps.storage, &path, f.clone(), &namespace);
     }
     Ok(HandleResponse::default())
 }
@@ -321,24 +311,26 @@ pub fn try_reset_read<S: Storage, A: Api, Q: Querier>(
     path: String,
 ) -> StdResult<HandleResponse> {
     let signer = deps
-        .api
-        .human_address(&deps.api.canonical_address(&env.message.sender)?)?;
-
-    let mut f = bucket_load_file(&mut deps.storage, &path);
-
+    .api
+    .human_address(&deps.api.canonical_address(&env.message.sender)?)?;
+    
+    let namespace = get_namespace_from_path(deps, path.clone()).unwrap_or(String::from("namespace does not exist!"));
+    let mut f = bucket_load_file(&mut deps.storage, &path, &namespace)?;
+    
     if !f.can_write(signer.to_string()) {
         return Err(StdError::generic_err("Unauthorized to reset read list"));
     }
 
     f.allow_read_list = OrderedSet::new();
-    bucket_save_file(&mut deps.storage, &path, f);
+    bucket_save_file(&mut deps.storage, &path, f, &namespace);
     Ok(HandleResponse::default())
 }
 
 #[derive(Serialize, Deserialize, JsonSchema, PartialEq, Debug, Clone)]
 pub struct WalletInfo {
     init: bool,
-    pub all_paths: Vec<String>,
+    pub namespace: String,
+    pub counter: i32
 }
 
 // HandleMsg FILE
@@ -467,19 +459,55 @@ pub fn try_move_file<S: Storage, A: Api, Q: Querier>(
         new_path
     );
 
-    let duplicated_contents = bucket_load_file(&mut deps.storage, &old_path).contents;
+    let namespace = get_namespace_from_path(&deps, old_path.clone()).unwrap_or(String::from("namespace not found!"));
 
-    try_create_file(
+    //only the owner of a file should be able to move it 
+    //if we only need to read from a file, we should utilize bucket_read because it's more gas efficient than bucket_load
+    let file = bucket_load_readonly_file(&mut deps.storage, &old_path, &namespace);
+    let file_res = match file {
+        Ok(f) => f,
+        Err(_) => return Err(StdError::NotFound { kind: String::from("File move unsuccessful. This file does not exist. Check path is correct"), backtrace: None })
+    };
+
+    if env.message.sender.to_string() != file_res.owner {
+        return Err(StdError::GenericErr { msg: "You do not own this file and cannot move it".to_string(), backtrace: None })
+    }
+
+    let duplicated_contents = file_res.contents;
+    
+    //this was previously try_create_file
+    let new_file = do_create_file(
         deps,
-        env.clone(),
+        env.message.sender.to_string(),
         duplicated_contents,
         new_path,
-        String::from(""),
-        String::from(""),
-    )?;
-    try_remove_file(deps, env, old_path)?;
+        String::from(""),//Nug/Marston: do we need to put something here?
+        String::from(""),//Nug/Marston: do we need to put something here?
+    );
+
+    match new_file {
+        Ok(handle_response) => handle_response,
+        Err(e) => match e {
+            StdError::GenericErr { msg:_, backtrace:None } => 
+            return Err(StdError::GenericErr { msg: "File move unsuccessful. Not permitted to write to destination folder".to_string(), backtrace: None }),
+            
+            StdError::NotFound { kind:_, backtrace:None } => 
+            return Err(StdError::NotFound { kind: "File move unsuccessful. Destination folder does not exist".to_string(), backtrace: None }),
+            _ => 
+            return Err(StdError::GenericErr { msg: "It's impossible to reach this default branch".to_string(), backtrace: None }),
+        }
+    };
+
+    let removed = try_remove_file(deps, env, old_path);
+    //if we were able to get contents of old_path above, then try_remove_file should always succeed, but I want to keep this here just incase
+    match removed {
+        Ok(handle_response) => handle_response,
+        Err(_e) => return Err(StdError::GenericErr { 
+            msg: "Unable to remove file in old path".to_string(), backtrace: None })
+    };
 
     Ok(HandleResponse::default())
+
 }
 
 pub fn try_move_multi_files<S: Storage, A: Api, Q: Querier>(
@@ -494,20 +522,17 @@ pub fn try_move_multi_files<S: Storage, A: Api, Q: Querier>(
         let old_path = &old_path_list[i];
         let new_path = &new_path_list[i];
 
-        let res = try_move_file(
+        let _res = try_move_file(
             deps,
             env.clone(),
             old_path.to_string(),
             new_path.to_string(),
-        );
-
-        match res {
-            Ok(_r) => {}
-            Err(e) => {
-                return Err(e);
-            }
-        }
+        )?;
     }
+
+    //match statement not needed here because errors
+    //already properly handled at try_move_file 
+    
     Ok(HandleResponse::default())
 }
 
@@ -516,25 +541,30 @@ pub fn try_remove_file<S: Storage, A: Api, Q: Querier>(
     env: Env,
     path: String,
 ) -> StdResult<HandleResponse> {
-    let ha = deps
-        .api
-        .human_address(&deps.api.canonical_address(&env.message.sender)?)?;
 
-    // Remove path from file bucket
-    bucket_remove_file(&mut deps.storage, &path);
+    let namespace = get_namespace_from_path(&deps, path.clone()).unwrap_or(String::from("namespace does not exist!"));
+    //I think getting namespace from path is needed because we could have a situation in which
+    //ownership of a file or folder is changed to another user, and then that user should be able to now
+    //delete that folder if they wish, because it belongs to them. If they do so, the env.sender will no longer
+    //be able to retrieve the correct namespace
 
-    // Remove path from Wallet info bucket
-    let new_data = |mayd: Option<WalletInfo>| -> StdResult<WalletInfo> {
-        let mut d = mayd.ok_or(StdError::not_found("Data"))?;
-        let index = d.all_paths.iter().position(|r| r == &path).unwrap();
-        d.all_paths.remove(index);
-        Ok(d)
-    };
-    bucket(WALLET_INFO_LOCATION, &mut deps.storage)
-        .update(ha.as_str().as_bytes(), new_data)
-        .unwrap();
+    //bucket.remove() in bucket.rs returns the unit type (), which kind of means return nothing, EVEN IF you were to pass in a key that didn't exist. 
+    //This means that if you passed in a path that didn't exist or made a typo during testing, you will still get an Ok(HandleResponse)--which is bad 
+    //because you should be getting an error response. We can't re write bucket.remove() to return an error, so we handle it as such:
 
-    Ok(HandleResponse::default())
+    let res = bucket_load_readonly_file(&deps.storage, &path, &namespace);
+    match res {
+        Ok(f) => {
+            if f.owner == env.message.sender.to_string() {
+                bucket_remove_file(&mut deps.storage, &path, &namespace);
+                return Ok(HandleResponse::default());
+            }
+            Err(StdError::GenericErr { msg: "Sorry. You are not authorized to remove this file".to_string(), backtrace: None })
+        }
+        Err(_e) => {
+            Err(StdError::NotFound { kind: "This path does not exist. Cannot remove.".to_string(), backtrace: None })
+        }
+    }
 }
 
 fn do_create_file<S: Storage, A: Api, Q: Querier>(
@@ -547,14 +577,15 @@ fn do_create_file<S: Storage, A: Api, Q: Querier>(
 ) -> StdResult<HandleResponse> {
     let par_path = parent_path(path.to_string());
 
-    let res = bucket_load_readonly_file(&deps.storage, &par_path);
+    let namespace = get_namespace_from_path(&deps, path.clone()).unwrap_or(String::from("namespace does not exist!"));
+    let res = bucket_load_readonly_file(&deps.storage, &par_path, &namespace);
 
     match res {
         Ok(f) => {
             if f.can_write(ha.to_string()) {
                 // Add new file to bucket
                 create_file(
-                    &mut deps.storage,
+                    deps,
                     ha.to_string(),
                     path.to_string(),
                     contents,
@@ -566,24 +597,12 @@ fn do_create_file<S: Storage, A: Api, Q: Querier>(
 
                 write_claim(&mut deps.storage, acl, skey);
 
-                // Add new path to Wallet info bucket
-                let new_data = |mayd: Option<WalletInfo>| -> StdResult<WalletInfo> {
-                    let mut d = mayd.ok_or(StdError::not_found("Data"))?;
-                    d.all_paths.push(path);
-                    Ok(d)
-                };
-                bucket(WALLET_INFO_LOCATION, &mut deps.storage)
-                    .update(ha.as_bytes(), new_data)
-                    .unwrap();
-
                 return Ok(HandleResponse::default());
             }
-            let error_message = String::from("Not authorized to create file");
-            Err(StdError::generic_err(error_message))
+            Err(StdError::GenericErr { msg: "Sorry. You are unauthorized to create a file in this folder.".to_string(), backtrace: None })
         }
         Err(_e) => {
-            let error_message = format!("{} doesn't exist", &par_path);
-            Err(StdError::generic_err(error_message))
+            Err(StdError::NotFound { kind: format!("File creation unsuccessful. Parent path: '{}' doesn't exist.", &par_path), backtrace: None })
         }
     }
 }
@@ -641,21 +660,14 @@ pub fn try_create_multi_files<S: Storage, A: Api, Q: Querier>(
         let pkey = &pkeys[i];
         let skey = &skeys[i];
 
-        let res = do_create_file(
+        let _res = do_create_file(
             deps,
             ha.to_string(),
             file_contents,
             path,
             pkey.to_string(),
             skey.to_string(),
-        );
-
-        match res {
-            Ok(_r) => {}
-            Err(e) => {
-                return Err(e);
-            }
-        }
+        )?;
     }
 
     Ok(HandleResponse::default())
@@ -673,29 +685,28 @@ pub fn try_remove_multi_files<S: Storage, A: Api, Q: Querier>(
 
     for i in 0..path_list.len() {
         let path = path_list[i].to_string();
-
-        let res = try_remove_file(deps, env.clone(), path);
-
-        match res {
-            Ok(_r) => {}
-            Err(e) => {
-                return Err(e);
-            }
-        }
+        let _res = try_remove_file(deps, env.clone(), path)?;
     }
 
     Ok(HandleResponse::default())
 }
 
-pub fn create_file<'a, S: Storage>(
-    store: &'a mut S,
+pub fn create_file<S: Storage, A: Api, Q: Querier>(
+    deps: &mut Extern<S, A, Q>, //used to just be <'a, S: Storage>(store: &'a mut S),
     owner: String,
     path: String,
     contents: String,
 ) {
     let file = make_file(&owner, &contents);
 
-    bucket_save_file(store, &path, file);
+    //below allows user to create a file in anyone else's folder, if they had write permissions. 
+    //They can also move a file that they owned into anyone else's folder, if they had write permissions.
+    //The file they owned could be given to them by anyone
+    //If we just used get_namespace(), based on the functions that call create_file, the user could only create files within their own root directory, 
+    //and move files within and to their own root directory
+
+    let namespace = get_namespace_from_path(deps, path.clone()).unwrap_or(String::from("namespace does not exist!"));
+    bucket_save_file(&mut deps.storage, &path, file, &namespace);
 }
 
 pub fn make_file(owner: &str, contents: &str) -> File {
@@ -708,36 +719,41 @@ pub fn make_file(owner: &str, contents: &str) -> File {
     }
 }
 
-pub fn bucket_save_file<'a, S: Storage>(store: &'a mut S, path: &String, folder: File) {
-    let bucket_response = bucket(FILE_LOCATION, store).save(path.as_bytes(), &folder);
+pub fn bucket_save_file<'a, S: Storage>(store: &'a mut S, path: &String, folder: File, namespace: &String) {
+    let bucket_response = bucket(namespace.as_bytes(), store).save(path.as_bytes(), &folder);
     match bucket_response {
         Ok(bucket_response) => bucket_response,
-        Err(e) => panic!("Bucket Error: {}", e),
+        Err(e) => panic!("Bucket Save Error: {}", e),
     }
 }
 
-pub fn bucket_remove_file<'a, S: Storage>(store: &'a mut S, path: &String) {
-    bucket::<S, File>(FILE_LOCATION, store).remove(path.as_bytes());
+pub fn bucket_remove_file<'a, S: Storage>(store: &'a mut S, path: &String, namespace: &String) {
+    bucket::<S, File>(namespace.as_bytes(), store).remove(path.as_bytes());
 }
-
-pub fn file_exists<'a, S: Storage>(store: &'a mut S, path: &String) -> bool {
-    let f: Result<File, StdError> = bucket(FILE_LOCATION, store).load(path.as_bytes());
+//need to make file_exists use bucket read
+pub fn file_exists<'a, S: Storage>(store: &'a mut S, path: &String, namespace: &String) -> bool {
+    let f: Result<File, StdError> = bucket(namespace.as_bytes(), store).load(path.as_bytes());
 
     match f {
-        Ok(_v) => true,
-        Err(_e) => false,
+        Ok(_file) => true,
+        Err(_error) => false,
     }
 }
 
-pub fn bucket_load_file<'a, S: Storage>(store: &'a mut S, path: &String) -> File {
-    bucket(FILE_LOCATION, store).load(path.as_bytes()).unwrap()
+pub fn bucket_load_file<'a, S: Storage>(store: &'a mut S, path: &String, namespace: &String) -> StdResult<File> {
+    let f: Result<File, StdError> = bucket(namespace.as_bytes(), store).load(path.as_bytes());
+    match f {
+        Ok(file) => Ok(file),
+        Err(_error) => Err(StdError::NotFound { kind: String::from("No file found at this path."), backtrace: None })
+    }
 }
 
 pub fn bucket_load_readonly_file<'a, S: Storage>(
     store: &'a S,
     path: &String,
+    namespace: &String
 ) -> Result<File, StdError> {
-    bucket_read(FILE_LOCATION, store).load(path.as_bytes())
+    bucket_read(namespace.as_bytes(), store).load(path.as_bytes())
 }
 
 // QueryMsg
@@ -746,25 +762,26 @@ pub fn query_file<S: Storage, A: Api, Q: Querier>(
     path: String,
     behalf: &HumanAddr,
 ) -> StdResult<FileResponse> {
-    let f = bucket_load_readonly_file(&deps.storage, &path);
+
+    let full_namespace = get_namespace_from_path(&deps, path.clone()).unwrap_or(String::from("namespace not found!"));
+
+    let f = bucket_load_readonly_file(&deps.storage, &path, &full_namespace); //take in a namespace
 
     match f {
         Ok(f1) => {
             if f1.can_read(String::from(behalf.as_str())) {
                 return Ok(FileResponse { file: f1 });
             }
-
-            let error_message = String::from("Sorry bud! Unauthorized to read file.");
-            Err(StdError::generic_err(error_message))
+            Err(StdError::GenericErr { msg: "Sorry bud! Unauthorized to read file.".to_string(), backtrace: None })
         }
 
         Err(_err) => {
-            let error_message = String::from("Error querying file.");
-            Err(StdError::generic_err(error_message))
+            Err(StdError::NotFound { kind: "File not found. Incorrect path or root directory.".to_string(), backtrace: None })
         }
     }
 }
 
+//This previously returned a wallet with init = false and namespace = "empty", but this is illogical so we will just return a NotFound error.
 pub fn query_wallet_info<S: Storage, A: Api, Q: Querier>(
     deps: &Extern<S, A, Q>,
     behalf: &HumanAddr,
@@ -776,12 +793,10 @@ pub fn query_wallet_info<S: Storage, A: Api, Q: Querier>(
     match load_bucket {
         Ok(wallet_info) => Ok(WalletInfoResponse {
             init: wallet_info.init,
-            all_paths: wallet_info.all_paths,
+            namespace: wallet_info.namespace,
+            counter: wallet_info.counter
         }),
-        Err(_e) => Ok(WalletInfoResponse {
-            init: false,
-            all_paths: vec![],
-        }),
+        Err(_e) => Err(StdError::NotFound { kind: String::from("Wallet not found."), backtrace: None })
     }
 }
 
@@ -795,15 +810,35 @@ pub fn try_change_owner<S: Storage, A: Api, Q: Querier>(
         .api
         .human_address(&deps.api.canonical_address(&env.message.sender)?)?;
 
-    let mut f = bucket_load_file(&mut deps.storage, &path);
+    //if alice now wants to give ownership of the file back to anyone, she would have to pass in the namespace of anyone
+    //the only way to get the namespace of the file owner, is from the passed in path
+    let full_namespace = get_namespace_from_path(deps, path.clone()).unwrap_or(String::from("namespace not found!"));
+
+    let mut f = bucket_load_file(&mut deps.storage, &path, &full_namespace)?;
 
     if f.can_write(signer.to_string()){
         f.change_owner(new_owner.to_string());
-        bucket_save_file(&mut deps.storage, &path, f);
+        bucket_save_file(&mut deps.storage, &path, f, &full_namespace);
     }
     else {
-        return Err(StdError::generic_err("Unauthorized to change owner"));
+        return Err(StdError::GenericErr { msg: "Unauthorized to change owner".to_string(), backtrace: None });
     }
 
     Ok(HandleResponse::default())
 }
+
+pub fn get_namespace_from_path<S: Storage, A: Api, Q: Querier>(
+    deps: &Extern<S, A, Q>,
+    path: String,
+) -> StdResult<String> {
+
+    let split = path.split('/');
+    let vec = split.collect::<Vec<&str>>();
+    let namespace_owner = vec[0].to_string();
+    let counter = get_counter(&deps.storage, &namespace_owner)?.to_string();
+    let full_namespace = format!("{}{}", namespace_owner, counter);
+    Ok(full_namespace)
+
+}
+
+

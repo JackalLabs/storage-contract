@@ -28,7 +28,6 @@ pub enum HandleMsg {
     AllowWrite {path: String, address_list: Vec<String>},
     DisallowWrite {path: String, address_list: Vec<String>},
     ResetWrite {path: String},
-    CloneParentPermission {path: String},
     InitNode {ip: String, address: String},
     ClaimReward {path: String, key: String, address: String},
     ForgetMe { },
@@ -58,7 +57,8 @@ pub enum HandleAnswer {
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 pub struct WalletInfoResponse {
     pub init: bool,
-    pub all_paths: Vec<String>
+    pub namespace: String,
+    pub counter: i32
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]

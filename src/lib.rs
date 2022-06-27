@@ -7,6 +7,7 @@ pub mod nodes;
 mod viewing_key;
 mod utils;
 
+
 #[cfg(target_arch = "wasm32")]
 mod wasm {
     use super::contract;
