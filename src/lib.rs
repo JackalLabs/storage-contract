@@ -6,6 +6,7 @@ pub mod ordered_set;
 pub mod nodes;
 mod viewing_key;
 mod utils;
+mod messaging;
 
 
 #[cfg(target_arch = "wasm32")]

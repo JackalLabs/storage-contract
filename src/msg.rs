@@ -2,7 +2,7 @@ use cosmwasm_std::HumanAddr;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
-use crate::{backend::File, viewing_key::ViewingKey};
+use crate::{backend::File, viewing_key::ViewingKey, messaging::Message};
 
 #[derive(Serialize, Deserialize, Clone, Debug, JsonSchema)]
 pub struct InitMsg {
@@ -31,7 +31,10 @@ pub enum HandleMsg {
     InitNode {ip: String, address: String},
     ClaimReward {path: String, key: String, address: String},
     ForgetMe { },
-    ChangeOwner {path: String, new_owner: String}
+    ChangeOwner {path: String, new_owner: String},
+    // Messaging
+    SendMessage { to: HumanAddr, contents: String },
+    DeleteAllMessages {}
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, JsonSchema)]
@@ -44,6 +47,8 @@ pub enum QueryMsg {
     GetNodeCoins{address: String},
     YouUpBro{address: String},
     GetWalletInfo { behalf: HumanAddr, key: String},
+    // Messaging
+    GetMessages { behalf: HumanAddr, key: String }
 }
 
 #[derive(Serialize, Deserialize, JsonSchema, Debug)]
@@ -84,6 +89,7 @@ impl QueryMsg {
         match self {
             Self::GetContents { behalf, key, .. } => (vec![behalf], ViewingKey(key.clone())),
             Self::GetWalletInfo { behalf, key, .. } => (vec![behalf], ViewingKey(key.clone())),
+            Self::GetMessages { behalf, key, .. } => (vec![behalf], ViewingKey(key.clone())),
             _ => panic!("This query type does not require authentication"),
         }
     }
@@ -94,4 +100,8 @@ impl QueryMsg {
 pub enum ResponseStatus {
     Success,
     Failure,
+}
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
+pub struct MessageResponse {
+    pub messages: Vec<Message>,
 }
