@@ -1,32 +1,36 @@
 
 # JACKAL Storage Contract
 - [Introduction](#Introduction)
--  [Sections](#Sections)
+- [Sections](#Sections)
     - [Init](#Init)
     - [Handle](#Handle)
-        - [InitAddress](#--InitAddress)
-        -  [CreateViewingKey](#--CreateViewingKey)
+        -  [InitAddress](#--InitAddress)
+        -  [Create](#--Create)
         -  [CreateMulti](#--CreateMulti)
+        -  [Remove](#--Remove)
         -  [RemoveMulti](#--RemoveMulti)
         -  [MoveMulti](#--MoveMulti)
+        -  [Move](#--Move)
+        -  [CreateViewingKey](#--CreateViewingKey)
         -  [AllowRead](#--AllowRead)
         -  [DisallowRead](#--DisallowRead)
         -  [ResetRead](#--ResetRead)
         -  [AllowWrite](#--AllowWrite)
         -  [DisallowWrite](#--DisallowWrite)
         -  [ResetWrite](#--ResetWrite)
-        -  [CloneParentPermission](#--CloneParentPermission)
         -  [InitNode](#--InitNode)
         -  [ClaimReward](#--ClaimReward)
         -  [ForgetMe](#--ForgetMe)
+        -  [ChangeOwner](#--ChangeOwner)
      - [Query](#Query))  
-        - [GetContents](#--GetContents)
-        - [GetWalletInfo](#--GetWalletInfo)
         - [YouUpBro](#--YouUpBro)
-        - [GetNodeIP](#--GetNodeIP)
-        - [GetNodeListSize](#--GetNodeListSize)
-        - [GetNodeList](#--GetNodeList)
         - [GetNodeCoins](#--GetNodeCoins)
+        - [GetNodeIP](#--GetNodeIP)
+        - [GetNodeList](#--GetNodeList)
+        - [GetNodeListSize](#--GetNodeListSize)
+        - [Authenticated_Queries](#Authenticated_Queries))
+          - [GetContents](#--GetContents)
+          - [GetWalletInfo](#--GetWalletInfo)
 
 
 # Introduction
@@ -58,8 +62,58 @@ For first time user. Create root folder and viewing_key
 }
 ```
 
+### - Create
+Create a file
+##### Request
+|Name|Type|Description|                                                                                       
+|--|--|--|
+|contents| string  | 
+|path    | string  |   
+|pkey    | string  |  
+|skey    | string  | 
+
+### - CreateMulti
+Create file(s)
+##### Request
+|Name|Type|Description|                                                                                       
+|--|--|--|
+|content_list | string[]  | 
+|path_list    | string[]  |   
+|pkey_list    | string[]  |  
+|skey_list    | string[]  |  
+
+### - Remove
+Remove a file
+##### Request
+|Name|Type|Description|                                                                                       
+|--|--|--|
+|path  | string  |   a path you want to remove
+
+### - RemoveMulti
+Remove file(s)
+##### Request
+|Name|Type|Description|                                                                                       
+|--|--|--|
+|path_list  | string[]  |   list of paths you want to remove
+
+### - MoveMulti
+Move file(s) to a new path
+##### Request
+|Name|Type|Description|                                                                                       
+|--|--|--|
+|old_path_list  | string[]  |  list of paths to move from
+|new_path_list  | string[]  |  list of new paths 
+
+### - Move
+Move a file to a new path
+##### Request
+|Name|Type|Description|                                                                                       
+|--|--|--|
+|old_path  | string  |  origin path
+|new_path  | string  |  destination path
+
 ### - CreateViewingKey
-**InitAddress** already create a viewing key for you when you first start using Jackal, but in case you want a new one, this will replace your current viewing key with a new one.
+**InitAddress** already creates a viewing key for you when you first start using Jackal, but in case you want a new one, this will replace your current viewing key with a new one.
 ##### Request
 |Name|Type|Description|                                                                                       
 |--|--|--|
@@ -74,31 +128,6 @@ For first time user. Create root folder and viewing_key
   }
 }
 ```
-
-### - CreateMulti
-Create file(s)
-##### Request
-|Name|Type|Description|                                                                                       
-|--|--|--|
-|content_list | string[]  | 
-|path_list    | string[]  |   
-|pkey_list    | string[]  |  
-|skey_list    | string[]  |  
-
-### - RemoveMulti
-Remove file(s)
-##### Request
-|Name|Type|Description|                                                                                       
-|--|--|--|
-|path_list  | string[]  |   list of paths you want to remove
-
-### - MoveMulti
-Move file(s) to a new path
-##### Request
-|Name|Type|Description|                                                                                       
-|--|--|--|
-|old_path_list  | string[]  |   list of paths to move from
-|new_path_list  | string[]  |  list of new paths 
 
 ### - AllowRead
 Input address(es) to give READ access to a certain path
@@ -146,21 +175,6 @@ Remove ALL WRITE access to a certain path
 |--|--|--|
 |path  | String  | path to reset WRITE permission
 
-### - CloneParentPermission
-Input a path and this will give all the children/grandchildren the same permissions that the given path has
-##### Request
-|Name|Type|Description|                                                                                       
-|--|--|--|
-|path  | String  | parent path you want to clone permission 
-```
-Example: /meme/ folder contains /pepe/ and /pepo
-- "bob" has write access to /meme/
-- "alice" has read access to /meme/
-After running CloneParentPermission,
-- "bob" will have write access to /meme/, /pepe/, and /pepo/
-- "alice" will have read access to /meme/, /pepe/, and /pepo/
-```
-
 ### - InitNode
 Init a new node
 ##### Request
@@ -185,54 +199,20 @@ Reset and remove everything you have in JACKAL Storage.
 |--|--|--|
 | N/A |   | 
 
+### - ChangeOwner
+Change the owner of a file 
+##### Request
+|Name|Type|Description|                                                                                       
+|--|--|--|
+|path  | String  | path of file to be given to new owner
+|new_owner  | String  | address of new owner
 
 
 ## Queries
 
-#### - GetContents
-Get content of a file 
-##### Request
-|Name|Type|Description|                                                                                       
-|--|--|--|
-|behalf | String  | user address
-|path   | String  | path of the file you want to query (ex: secret1d56acq6rny0uR0M0mqPhaTtrjqcju8fxhes346/folder/)
-|key    | String  | viewing key
-
-##### Response
-```json
-{
-  "file": {
-    "allow_read_list": {
-      "data": ["alice", "bob"]
-     },
-    "allow_write_list": {
-      "data": ["charlie"]
-     },
-    "contents": "",
-    "owner": "scrt10wn3radre555",
-    "public": false, 
-  }
-}
-```
-
-#### - GetWalletInfo
-Returns init (bool) and all paths that have been created
-##### Request
-|Name|Type|Description|                                                                                       
-|--|--|--|
-|behalf | String  | user address
-|key    | String  | viewing key
-
-##### Response
-```
-{
-  "init": true,
-  "all_path": "["scrt10wn3radre555/", "scrt10wn3radre555/alpha/"]"
-}
-```
-
 #### - YouUpBro
-Returns a bool indicate if a wallet has already ran InitAddress
+Returns a bool that indicates if a wallet has already ran InitAddress.
+The number at the end of "namespace" is the same as "counter".
 ##### Request
 |Name|Type|Description|                                                                                       
 |--|--|--|
@@ -243,7 +223,24 @@ Returns a bool indicate if a wallet has already ran InitAddress
 ```json
 {
   "init": true,
-  "all_path": "[]"
+  "namespace": "scrt10wn3radre5550",
+  "counter": 0
+  
+}
+```
+
+### - GetNodeCoins
+
+get node coins
+##### Request
+|Name|Type|Description|                                                                                       
+|--|--|--|
+|address  |  string | 
+
+##### Response
+```json
+{
+  "data": 11
 }
 ```
 
@@ -262,6 +259,20 @@ get node ip
 }
 ```
 
+### - GetNodeList
+
+get node list
+##### Request
+|Name|Type|Description|                                                                                       
+|--|--|--|
+|size  | u64  | 
+
+##### Response
+```json
+{
+  "data": []
+}
+```
 
 ### - GetNodeListSize
 
@@ -278,32 +289,50 @@ get node list size
 }
 ```
 
-### - GetNodeList
+## Authenticated Queries
 
-get node list
+#### - GetContents
+Get content of a file 
 ##### Request
 |Name|Type|Description|                                                                                       
 |--|--|--|
-|size  | u64  | 
+|behalf | String  | user address
+|path   | String  | path of the file you want to query (ex: secret1d56acq6rny0uR0M0mqPhaTtrjqcju8fxhes346/folder/)
+|key    | String  | viewing key
 
 ##### Response
 ```json
 {
-  "data": []
+  "file": {
+    "contents": "",
+    "owner": "scrt10wn3radre555",
+    "public": false, 
+    "allow_read_list": {
+      "data": ["alice", "bob"]
+     },
+    "allow_write_list": {
+      "data": ["charlie"]
+     },
+
+  }
 }
 ```
 
-### - GetNodeCoins
-
-get node coins
+#### - GetWalletInfo
+Returns a bool that indicates if a wallet has already ran InitAddress.
+The number at the end of "namespace" is the same as "counter".
 ##### Request
 |Name|Type|Description|                                                                                       
 |--|--|--|
-|address  |  string | 
+|behalf | String  | user address
+|key    | String  | viewing key
 
 ##### Response
 ```json
 {
-  "data": 11
+  "init": true,
+  "namespace": "scrt10wn3radre5550",
+  "counter": 0
+  
 }
 ```
