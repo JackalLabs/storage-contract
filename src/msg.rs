@@ -63,7 +63,8 @@ pub enum HandleAnswer {
 pub struct WalletInfoResponse {
     pub init: bool,
     pub namespace: String,
-    pub counter: i32
+    pub counter: i32, //counter for files' namespace
+    pub message_list_counter: i32
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]

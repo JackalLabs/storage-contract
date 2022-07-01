@@ -90,7 +90,7 @@ pub fn handle<S: Storage, A: Api, Q: Querier>(
         HandleMsg::ForgetMe { .. } => try_forget_me(deps, env),
         HandleMsg::ChangeOwner { path, new_owner } => try_change_owner(deps, env, path, new_owner),
         // Messaging
-        HandleMsg::SendMessage { to, contents } => send_message(deps, env, to, contents),
+        HandleMsg::SendMessage { to, contents } => send_message(deps, &env, to, contents),
         HandleMsg::DeleteAllMessages {} => delete_all_messages(deps, env),
     }
 }
@@ -1448,7 +1448,7 @@ mod tests {
         let value: MessageResponse = from_binary(&query_res).unwrap();
         println!("All messages --> {:#?}", value.messages);
 
-        let length = Message::len(&mut deps.storage, &HumanAddr::from("anyone"));
+        let length = Message::len(&mut deps, &HumanAddr::from("anyone"));
         println!("Length of anyone's collection is {}\n", length);
         assert_eq!(3, length);
 
@@ -1483,7 +1483,7 @@ mod tests {
         let value: MessageResponse = from_binary(&query_res).unwrap();
         println!("All messages --> {:#?}", value.messages);
 
-        let length = Message::len(&mut deps.storage, &HumanAddr::from("nuggie"));
+        let length = Message::len(&mut deps, &HumanAddr::from("nuggie"));
         println!("Length of nuggie's collection is {}\n", length);
         assert_eq!(2, length);
 
@@ -1559,7 +1559,7 @@ mod tests {
         let value: MessageResponse = from_binary(&query_res).unwrap();
         println!("All messages --> {:#?}", value.messages);
 
-        let length = Message::len(&mut deps.storage, &HumanAddr::from("anyone"));
+        let length = Message::len(&mut deps, &HumanAddr::from("anyone"));
         assert_eq!(3, length);
         println!("Length of anyone's collection is {}\n", length);
     }
@@ -1569,11 +1569,20 @@ mod tests {
         let mut deps = mock_dependencies(20, &coins(2, "token"));
         let vk = init_for_test(&mut deps, String::from("anyone"));
 
-        //sending a file to anyone's address
+        //sending a message to anyone's address
         let env = mock_env("sender", &[]);
         let msg = HandleMsg::SendMessage {
             to: HumanAddr("anyone".to_string()),
-            contents: "Sender/pepe.jpg".to_string(),
+            contents: "hey bro".to_string(),
+        };
+        let res = handle(&mut deps, env, msg).unwrap();
+        assert_eq!(0, res.messages.len());
+
+        //sending another message to anyone's address
+        let env = mock_env("sender", &[]);
+        let msg = HandleMsg::SendMessage {
+            to: HumanAddr("anyone".to_string()),
+            contents: "watcha doing".to_string(),
         };
         let res = handle(&mut deps, env, msg).unwrap();
         assert_eq!(0, res.messages.len());
@@ -1583,23 +1592,60 @@ mod tests {
         let value: MessageResponse = from_binary(&query_res).unwrap();
         println!("All messages --> {:#?}", value.messages);
 
-        let length = Message::len(&mut deps.storage, &HumanAddr::from("anyone"));
-        assert_eq!(2, length);
+        let length = Message::len(&mut deps, &HumanAddr::from("anyone"));
+        assert_eq!(3, length);
         println!("Length of anyone's collection is {}\n", length);
 
-        // //delete all messages
-        // let env = mock_env("anyone", &[]);
-        // let msg = HandleMsg::DeleteAllMessages {};
-        // let res = handle(&mut deps, env, msg).unwrap();
-        // assert_eq!(0, res.messages.len());
+        //delete all messages
+        let env = mock_env("anyone", &[]);
+        let msg = HandleMsg::DeleteAllMessages {};
+        let res = handle(&mut deps, env, msg).unwrap();
+        assert_eq!(0, res.messages.len());
 
-        // // // Query Messages should now only display the dummy message
-        // let query_res = query(&deps, QueryMsg::GetMessages { behalf: HumanAddr("anyone".to_string()), key: vk.to_string() },).unwrap(); //changing viewing key causes error
-        // let value: MessageResponse = from_binary(&query_res).unwrap();
-        // println!("All messages --> {:#?}", value.messages);
+        // Query Messages should now only display the dummy message
+        let query_res = query(&deps, QueryMsg::GetMessages { behalf: HumanAddr("anyone".to_string()), key: vk.to_string() },).unwrap(); //changing viewing key causes error
+        let value: MessageResponse = from_binary(&query_res).unwrap();
+        println!("After calling delete. All messages --> {:#?}", value.messages);
 
-        // let length = Message::len(&mut deps.storage, &HumanAddr::from("anyone"));
-        // println!("Length of anyone's collection is {}\n", length);
+        let length = Message::len(&mut deps, &HumanAddr::from("anyone"));
+        println!("Length of anyone's collection is {}\n", length);
+
+    }
+
+    #[test]
+    fn allow_read_and_send (){
+        let mut deps = mock_dependencies(20, &[]);
+        let vk = init_for_test(&mut deps, String::from("anyone"));
+        let vk2 = init_for_test(&mut deps, String::from("alice"));
+        let vk3 = init_for_test(&mut deps, String::from("bob"));
+
+        // Create file
+        let env = mock_env("anyone", &[]);
+        let msg = HandleMsg::Create {
+            contents: String::from("pepe"),
+            path: String::from("anyone/pepe.jpg"),
+            pkey: String::from("test"),
+            skey: String::from("test"),
+        };
+        let _res = handle(&mut deps, env, msg).unwrap();
+
+        // Add alice and bob to file's allow read permissions
+        let env = mock_env("anyone", &[]);
+        let msg = HandleMsg::AllowRead {
+            path: String::from("anyone/pepe.jpg"),
+            address_list: vec![String::from("alice"), String::from("bob")],
+        };
+        let _res = handle(&mut deps, env, msg).unwrap();
+
+        // Query Messages
+        let query_res = query(&deps, QueryMsg::GetMessages { behalf: HumanAddr("alice".to_string()), key: vk2.to_string() },).unwrap(); 
+        let value: MessageResponse = from_binary(&query_res).unwrap();
+        println!("Alice's messages --> {:#?}", value.messages);
+
+        // Query Messages
+        let query_res = query(&deps, QueryMsg::GetMessages { behalf: HumanAddr("bob".to_string()), key: vk3.to_string() },).unwrap(); 
+        let value: MessageResponse = from_binary(&query_res).unwrap();
+        println!("Bob's messages --> {:#?}", value.messages);
 
     }
 }

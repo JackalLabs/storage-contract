@@ -9,7 +9,7 @@ use cosmwasm_storage::{bucket, bucket_read};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
-use crate::messaging::{ Message, create_empty_collection, append_message };
+use crate::messaging::{ Message, create_empty_collection, append_message, collection_exist, send_message };
 use crate::msg::{FileResponse, HandleAnswer, WalletInfoResponse };
 use crate::nodes::write_claim;
 use crate::ordered_set::OrderedSet;
@@ -64,10 +64,17 @@ pub fn try_init<S: Storage, A: Api, Q: Querier>(
             create_file(deps, adr.to_string(), path.clone(), contents);
 
             // Messaging
-            let dummy_message = Message::new(String::from("Placeholder contents"), String::from(env.message.sender.as_str()));
-            let _storage_space = create_empty_collection(&mut deps.storage, &ha);
-            let _appending_message = append_message(&mut deps.storage, &dummy_message, &ha);
-
+            
+            //Check to see if the collection already exists. If true, it means that sometime before this address called InitAddress, another user
+            //had sent a message to them. This message would have prompted the creation of an append_store list, even though the recipient
+            //did not have a Storage account at the time. However, If collection_exists == false, we make an empty append_store list for them. 
+            let collection_exists = collection_exist(deps, &ha);
+            if collection_exists == false { 
+                let dummy_message = Message::new(String::from("Placeholder contents created by you"), String::from(env.message.sender.as_str()));
+                let _storage_space = create_empty_collection(deps, &ha);
+                let _appending_message = append_message(deps, &dummy_message, &ha);   
+            }
+            
             // Let's create viewing key
             let config: State = load(&mut deps.storage, CONFIG_KEY)?;
             let prng_seed = config.prng_seed;
@@ -92,7 +99,7 @@ pub fn return_wallet(x: Option<WalletInfo>) -> WalletInfo {
     match x {
         Some(i) => i,//if exists, their wallet init could be false or true, and their namespace is present,
         //If none, it means the user has never called init before, so we return a wallet info that can be altered and saved right away
-        None => WalletInfo { init: false, namespace: "empty".to_string(), counter: 0 },
+        None => WalletInfo { init: false, namespace: "empty".to_string(), counter: 0, message_list_counter: 0 },
 
     }
 }
@@ -147,12 +154,14 @@ pub fn try_you_up_bro<S: Storage, A: Api, Q: Querier>(
         Ok(wallet_info) => Ok(WalletInfoResponse {
             init: wallet_info.init,
             namespace: wallet_info.namespace,
-            counter: wallet_info.counter
+            counter: wallet_info.counter,
+            message_list_counter: wallet_info.message_list_counter
         }),
         Err(_e) => Ok(WalletInfoResponse {
             init: false,
             namespace: String::from("empty"),
-            counter: 0
+            counter: 0,
+            message_list_counter: 0
         })
     }
 }
@@ -272,18 +281,28 @@ pub fn try_allow_read<S: Storage, A: Api, Q: Querier>(
     .human_address(&deps.api.canonical_address(&env.message.sender)?)?;
 
     let namespace = get_namespace_from_path(deps, path.clone()).unwrap_or(String::from("namespace does not exist!"));
-    let mut f = bucket_load_file(&mut deps.storage, &path, &namespace)?;
+    let mut f = bucket_load_file(&mut deps.storage, &path, &namespace)?; //maybe load read only?
 
     if !f.can_write(signer.to_string()) {
-        return Err(StdError::generic_err("Unauthorized to allow write"));
+        return Err(StdError::generic_err("Unauthorized to allow read"));
     }
 
     for i in 0..address_list.len() {
         let address = &address_list[i];
         f.allow_read(address.to_string());
+
+        let recipient = HumanAddr::from(String::from(address));
+        let contents = format!("{} has given you allow_read access to {}", signer, path);
+        let sent_message = send_message(deps, &env, recipient , contents);
+        match sent_message{
+            Ok(_) => (),
+            Err(_) => return Err(StdError::NotFound { kind: String::from("recipient does not exist"), backtrace: None }),
+        }
+
         bucket_save_file(&mut deps.storage, &path, f.clone(), &namespace);
     }
     Ok(HandleResponse::default())
+
 }
 
 pub fn try_disallow_read<S: Storage, A: Api, Q: Querier>(
@@ -334,9 +353,10 @@ pub fn try_reset_read<S: Storage, A: Api, Q: Querier>(
 
 #[derive(Serialize, Deserialize, JsonSchema, PartialEq, Debug, Clone)]
 pub struct WalletInfo {
-    init: bool,
+    pub init: bool,
     pub namespace: String,
-    pub counter: i32
+    pub counter: i32,
+    pub message_list_counter: i32
 }
 
 // HandleMsg FILE
@@ -800,7 +820,8 @@ pub fn query_wallet_info<S: Storage, A: Api, Q: Querier>(
         Ok(wallet_info) => Ok(WalletInfoResponse {
             init: wallet_info.init,
             namespace: wallet_info.namespace,
-            counter: wallet_info.counter
+            counter: wallet_info.counter,
+            message_list_counter: wallet_info.message_list_counter
         }),
         Err(_e) => Err(StdError::NotFound { kind: String::from("Wallet not found."), backtrace: None })
     }
