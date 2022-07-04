@@ -1613,7 +1613,7 @@ mod tests {
     }
 
     #[test]
-    fn allow_read_and_send (){
+    fn permissions_with_notifications (){
         let mut deps = mock_dependencies(20, &[]);
         let vk = init_for_test(&mut deps, String::from("anyone"));
         let vk2 = init_for_test(&mut deps, String::from("alice"));
@@ -1629,7 +1629,20 @@ mod tests {
         };
         let _res = handle(&mut deps, env, msg).unwrap();
 
-        // Add alice and bob to file's allow read permissions
+        // Create 2 Files phrog1.png and phrog2.png
+        let env = mock_env("anyone", &[]);
+        let msg = HandleMsg::CreateMulti {
+            contents_list: vec![String::from("phrog1"), String::from("phrog2")],
+            path_list: vec![
+                String::from("anyone/phrog1.png"),
+                String::from("anyone/phrog2.png"),
+            ],
+            pkey_list: vec![String::from("test"), String::from("test")],
+            skey_list: vec![String::from("test"), String::from("test")],
+        };
+        let _res = handle(&mut deps, env, msg).unwrap();
+
+        // Add alice and bob to pepe.jpg's allow read permissions
         let env = mock_env("anyone", &[]);
         let msg = HandleMsg::AllowRead {
             path: String::from("anyone/pepe.jpg"),
@@ -1637,15 +1650,53 @@ mod tests {
         };
         let _res = handle(&mut deps, env, msg).unwrap();
 
-        // Query Messages
+        // Add alice and bob to phrog1.png's allow read permissions
+        let env = mock_env("anyone", &[]);
+        let msg = HandleMsg::AllowRead {
+            path: String::from("anyone/phrog1.png"),
+            address_list: vec![String::from("alice"), String::from("bob")],
+        };
+        let _res = handle(&mut deps, env, msg).unwrap();
+
+        // Add alice and bob to phrog2.png's allow read permissions
+        let env = mock_env("anyone", &[]);
+        let msg = HandleMsg::AllowRead {
+            path: String::from("anyone/phrog2.png"),
+            address_list: vec![String::from("alice"), String::from("bob")],
+        };
+        let _res = handle(&mut deps, env, msg).unwrap();
+
+        // Query Messages for alice
         let query_res = query(&deps, QueryMsg::GetMessages { behalf: HumanAddr("alice".to_string()), key: vk2.to_string() },).unwrap(); 
         let value: MessageResponse = from_binary(&query_res).unwrap();
         println!("Alice's messages --> {:#?}", value.messages);
 
-        // Query Messages
+        // Query Messages for bob
         let query_res = query(&deps, QueryMsg::GetMessages { behalf: HumanAddr("bob".to_string()), key: vk3.to_string() },).unwrap(); 
         let value: MessageResponse = from_binary(&query_res).unwrap();
         println!("Bob's messages --> {:#?}", value.messages);
+
+        //delete all messages for alice
+        let env = mock_env("alice", &[]);
+        let msg = HandleMsg::DeleteAllMessages {};
+        let res = handle(&mut deps, env, msg).unwrap();
+        assert_eq!(0, res.messages.len());
+
+        //delete all messages for bob
+        let env = mock_env("bob", &[]);
+        let msg = HandleMsg::DeleteAllMessages {};
+        let res = handle(&mut deps, env, msg).unwrap();
+        assert_eq!(0, res.messages.len());
+
+        // Query Messages for alice should now just show the dummy message
+        let query_res = query(&deps, QueryMsg::GetMessages { behalf: HumanAddr("alice".to_string()), key: vk2.to_string() },).unwrap(); 
+        let value: MessageResponse = from_binary(&query_res).unwrap();
+        println!("Alice's messages after deletion --> {:#?}", value.messages);
+
+        // Query Messages for bob should now just show the dummy message
+        let query_res = query(&deps, QueryMsg::GetMessages { behalf: HumanAddr("bob".to_string()), key: vk3.to_string() },).unwrap(); 
+        let value: MessageResponse = from_binary(&query_res).unwrap();
+        println!("Bob's messages after deletion --> {:#?}", value.messages);
 
     }
 }

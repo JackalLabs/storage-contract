@@ -292,7 +292,8 @@ pub fn try_allow_read<S: Storage, A: Api, Q: Querier>(
         f.allow_read(address.to_string());
 
         let recipient = HumanAddr::from(String::from(address));
-        let contents = format!("{} has given you allow_read access to {}", signer, path);
+        //Does this work for RNS integration? Should try_allow_read just take in a parametre? 
+        let contents = format!("{} has given you allow_read access to [{}]", signer, path);
         let sent_message = send_message(deps, &env, recipient , contents);
         match sent_message{
             Ok(_) => (),
@@ -868,4 +869,6 @@ pub fn get_namespace_from_path<S: Storage, A: Api, Q: Querier>(
 
 }
 
+
+//test add.
 
