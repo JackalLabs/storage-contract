@@ -2,7 +2,7 @@ use std::convert::TryInto;
 
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
-use cosmwasm_std::{ Storage, HumanAddr, StdResult, StdError, ReadonlyStorage, HandleResponse, Api, Querier, Extern, Env, debug_print};
+use cosmwasm_std::{ Storage, HumanAddr, StdResult, StdError, HandleResponse, Api, Querier, Extern, Env, debug_print};
 use cosmwasm_storage::{ PrefixedStorage, ReadonlyPrefixedStorage, bucket, bucket_read};
 use secret_toolkit::storage::{AppendStore, AppendStoreMut};
 
@@ -13,7 +13,7 @@ use crate::backend::WalletInfo;
 const PREFIX_MSGS_RECEIVED: &[u8] = b"MESSAGES_RECEIVED";
 
 //namespace for every user's wallet info bucket
-static WALLET_INFO_LOCATION: &[u8] = b"WALLET_INFO"; 
+static WALLET_INFO_LOCATION: &[u8] = b"WALLET_INFO";
 
 #[derive(Serialize, Deserialize, JsonSchema, PartialEq, Debug, Clone)]
 pub struct Message{

@@ -961,7 +961,7 @@ mod tests {
     #[test]
     fn change_owner_and_move_test() {
         let mut deps = mock_dependencies(20, &[]);
-        let vk = init_for_test(&mut deps, String::from("anyone"));
+        let _vk = init_for_test(&mut deps, String::from("anyone"));
         let vk2 = init_for_test(&mut deps, String::from("alice"));
 
         // Create 3 folders (test/ meme_folder/ pepe/)
@@ -1105,7 +1105,7 @@ mod tests {
     //The idea behind giving someone write permissions is to allow someone else to add files to a folder that you own?
     fn alice_moving_within_anyone_rootfolder() {
         let mut deps = mock_dependencies(20, &[]);
-        let vk = init_for_test(&mut deps, String::from("anyone"));
+        let _vk = init_for_test(&mut deps, String::from("anyone"));
         let vk2 = init_for_test(&mut deps, String::from("alice"));
 
         // Create 2 folders (test/, junior/)
@@ -1293,7 +1293,7 @@ mod tests {
         let msg = HandleMsg::DisallowRead {
             path: String::from("anyone/test/"),
             message: String::from("anyone has revoked read access to [ anyone/test ]"),
-            notify: true, 
+            notify: true,
             address_list: vec![
                 String::from("alice"),
                 String::from("bob"),
@@ -1631,7 +1631,7 @@ mod tests {
     #[test]
     fn read_perms_and_notify (){
         let mut deps = mock_dependencies(20, &[]);
-        let vk = init_for_test(&mut deps, String::from("anyone"));
+        let _vk = init_for_test(&mut deps, String::from("anyone"));
         let vk2 = init_for_test(&mut deps, String::from("alice"));
         let vk3 = init_for_test(&mut deps, String::from("bob"));
 
@@ -1645,7 +1645,7 @@ mod tests {
         };
         let _res = handle(&mut deps, env, msg).unwrap();
 
-        // Create 3 Files: phrog1.png, phrog2.png, phrog3.png 
+        // Create 3 Files: phrog1.png, phrog2.png, phrog3.png
         let env = mock_env("anyone", &[]);
         let msg = HandleMsg::CreateMulti {
             contents_list: vec![String::from("phrog1"), String::from("phrog2"), String::from("phrog3")],
@@ -1691,7 +1691,7 @@ mod tests {
         let msg = HandleMsg::DisallowRead {
             path: String::from("anyone/pepe.jpg"),
             message: String::from("anyone has revoked read access to [ anyone/pepe.jpg ]"),
-            notify: true, 
+            notify: true,
             address_list: vec![
                 String::from("alice"),
                 String::from("bob"),
@@ -1704,7 +1704,7 @@ mod tests {
         let msg = HandleMsg::DisallowRead {
             path: String::from("anyone/phrog1.png"),
             message: String::from("anyone has revoked read access to [ anyone/phrog1.png ]"),
-            notify: false, 
+            notify: false,
             address_list: vec![
                 String::from("alice"),
                 String::from("bob"),
@@ -1717,7 +1717,7 @@ mod tests {
         let msg = HandleMsg::DisallowRead {
             path: String::from("anyone/phrog2.png"),
             message: String::from("anyone has revoked read access to [ anyone/phrog2.png ]"),
-            notify: true, 
+            notify: true,
             address_list: vec![
                 String::from("alice"),
                 String::from("bob"),
@@ -1754,12 +1754,12 @@ mod tests {
         let _res = handle(&mut deps, env, msg).unwrap();
 
         // Query Messages for alice
-        let query_res = query(&deps, QueryMsg::GetMessages { behalf: HumanAddr("alice".to_string()), key: vk2.to_string() },).unwrap(); 
+        let query_res = query(&deps, QueryMsg::GetMessages { behalf: HumanAddr("alice".to_string()), key: vk2.to_string() },).unwrap();
         let value: MessageResponse = from_binary(&query_res).unwrap();
         println!("Alice's messages --> {:#?}", value.messages);
 
         // Query Messages for bob
-        let query_res = query(&deps, QueryMsg::GetMessages { behalf: HumanAddr("bob".to_string()), key: vk3.to_string() },).unwrap(); 
+        let query_res = query(&deps, QueryMsg::GetMessages { behalf: HumanAddr("bob".to_string()), key: vk3.to_string() },).unwrap();
         let value: MessageResponse = from_binary(&query_res).unwrap();
         println!("Bob's messages --> {:#?}", value.messages);
 
@@ -1776,12 +1776,12 @@ mod tests {
         assert_eq!(0, res.messages.len());
 
         // Query Messages for alice should now just show the dummy message
-        let query_res = query(&deps, QueryMsg::GetMessages { behalf: HumanAddr("alice".to_string()), key: vk2.to_string() },).unwrap(); 
+        let query_res = query(&deps, QueryMsg::GetMessages { behalf: HumanAddr("alice".to_string()), key: vk2.to_string() },).unwrap();
         let value: MessageResponse = from_binary(&query_res).unwrap();
         println!("Alice's messages after deletion --> {:#?}", value.messages);
 
         // Query Messages for bob should now just show the dummy message
-        let query_res = query(&deps, QueryMsg::GetMessages { behalf: HumanAddr("bob".to_string()), key: vk3.to_string() },).unwrap(); 
+        let query_res = query(&deps, QueryMsg::GetMessages { behalf: HumanAddr("bob".to_string()), key: vk3.to_string() },).unwrap();
         let value: MessageResponse = from_binary(&query_res).unwrap();
         println!("Bob's messages after deletion --> {:#?}", value.messages);
 
@@ -1790,7 +1790,7 @@ mod tests {
     #[test]
     fn write_perms_and_notify (){
         let mut deps = mock_dependencies(20, &[]);
-        let vk = init_for_test(&mut deps, String::from("anyone"));
+        let _vk = init_for_test(&mut deps, String::from("anyone"));
         let vk2 = init_for_test(&mut deps, String::from("alice"));
         let vk3 = init_for_test(&mut deps, String::from("bob"));
 
@@ -1804,7 +1804,7 @@ mod tests {
         };
         let _res = handle(&mut deps, env, msg).unwrap();
 
-        // Create 3 Files: phrog1.png, phrog2.png, phrog3.png 
+        // Create 3 Files: phrog1.png, phrog2.png, phrog3.png
         let env = mock_env("anyone", &[]);
         let msg = HandleMsg::CreateMulti {
             contents_list: vec![String::from("phrog1"), String::from("phrog2"), String::from("phrog3")],
@@ -1850,7 +1850,7 @@ mod tests {
         let msg = HandleMsg::DisallowWrite {
             path: String::from("anyone/pepe.jpg"),
             message: String::from("anyone has revoked write access to [ anyone/pepe.jpg ]"),
-            notify: true, 
+            notify: true,
             address_list: vec![
                 String::from("alice"),
                 String::from("bob"),
@@ -1863,7 +1863,7 @@ mod tests {
         let msg = HandleMsg::DisallowWrite {
             path: String::from("anyone/phrog1.png"),
             message: String::from("anyone has revoked write access to [ anyone/phrog1.png ]"),
-            notify: false, 
+            notify: false,
             address_list: vec![
                 String::from("alice"),
                 String::from("bob"),
@@ -1876,7 +1876,7 @@ mod tests {
         let msg = HandleMsg::DisallowWrite {
             path: String::from("anyone/phrog2.png"),
             message: String::from("anyone has revoked write access to [ anyone/phrog2.png ]"),
-            notify: true, 
+            notify: true,
             address_list: vec![
                 String::from("alice"),
                 String::from("bob"),
@@ -1913,12 +1913,12 @@ mod tests {
         let _res = handle(&mut deps, env, msg).unwrap();
 
         // Query Messages for alice
-        let query_res = query(&deps, QueryMsg::GetMessages { behalf: HumanAddr("alice".to_string()), key: vk2.to_string() },).unwrap(); 
+        let query_res = query(&deps, QueryMsg::GetMessages { behalf: HumanAddr("alice".to_string()), key: vk2.to_string() },).unwrap();
         let value: MessageResponse = from_binary(&query_res).unwrap();
         println!("Alice's messages --> {:#?}", value.messages);
 
         // Query Messages for bob
-        let query_res = query(&deps, QueryMsg::GetMessages { behalf: HumanAddr("bob".to_string()), key: vk3.to_string() },).unwrap(); 
+        let query_res = query(&deps, QueryMsg::GetMessages { behalf: HumanAddr("bob".to_string()), key: vk3.to_string() },).unwrap();
         let value: MessageResponse = from_binary(&query_res).unwrap();
         println!("Bob's messages --> {:#?}", value.messages);
 
@@ -1935,12 +1935,12 @@ mod tests {
         assert_eq!(0, res.messages.len());
 
         // Query Messages for alice should now just show the dummy message
-        let query_res = query(&deps, QueryMsg::GetMessages { behalf: HumanAddr("alice".to_string()), key: vk2.to_string() },).unwrap(); 
+        let query_res = query(&deps, QueryMsg::GetMessages { behalf: HumanAddr("alice".to_string()), key: vk2.to_string() },).unwrap();
         let value: MessageResponse = from_binary(&query_res).unwrap();
         println!("Alice's messages after deletion --> {:#?}", value.messages);
 
         // Query Messages for bob should now just show the dummy message
-        let query_res = query(&deps, QueryMsg::GetMessages { behalf: HumanAddr("bob".to_string()), key: vk3.to_string() },).unwrap(); 
+        let query_res = query(&deps, QueryMsg::GetMessages { behalf: HumanAddr("bob".to_string()), key: vk3.to_string() },).unwrap();
         let value: MessageResponse = from_binary(&query_res).unwrap();
         println!("Bob's messages after deletion --> {:#?}", value.messages);
 
