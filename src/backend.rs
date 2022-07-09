@@ -203,6 +203,7 @@ pub fn try_allow_write<S: Storage, A: Api, Q: Querier>(
     deps: &mut Extern<S, A, Q>,
     env: Env,
     path: String,
+    message: String,
     address_list: Vec<String>,
 ) -> StdResult<HandleResponse> {
     let signer = deps
@@ -219,6 +220,15 @@ pub fn try_allow_write<S: Storage, A: Api, Q: Querier>(
     for i in 0..address_list.len() {
         let address = &address_list[i];
         f.allow_write(address.to_string());
+
+        let recipient = HumanAddr::from(String::from(address));
+        let sent_message = send_message(deps, &env, recipient , &message);
+
+        match sent_message{
+            Ok(_) => (),
+            Err(_) => return Err(StdError::NotFound { kind: String::from("recipient does not exist"), backtrace: None }),
+        }
+
         bucket_save_file(&mut deps.storage, &path, f.clone(), &namespace);
     }
 
@@ -229,6 +239,8 @@ pub fn try_disallow_write<S: Storage, A: Api, Q: Querier>(
     deps: &mut Extern<S, A, Q>,
     env: Env,
     path: String,
+    message: String,
+    notify: bool,
     address_list: Vec<String>,
 ) -> StdResult<HandleResponse> {
     let signer = deps
@@ -244,6 +256,17 @@ pub fn try_disallow_write<S: Storage, A: Api, Q: Querier>(
     for i in 0..address_list.len() {
         let address = &address_list[i];
         f.disallow_write(address.to_string());
+
+        if notify == true {
+            let recipient = HumanAddr::from(String::from(address));
+            let sent_message = send_message(deps, &env, recipient , &message);
+    
+            match sent_message{
+                Ok(_) => (),
+                Err(_) => return Err(StdError::NotFound { kind: String::from("recipient does not exist"), backtrace: None }),
+            }
+        }
+
         bucket_save_file(&mut deps.storage, &path, f.clone(), &namespace);
     }
     Ok(HandleResponse::default())
@@ -253,6 +276,8 @@ pub fn try_reset_write<S: Storage, A: Api, Q: Querier>(
     deps: &mut Extern<S, A, Q>,
     env: Env,
     path: String,
+    message: String,
+    notify: bool
 ) -> StdResult<HandleResponse> {
     let signer = deps
     .api
@@ -265,6 +290,20 @@ pub fn try_reset_write<S: Storage, A: Api, Q: Querier>(
         return Err(StdError::generic_err("Unauthorized to reset write list"));
     }
 
+    if notify == true {
+        let address_list = f.allow_write_list.to_vec();
+        for i in 0..address_list.len() {
+            let address = &address_list[i];
+            let recipient = HumanAddr::from(String::from(address));
+            let sent_message = send_message(deps, &env, recipient , &message);
+    
+            match sent_message{
+                Ok(_) => (),
+                Err(_) => return Err(StdError::NotFound { kind: String::from("recipient does not exist"), backtrace: None }),
+            }
+        }
+    }
+    
     f.allow_write_list = OrderedSet::new();
     bucket_save_file(&mut deps.storage, &path, f, &namespace);
     Ok(HandleResponse::default())
@@ -274,6 +313,7 @@ pub fn try_allow_read<S: Storage, A: Api, Q: Querier>(
     deps: &mut Extern<S, A, Q>,
     env: Env,
     path: String,
+    message: String,
     address_list: Vec<String>,
 ) -> StdResult<HandleResponse> {
     let signer = deps
@@ -292,9 +332,8 @@ pub fn try_allow_read<S: Storage, A: Api, Q: Querier>(
         f.allow_read(address.to_string());
 
         let recipient = HumanAddr::from(String::from(address));
-        //Does this work for RNS integration? Should try_allow_read just take in a parametre? 
-        let contents = format!("{} has given you allow_read access to [{}]", signer, path);
-        let sent_message = send_message(deps, &env, recipient , contents);
+        let sent_message = send_message(deps, &env, recipient , &message);
+
         match sent_message{
             Ok(_) => (),
             Err(_) => return Err(StdError::NotFound { kind: String::from("recipient does not exist"), backtrace: None }),
@@ -310,11 +349,13 @@ pub fn try_disallow_read<S: Storage, A: Api, Q: Querier>(
     deps: &mut Extern<S, A, Q>,
     env: Env,
     path: String,
+    message: String,
+    notify: bool,
     address_list: Vec<String>,
 ) -> StdResult<HandleResponse> {
     let signer = deps
-    .api
-    .human_address(&deps.api.canonical_address(&env.message.sender)?)?;
+        .api
+        .human_address(&deps.api.canonical_address(&env.message.sender)?)?;
 
     let namespace = get_namespace_from_path(deps, path.clone()).unwrap_or(String::from("namespace does not exist!"));
     let mut f = bucket_load_file(&mut deps.storage, &path, &namespace)?;
@@ -326,6 +367,17 @@ pub fn try_disallow_read<S: Storage, A: Api, Q: Querier>(
     for i in 0..address_list.len() {
         let address = &address_list[i];
         f.disallow_read(address.to_string());
+
+        if notify == true {
+            let recipient = HumanAddr::from(String::from(address));
+            let sent_message = send_message(deps, &env, recipient , &message);
+    
+            match sent_message{
+                Ok(_) => (),
+                Err(_) => return Err(StdError::NotFound { kind: String::from("recipient does not exist"), backtrace: None }),
+            }
+        }
+
         bucket_save_file(&mut deps.storage, &path, f.clone(), &namespace);
     }
     Ok(HandleResponse::default())
@@ -335,6 +387,8 @@ pub fn try_reset_read<S: Storage, A: Api, Q: Querier>(
     deps: &mut Extern<S, A, Q>,
     env: Env,
     path: String,
+    message: String,
+    notify: bool
 ) -> StdResult<HandleResponse> {
     let signer = deps
     .api
@@ -345,6 +399,20 @@ pub fn try_reset_read<S: Storage, A: Api, Q: Querier>(
 
     if !f.can_write(signer.to_string()) {
         return Err(StdError::generic_err("Unauthorized to reset read list"));
+    }
+
+    if notify == true {
+        let address_list = f.allow_read_list.to_vec();
+        for i in 0..address_list.len() {
+            let address = &address_list[i];
+            let recipient = HumanAddr::from(String::from(address));
+            let sent_message = send_message(deps, &env, recipient , &message);
+    
+            match sent_message{
+                Ok(_) => (),
+                Err(_) => return Err(StdError::NotFound { kind: String::from("recipient does not exist"), backtrace: None }),
+            }
+        }
     }
 
     f.allow_read_list = OrderedSet::new();
@@ -832,6 +900,7 @@ pub fn try_change_owner<S: Storage, A: Api, Q: Querier>(
     deps: &mut Extern<S, A, Q>,
     env: Env,
     path: String,
+    message: String,
     new_owner: String,
 ) -> StdResult<HandleResponse> {
     let signer = deps
@@ -845,7 +914,16 @@ pub fn try_change_owner<S: Storage, A: Api, Q: Querier>(
     let mut f = bucket_load_file(&mut deps.storage, &path, &full_namespace)?;
 
     if f.can_write(signer.to_string()){
+
         f.change_owner(new_owner.to_string());
+        let recipient = HumanAddr::from(String::from(new_owner));
+        let sent_message = send_message(deps, &env, recipient , &message);
+
+        match sent_message{
+            Ok(_) => (),
+            Err(_) => return Err(StdError::NotFound { kind: String::from("recipient does not exist"), backtrace: None }),
+        }
+        
         bucket_save_file(&mut deps.storage, &path, f, &full_namespace);
     }
     else {
@@ -868,7 +946,4 @@ pub fn get_namespace_from_path<S: Storage, A: Api, Q: Querier>(
     Ok(full_namespace)
 
 }
-
-
-//test add.
 

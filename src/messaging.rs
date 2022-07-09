@@ -183,30 +183,6 @@ pub fn get_messages<S: Storage, A: Api, Q: Querier>(
         txs.map(|txs| (txs))
 }
 
-// fn get_message<S: ReadonlyStorage>(
-//     storage: &S,
-//     for_address: &HumanAddr,
-//     position: u32
-// ) -> StdResult<Message> {
-
-//     let store = ReadonlyPrefixedStorage::multilevel(
-//         &[PREFIX_MSGS_RECEIVED, for_address.0.as_bytes()],
-//         storage
-//     );
-
-//     // Try to access the storage of files for the account.
-//     // If it doesn't exist yet, return a Message with path called "Does Not Exist"
-//     let store = AppendStore::<Message, _, _>::attach(&store);
-
-//     let store = if let Some(result) = store {
-//         result?
-//     } else {
-//         return Ok(Message::new(String::from("Does Not Exist/"), String::from("None")))
-//     };
-
-//     store.get_at(position)
-// }
-
 pub fn delete_all_messages<S: Storage, A: Api, Q: Querier>(
     deps: &mut Extern<S, A, Q>,
     env: Env,
@@ -239,7 +215,7 @@ pub fn send_message<S: Storage, A: Api, Q: Querier>(
     deps: &mut Extern<S, A, Q>,
     env: &Env,
     to: HumanAddr,
-    contents: String,
+    contents: &String,
 ) -> StdResult<HandleResponse> {
 
     let message = Message::new(String::from(contents), env.message.sender.to_string());
@@ -287,7 +263,6 @@ pub fn query_messages<S: Storage, A: Api, Q: Querier>(
         return Err(StdError::generic_err("Can only query your own messages!"));
     }
 
-
     Ok(MessageResponse {messages: _messages})
 }
 
@@ -327,6 +302,7 @@ pub fn return_namespace_string(wrapped_namespace: StdResult<String>) -> String {
 }
 
 // pub fn return_wallet(x: Option<WalletInfo>) -> WalletInfo {
+
 //     match x {
 //         Some(i) => i,//if exists, their wallet init could be false or true, and their namespace is present,
 //         //If none, it means the user has never called init before, so we return a wallet info that can be altered and saved right away
@@ -359,4 +335,28 @@ pub fn return_namespace_string(wrapped_namespace: StdResult<String>) -> String {
 //     let _appending_message = append_message(deps, &dummy_message, &env.message.sender);
 
 //     Ok(HandleResponse::default())
+// }
+
+// fn get_message<S: ReadonlyStorage>(
+//     storage: &S,
+//     for_address: &HumanAddr,
+//     position: u32
+// ) -> StdResult<Message> {
+
+//     let store = ReadonlyPrefixedStorage::multilevel(
+//         &[PREFIX_MSGS_RECEIVED, for_address.0.as_bytes()],
+//         storage
+//     );
+
+//     // Try to access the storage of files for the account.
+//     // If it doesn't exist yet, return a Message with path called "Does Not Exist"
+//     let store = AppendStore::<Message, _, _>::attach(&store);
+
+//     let store = if let Some(result) = store {
+//         result?
+//     } else {
+//         return Ok(Message::new(String::from("Does Not Exist/"), String::from("None")))
+//     };
+
+//     store.get_at(position)
 // }
