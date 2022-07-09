@@ -2,7 +2,7 @@ use cosmwasm_std::HumanAddr;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
-use crate::{backend::File, viewing_key::ViewingKey};
+use crate::{backend::File, viewing_key::ViewingKey, messaging::Message};
 
 #[derive(Serialize, Deserialize, Clone, Debug, JsonSchema)]
 pub struct InitMsg {
@@ -22,16 +22,19 @@ pub enum HandleMsg {
     Move {old_path: String, new_path: String},
     MoveMulti {old_path_list: Vec<String>, new_path_list: Vec<String>},
     CreateViewingKey {entropy: String, padding: Option<String>},
-    AllowRead {path: String, address_list: Vec<String>},
-    DisallowRead {path: String, address_list: Vec<String>},
-    ResetRead {path: String},
-    AllowWrite {path: String, address_list: Vec<String>},
-    DisallowWrite {path: String, address_list: Vec<String>},
-    ResetWrite {path: String},
+    AllowRead {path: String, message: String, address_list: Vec<String>},
+    DisallowRead {path: String, message: String, notify: bool, address_list: Vec<String>},
+    ResetRead {path: String, message: String, notify: bool},
+    AllowWrite {path: String, message: String, address_list: Vec<String>},
+    DisallowWrite {path: String, message: String, notify: bool, address_list: Vec<String>},
+    ResetWrite {path: String, message: String, notify: bool},
     InitNode {ip: String, address: String},
     ClaimReward {path: String, key: String, address: String},
     ForgetMe { },
-    ChangeOwner {path: String, new_owner: String}
+    ChangeOwner {path: String, message: String, new_owner: String},
+    // Messaging
+    SendMessage { to: HumanAddr, contents: String },
+    DeleteAllMessages {}
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, JsonSchema)]
@@ -44,6 +47,8 @@ pub enum QueryMsg {
     GetNodeCoins{address: String},
     YouUpBro{address: String},
     GetWalletInfo { behalf: HumanAddr, key: String},
+    // Messaging
+    GetMessages { behalf: HumanAddr, key: String }
 }
 
 #[derive(Serialize, Deserialize, JsonSchema, Debug)]
@@ -58,7 +63,8 @@ pub enum HandleAnswer {
 pub struct WalletInfoResponse {
     pub init: bool,
     pub namespace: String,
-    pub counter: i32
+    pub counter: i32, //counter for files' namespace
+    pub message_list_counter: i32
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
@@ -84,6 +90,7 @@ impl QueryMsg {
         match self {
             Self::GetContents { behalf, key, .. } => (vec![behalf], ViewingKey(key.clone())),
             Self::GetWalletInfo { behalf, key, .. } => (vec![behalf], ViewingKey(key.clone())),
+            Self::GetMessages { behalf, key, .. } => (vec![behalf], ViewingKey(key.clone())),
             _ => panic!("This query type does not require authentication"),
         }
     }
@@ -94,4 +101,8 @@ impl QueryMsg {
 pub enum ResponseStatus {
     Success,
     Failure,
+}
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
+pub struct MessageResponse {
+    pub messages: Vec<Message>,
 }
