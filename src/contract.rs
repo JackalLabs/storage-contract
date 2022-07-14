@@ -63,13 +63,13 @@ pub fn handle<S: Storage, A: Api, Q: Querier>(
             pkey_list,
             skey_list,
         } => try_create_multi_files(deps, env, contents_list, path_list, pkey_list, skey_list),
-        HandleMsg::Remove { path } => try_remove_file(deps, env, path),
+        HandleMsg::Remove { path } => try_remove_file(deps, &env, path),
         HandleMsg::RemoveMulti { path_list } => try_remove_multi_files(deps, env, path_list),
         HandleMsg::MoveMulti {
             old_path_list,
             new_path_list,
         } => try_move_multi_files(deps, env, old_path_list, new_path_list),
-        HandleMsg::Move { old_path, new_path } => try_move_file(deps, env, old_path, new_path),
+        HandleMsg::Move { old_path, new_path } => try_move_file(deps, &env, old_path, new_path),
         HandleMsg::CreateViewingKey { entropy, .. } => try_create_viewing_key(deps, env, entropy),
         HandleMsg::AllowRead { path, message, address_list } => {
             try_allow_read(deps, env, path, message, address_list)
@@ -917,7 +917,7 @@ mod tests {
             "Trying to move phrog2.png to a folder that doesn't exist:\n{:#?}",
             res
         );
-
+        // Do I need to use the two files below?
         // Create 2 Files pepe1.png and pepe2.png
         let env = mock_env("anyone", &[]);
         let msg = HandleMsg::CreateMulti {
@@ -1171,6 +1171,18 @@ mod tests {
         };
         let _res = handle(&mut deps, env, msg).unwrap();
 
+        // Get anyone/junior/ with alice's viewing key to ensure she has write access 
+        let query_res = query(
+            &deps,
+            QueryMsg::GetContents {
+                path: String::from("anyone/junior/"),
+                behalf: HumanAddr("alice".to_string()),
+                key: vk2.to_string(),
+            },
+        );
+        let value: FileResponse = from_binary(&query_res.unwrap()).unwrap();
+        println!("alice has write access to anyone/junior/:\n {:#?}", value.file);
+
         // alice again tries to move bunny to anyone/junior, will succeed
         let env = mock_env("alice", &[]);
         let msg = HandleMsg::Move {
@@ -1273,8 +1285,10 @@ mod tests {
             },
         );
         assert!(query_res.is_ok());
+        let value: FileResponse = from_binary(&query_res.unwrap()).unwrap();
+        println!("alice has full permissions to anyone/test/:\n {:#?}", value.file);
 
-        // DISAllow WRITE for Alice, Bob and Charlie
+        // DISAllOW WRITE for Alice, Bob and Charlie
         let env = mock_env("anyone", &[]);
         let msg = HandleMsg::DisallowWrite {
             path: String::from("anyone/test/"),
@@ -1288,7 +1302,7 @@ mod tests {
         };
         let _res = handle(&mut deps, env, msg).unwrap();
 
-        // DISAllow WRITE for Alice, Bob and Charlie
+        // DISAllow READ for Alice, Bob and Charlie
         let env = mock_env("anyone", &[]);
         let msg = HandleMsg::DisallowRead {
             path: String::from("anyone/test/"),
@@ -1314,6 +1328,9 @@ mod tests {
         let value: FileResponse = from_binary(&query_res.unwrap()).unwrap();
         let test = make_file("anyone", "<content of test/ folder>");
         assert_eq!(test, value.file);
+        println!("permissions disallowed for anyone/test/:\n {:#?}", value.file);
+
+
     }
 
     #[test]
@@ -1790,7 +1807,7 @@ mod tests {
     #[test]
     fn write_perms_and_notify (){
         let mut deps = mock_dependencies(20, &[]);
-        let _vk = init_for_test(&mut deps, String::from("anyone"));
+        let vk = init_for_test(&mut deps, String::from("anyone"));
         let vk2 = init_for_test(&mut deps, String::from("alice"));
         let vk3 = init_for_test(&mut deps, String::from("bob"));
 
@@ -1893,6 +1910,19 @@ mod tests {
         };
         let _res = handle(&mut deps, env, msg).unwrap();
 
+        // Query File
+        let query_res = query(
+            &deps,
+            QueryMsg::GetContents {
+                path: String::from("anyone/phrog3.png"),
+                behalf: HumanAddr("anyone".to_string()),
+                key: vk.to_string(),
+            },
+        )
+        .unwrap();
+        let value: FileResponse = from_binary(&query_res).unwrap();
+        println!("Before Reset --> {:#?}", value.file);
+
         // Reset Write
         let env = mock_env("anyone", &[]);
         let msg = HandleMsg::ResetWrite {
@@ -1902,8 +1932,20 @@ mod tests {
         };
         let _res = handle(&mut deps, env, msg).unwrap();
 
-        // Change Owner
+        // Query File
+        let query_res = query(
+            &deps,
+            QueryMsg::GetContents {
+                path: String::from("anyone/phrog3.png"),
+                behalf: HumanAddr("anyone".to_string()),
+                key: vk.to_string(),
+            },
+        )
+        .unwrap();
+        let value: FileResponse = from_binary(&query_res).unwrap();
+        println!("After Reset --> {:#?}", value.file);
 
+        // Change Owner
         let env = mock_env("anyone", &[]);
         let msg = HandleMsg::ChangeOwner {
             path: String::from("anyone/phrog3.png"),
