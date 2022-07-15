@@ -438,7 +438,7 @@ dependencies = [
 [[package]]
 name = "secret-toolkit"
 version = "0.1.0"
-source = "git+https://github.com/BiPhan4/secret-toolkit?branch=debug-print#bd933a5589cbb677e541dc8ff56fc677e1cc55cb"
+source = "git+https://github.com/BiPhan4/secret-toolkit?branch=debug-print#6e989215b3244ae9b09930e103d6624ef0f7dd48"
 dependencies = [
  "secret-toolkit-crypto 0.1.0 (git+https://github.com/BiPhan4/secret-toolkit?branch=debug-print)",
  "secret-toolkit-serialization 0.1.0 (git+https://github.com/BiPhan4/secret-toolkit?branch=debug-print)",
@@ -464,7 +464,7 @@ dependencies = [
 [[package]]
 name = "secret-toolkit-crypto"
 version = "0.1.0"
-source = "git+https://github.com/BiPhan4/secret-toolkit?branch=debug-print#bd933a5589cbb677e541dc8ff56fc677e1cc55cb"
+source = "git+https://github.com/BiPhan4/secret-toolkit?branch=debug-print#6e989215b3244ae9b09930e103d6624ef0f7dd48"
 dependencies = [
  "cosmwasm-std",
  "libsecp256k1",
@@ -488,7 +488,7 @@ dependencies = [
 [[package]]
 name = "secret-toolkit-serialization"
 version = "0.1.0"
-source = "git+https://github.com/BiPhan4/secret-toolkit?branch=debug-print#bd933a5589cbb677e541dc8ff56fc677e1cc55cb"
+source = "git+https://github.com/BiPhan4/secret-toolkit?branch=debug-print#6e989215b3244ae9b09930e103d6624ef0f7dd48"
 dependencies = [
  "bincode2",
  "cosmwasm-std",
@@ -508,7 +508,7 @@ dependencies = [
 [[package]]
 name = "secret-toolkit-snip20"
 version = "0.1.0"
-source = "git+https://github.com/BiPhan4/secret-toolkit?branch=debug-print#bd933a5589cbb677e541dc8ff56fc677e1cc55cb"
+source = "git+https://github.com/BiPhan4/secret-toolkit?branch=debug-print#6e989215b3244ae9b09930e103d6624ef0f7dd48"
 dependencies = [
  "cosmwasm-std",
  "schemars",
@@ -530,7 +530,7 @@ dependencies = [
 [[package]]
 name = "secret-toolkit-snip721"
 version = "0.1.0"
-source = "git+https://github.com/BiPhan4/secret-toolkit?branch=debug-print#bd933a5589cbb677e541dc8ff56fc677e1cc55cb"
+source = "git+https://github.com/BiPhan4/secret-toolkit?branch=debug-print#6e989215b3244ae9b09930e103d6624ef0f7dd48"
 dependencies = [
  "cosmwasm-std",
  "schemars",
@@ -552,7 +552,7 @@ dependencies = [
 [[package]]
 name = "secret-toolkit-storage"
 version = "0.1.0"
-source = "git+https://github.com/BiPhan4/secret-toolkit?branch=debug-print#bd933a5589cbb677e541dc8ff56fc677e1cc55cb"
+source = "git+https://github.com/BiPhan4/secret-toolkit?branch=debug-print#6e989215b3244ae9b09930e103d6624ef0f7dd48"
 dependencies = [
  "cosmwasm-std",
  "cosmwasm-storage",
@@ -574,7 +574,7 @@ dependencies = [
 [[package]]
 name = "secret-toolkit-utils"
 version = "0.1.0"
-source = "git+https://github.com/BiPhan4/secret-toolkit?branch=debug-print#bd933a5589cbb677e541dc8ff56fc677e1cc55cb"
+source = "git+https://github.com/BiPhan4/secret-toolkit?branch=debug-print#6e989215b3244ae9b09930e103d6624ef0f7dd48"
 dependencies = [
  "cosmwasm-std",
  "schemars",
