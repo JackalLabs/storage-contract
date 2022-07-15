@@ -273,7 +273,8 @@ dependencies = [
  "cosmwasm-storage",
  "hex",
  "schemars",
- "secret-toolkit",
+ "secret-toolkit 0.1.0 (git+https://github.com/BiPhan4/secret-toolkit?branch=debug-print)",
+ "secret-toolkit 0.1.0 (git+https://github.com/enigmampc/secret-toolkit?branch=debug-print)",
  "serde",
  "sha2 0.9.9",
  "snafu",
@@ -437,14 +438,39 @@ dependencies = [
 [[package]]
 name = "secret-toolkit"
 version = "0.1.0"
+source = "git+https://github.com/BiPhan4/secret-toolkit?branch=debug-print#bd933a5589cbb677e541dc8ff56fc677e1cc55cb"
+dependencies = [
+ "secret-toolkit-crypto 0.1.0 (git+https://github.com/BiPhan4/secret-toolkit?branch=debug-print)",
+ "secret-toolkit-serialization 0.1.0 (git+https://github.com/BiPhan4/secret-toolkit?branch=debug-print)",
+ "secret-toolkit-snip20 0.1.0 (git+https://github.com/BiPhan4/secret-toolkit?branch=debug-print)",
+ "secret-toolkit-snip721 0.1.0 (git+https://github.com/BiPhan4/secret-toolkit?branch=debug-print)",
+ "secret-toolkit-storage 0.1.0 (git+https://github.com/BiPhan4/secret-toolkit?branch=debug-print)",
+ "secret-toolkit-utils 0.1.0 (git+https://github.com/BiPhan4/secret-toolkit?branch=debug-print)",
+]
+
+[[package]]
+name = "secret-toolkit"
+version = "0.1.0"
 source = "git+https://github.com/enigmampc/secret-toolkit?branch=debug-print#f8de2a926fccab9d1f10653bdbc00ea5436df570"
 dependencies = [
- "secret-toolkit-crypto",
- "secret-toolkit-serialization",
- "secret-toolkit-snip20",
- "secret-toolkit-snip721",
- "secret-toolkit-storage",
- "secret-toolkit-utils",
+ "secret-toolkit-crypto 0.1.0 (git+https://github.com/enigmampc/secret-toolkit?branch=debug-print)",
+ "secret-toolkit-serialization 0.1.0 (git+https://github.com/enigmampc/secret-toolkit?branch=debug-print)",
+ "secret-toolkit-snip20 0.1.0 (git+https://github.com/enigmampc/secret-toolkit?branch=debug-print)",
+ "secret-toolkit-snip721 0.1.0 (git+https://github.com/enigmampc/secret-toolkit?branch=debug-print)",
+ "secret-toolkit-storage 0.1.0 (git+https://github.com/enigmampc/secret-toolkit?branch=debug-print)",
+ "secret-toolkit-utils 0.1.0 (git+https://github.com/enigmampc/secret-toolkit?branch=debug-print)",
+]
+
+[[package]]
+name = "secret-toolkit-crypto"
+version = "0.1.0"
+source = "git+https://github.com/BiPhan4/secret-toolkit?branch=debug-print#bd933a5589cbb677e541dc8ff56fc677e1cc55cb"
+dependencies = [
+ "cosmwasm-std",
+ "libsecp256k1",
+ "rand_chacha",
+ "rand_core",
+ "sha2 0.9.9",
 ]
 
 [[package]]
@@ -462,6 +488,16 @@ dependencies = [
 [[package]]
 name = "secret-toolkit-serialization"
 version = "0.1.0"
+source = "git+https://github.com/BiPhan4/secret-toolkit?branch=debug-print#bd933a5589cbb677e541dc8ff56fc677e1cc55cb"
+dependencies = [
+ "bincode2",
+ "cosmwasm-std",
+ "serde",
+]
+
+[[package]]
+name = "secret-toolkit-serialization"
+version = "0.1.0"
 source = "git+https://github.com/enigmampc/secret-toolkit?branch=debug-print#f8de2a926fccab9d1f10653bdbc00ea5436df570"
 dependencies = [
  "bincode2",
@@ -472,11 +508,33 @@ dependencies = [
 [[package]]
 name = "secret-toolkit-snip20"
 version = "0.1.0"
+source = "git+https://github.com/BiPhan4/secret-toolkit?branch=debug-print#bd933a5589cbb677e541dc8ff56fc677e1cc55cb"
+dependencies = [
+ "cosmwasm-std",
+ "schemars",
+ "secret-toolkit-utils 0.1.0 (git+https://github.com/BiPhan4/secret-toolkit?branch=debug-print)",
+ "serde",
+]
+
+[[package]]
+name = "secret-toolkit-snip20"
+version = "0.1.0"
 source = "git+https://github.com/enigmampc/secret-toolkit?branch=debug-print#f8de2a926fccab9d1f10653bdbc00ea5436df570"
 dependencies = [
  "cosmwasm-std",
  "schemars",
- "secret-toolkit-utils",
+ "secret-toolkit-utils 0.1.0 (git+https://github.com/enigmampc/secret-toolkit?branch=debug-print)",
+ "serde",
+]
+
+[[package]]
+name = "secret-toolkit-snip721"
+version = "0.1.0"
+source = "git+https://github.com/BiPhan4/secret-toolkit?branch=debug-print#bd933a5589cbb677e541dc8ff56fc677e1cc55cb"
+dependencies = [
+ "cosmwasm-std",
+ "schemars",
+ "secret-toolkit-utils 0.1.0 (git+https://github.com/BiPhan4/secret-toolkit?branch=debug-print)",
  "serde",
 ]
 
@@ -487,7 +545,18 @@ source = "git+https://github.com/enigmampc/secret-toolkit?branch=debug-print#f8d
 dependencies = [
  "cosmwasm-std",
  "schemars",
- "secret-toolkit-utils",
+ "secret-toolkit-utils 0.1.0 (git+https://github.com/enigmampc/secret-toolkit?branch=debug-print)",
+ "serde",
+]
+
+[[package]]
+name = "secret-toolkit-storage"
+version = "0.1.0"
+source = "git+https://github.com/BiPhan4/secret-toolkit?branch=debug-print#bd933a5589cbb677e541dc8ff56fc677e1cc55cb"
+dependencies = [
+ "cosmwasm-std",
+ "cosmwasm-storage",
+ "secret-toolkit-serialization 0.1.0 (git+https://github.com/BiPhan4/secret-toolkit?branch=debug-print)",
  "serde",
 ]
 
@@ -498,7 +567,17 @@ source = "git+https://github.com/enigmampc/secret-toolkit?branch=debug-print#f8d
 dependencies = [
  "cosmwasm-std",
  "cosmwasm-storage",
- "secret-toolkit-serialization",
+ "secret-toolkit-serialization 0.1.0 (git+https://github.com/enigmampc/secret-toolkit?branch=debug-print)",
+ "serde",
+]
+
+[[package]]
+name = "secret-toolkit-utils"
+version = "0.1.0"
+source = "git+https://github.com/BiPhan4/secret-toolkit?branch=debug-print#bd933a5589cbb677e541dc8ff56fc677e1cc55cb"
+dependencies = [
+ "cosmwasm-std",
+ "schemars",
  "serde",
 ]
 

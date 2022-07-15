@@ -7,7 +7,8 @@ use cosmwasm_storage::{ PrefixedStorage, ReadonlyPrefixedStorage, bucket, bucket
 //use secret_toolkit::storage::{AppendStore, /*AppendStoreMut*/};
 
 use crate::astore;
-use crate::astore::{AppendStore, AppendStoreMut};
+//use crate::astore::{AppendStore, AppendStoreMut};
+use secret_toolkit_fork::storage::{AppendStore, AppendStoreMut};
 
 use crate::msg::MessageResponse;
 use crate::backend::WalletInfo;
