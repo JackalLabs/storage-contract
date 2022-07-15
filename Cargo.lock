@@ -273,8 +273,8 @@ dependencies = [
  "cosmwasm-storage",
  "hex",
  "schemars",
- "secret-toolkit 0.1.0 (git+https://github.com/BiPhan4/secret-toolkit?branch=debug-print)",
  "secret-toolkit 0.1.0 (git+https://github.com/enigmampc/secret-toolkit?branch=debug-print)",
+ "secret-toolkit 0.1.0 (git+https://github.com/JackalLabs/secret-toolkit-fork?branch=debug-print)",
  "serde",
  "sha2 0.9.9",
  "snafu",
@@ -438,19 +438,6 @@ dependencies = [
 [[package]]
 name = "secret-toolkit"
 version = "0.1.0"
-source = "git+https://github.com/BiPhan4/secret-toolkit?branch=debug-print#6e989215b3244ae9b09930e103d6624ef0f7dd48"
-dependencies = [
- "secret-toolkit-crypto 0.1.0 (git+https://github.com/BiPhan4/secret-toolkit?branch=debug-print)",
- "secret-toolkit-serialization 0.1.0 (git+https://github.com/BiPhan4/secret-toolkit?branch=debug-print)",
- "secret-toolkit-snip20 0.1.0 (git+https://github.com/BiPhan4/secret-toolkit?branch=debug-print)",
- "secret-toolkit-snip721 0.1.0 (git+https://github.com/BiPhan4/secret-toolkit?branch=debug-print)",
- "secret-toolkit-storage 0.1.0 (git+https://github.com/BiPhan4/secret-toolkit?branch=debug-print)",
- "secret-toolkit-utils 0.1.0 (git+https://github.com/BiPhan4/secret-toolkit?branch=debug-print)",
-]
-
-[[package]]
-name = "secret-toolkit"
-version = "0.1.0"
 source = "git+https://github.com/enigmampc/secret-toolkit?branch=debug-print#f8de2a926fccab9d1f10653bdbc00ea5436df570"
 dependencies = [
  "secret-toolkit-crypto 0.1.0 (git+https://github.com/enigmampc/secret-toolkit?branch=debug-print)",
@@ -462,15 +449,16 @@ dependencies = [
 ]
 
 [[package]]
-name = "secret-toolkit-crypto"
+name = "secret-toolkit"
 version = "0.1.0"
-source = "git+https://github.com/BiPhan4/secret-toolkit?branch=debug-print#6e989215b3244ae9b09930e103d6624ef0f7dd48"
+source = "git+https://github.com/JackalLabs/secret-toolkit-fork?branch=debug-print#6e989215b3244ae9b09930e103d6624ef0f7dd48"
 dependencies = [
- "cosmwasm-std",
- "libsecp256k1",
- "rand_chacha",
- "rand_core",
- "sha2 0.9.9",
+ "secret-toolkit-crypto 0.1.0 (git+https://github.com/JackalLabs/secret-toolkit-fork?branch=debug-print)",
+ "secret-toolkit-serialization 0.1.0 (git+https://github.com/JackalLabs/secret-toolkit-fork?branch=debug-print)",
+ "secret-toolkit-snip20 0.1.0 (git+https://github.com/JackalLabs/secret-toolkit-fork?branch=debug-print)",
+ "secret-toolkit-snip721 0.1.0 (git+https://github.com/JackalLabs/secret-toolkit-fork?branch=debug-print)",
+ "secret-toolkit-storage 0.1.0 (git+https://github.com/JackalLabs/secret-toolkit-fork?branch=debug-print)",
+ "secret-toolkit-utils 0.1.0 (git+https://github.com/JackalLabs/secret-toolkit-fork?branch=debug-print)",
 ]
 
 [[package]]
@@ -486,13 +474,15 @@ dependencies = [
 ]
 
 [[package]]
-name = "secret-toolkit-serialization"
+name = "secret-toolkit-crypto"
 version = "0.1.0"
-source = "git+https://github.com/BiPhan4/secret-toolkit?branch=debug-print#6e989215b3244ae9b09930e103d6624ef0f7dd48"
+source = "git+https://github.com/JackalLabs/secret-toolkit-fork?branch=debug-print#6e989215b3244ae9b09930e103d6624ef0f7dd48"
 dependencies = [
- "bincode2",
  "cosmwasm-std",
- "serde",
+ "libsecp256k1",
+ "rand_chacha",
+ "rand_core",
+ "sha2 0.9.9",
 ]
 
 [[package]]
@@ -506,13 +496,12 @@ dependencies = [
 ]
 
 [[package]]
-name = "secret-toolkit-snip20"
+name = "secret-toolkit-serialization"
 version = "0.1.0"
-source = "git+https://github.com/BiPhan4/secret-toolkit?branch=debug-print#6e989215b3244ae9b09930e103d6624ef0f7dd48"
+source = "git+https://github.com/JackalLabs/secret-toolkit-fork?branch=debug-print#6e989215b3244ae9b09930e103d6624ef0f7dd48"
 dependencies = [
+ "bincode2",
  "cosmwasm-std",
- "schemars",
- "secret-toolkit-utils 0.1.0 (git+https://github.com/BiPhan4/secret-toolkit?branch=debug-print)",
  "serde",
 ]
 
@@ -528,13 +517,13 @@ dependencies = [
 ]
 
 [[package]]
-name = "secret-toolkit-snip721"
+name = "secret-toolkit-snip20"
 version = "0.1.0"
-source = "git+https://github.com/BiPhan4/secret-toolkit?branch=debug-print#6e989215b3244ae9b09930e103d6624ef0f7dd48"
+source = "git+https://github.com/JackalLabs/secret-toolkit-fork?branch=debug-print#6e989215b3244ae9b09930e103d6624ef0f7dd48"
 dependencies = [
  "cosmwasm-std",
  "schemars",
- "secret-toolkit-utils 0.1.0 (git+https://github.com/BiPhan4/secret-toolkit?branch=debug-print)",
+ "secret-toolkit-utils 0.1.0 (git+https://github.com/JackalLabs/secret-toolkit-fork?branch=debug-print)",
  "serde",
 ]
 
@@ -550,13 +539,13 @@ dependencies = [
 ]
 
 [[package]]
-name = "secret-toolkit-storage"
+name = "secret-toolkit-snip721"
 version = "0.1.0"
-source = "git+https://github.com/BiPhan4/secret-toolkit?branch=debug-print#6e989215b3244ae9b09930e103d6624ef0f7dd48"
+source = "git+https://github.com/JackalLabs/secret-toolkit-fork?branch=debug-print#6e989215b3244ae9b09930e103d6624ef0f7dd48"
 dependencies = [
  "cosmwasm-std",
- "cosmwasm-storage",
- "secret-toolkit-serialization 0.1.0 (git+https://github.com/BiPhan4/secret-toolkit?branch=debug-print)",
+ "schemars",
+ "secret-toolkit-utils 0.1.0 (git+https://github.com/JackalLabs/secret-toolkit-fork?branch=debug-print)",
  "serde",
 ]
 
@@ -572,9 +561,20 @@ dependencies = [
 ]
 
 [[package]]
+name = "secret-toolkit-storage"
+version = "0.1.0"
+source = "git+https://github.com/JackalLabs/secret-toolkit-fork?branch=debug-print#6e989215b3244ae9b09930e103d6624ef0f7dd48"
+dependencies = [
+ "cosmwasm-std",
+ "cosmwasm-storage",
+ "secret-toolkit-serialization 0.1.0 (git+https://github.com/JackalLabs/secret-toolkit-fork?branch=debug-print)",
+ "serde",
+]
+
+[[package]]
 name = "secret-toolkit-utils"
 version = "0.1.0"
-source = "git+https://github.com/BiPhan4/secret-toolkit?branch=debug-print#6e989215b3244ae9b09930e103d6624ef0f7dd48"
+source = "git+https://github.com/enigmampc/secret-toolkit?branch=debug-print#f8de2a926fccab9d1f10653bdbc00ea5436df570"
 dependencies = [
  "cosmwasm-std",
  "schemars",
@@ -584,7 +584,7 @@ dependencies = [
 [[package]]
 name = "secret-toolkit-utils"
 version = "0.1.0"
-source = "git+https://github.com/enigmampc/secret-toolkit?branch=debug-print#f8de2a926fccab9d1f10653bdbc00ea5436df570"
+source = "git+https://github.com/JackalLabs/secret-toolkit-fork?branch=debug-print#6e989215b3244ae9b09930e103d6624ef0f7dd48"
 dependencies = [
  "cosmwasm-std",
  "schemars",
