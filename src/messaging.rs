@@ -4,7 +4,10 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use cosmwasm_std::{ Storage, HumanAddr, StdResult, StdError, HandleResponse, Api, Querier, Extern, Env, debug_print};
 use cosmwasm_storage::{ PrefixedStorage, ReadonlyPrefixedStorage, bucket, bucket_read};
-use secret_toolkit::storage::{AppendStore, AppendStoreMut};
+//use secret_toolkit::storage::{AppendStore, /*AppendStoreMut*/};
+
+use crate::astore;
+use crate::astore::{AppendStore, AppendStoreMut};
 
 use crate::msg::MessageResponse;
 use crate::backend::WalletInfo;
@@ -183,33 +186,6 @@ pub fn get_messages<S: Storage, A: Api, Q: Querier>(
         txs.map(|txs| (txs))
 }
 
-pub fn delete_all_messages<S: Storage, A: Api, Q: Querier>(
-    deps: &mut Extern<S, A, Q>,
-    env: Env,
-) -> StdResult<HandleResponse> {
-    let ha = deps
-        .api
-        .human_address(&deps.api.canonical_address(&env.message.sender)?)?;
-    let adr = String::from(ha.as_str());
-
-    let load_bucket: Result<WalletInfo, StdError> =
-        bucket_read(WALLET_INFO_LOCATION, &deps.storage).load(adr.as_bytes());
-    let mut wallet_info = load_bucket?;
-
-    let new_counter = wallet_info.message_list_counter + 1;
-    wallet_info.message_list_counter = new_counter;
-
-    bucket(WALLET_INFO_LOCATION, &mut deps.storage)
-        .save(ha.as_str().as_bytes(), &wallet_info)
-        .map_err(|err| println!("{:?}", err))
-        .ok();
-
-    let _empty_list = create_empty_collection(deps, &env.message.sender);
-    let dummy_message = Message::new(String::from("Placeholder contents created by you"), String::from(env.message.sender.as_str()));
-    let _appended_message = append_message(deps, &dummy_message, &env.message.sender);
-    Ok(HandleResponse::default())
-}
-
 // handle
 pub fn send_message<S: Storage, A: Api, Q: Querier>(
     deps: &mut Extern<S, A, Q>,
@@ -301,62 +277,52 @@ pub fn return_namespace_string(wrapped_namespace: StdResult<String>) -> String {
 
 }
 
-// pub fn return_wallet(x: Option<WalletInfo>) -> WalletInfo {
+pub fn delete_all_messages<S: Storage, A: Api, Q: Querier>(
+    deps: &mut Extern<S, A, Q>,
+    env: Env,
+) -> StdResult<HandleResponse> {
+    let ha = deps
+        .api
+        .human_address(&deps.api.canonical_address(&env.message.sender)?)?;
+    let adr = String::from(ha.as_str());
 
-//     match x {
-//         Some(i) => i,//if exists, their wallet init could be false or true, and their namespace is present,
-//         //If none, it means the user has never called init before, so we return a wallet info that can be altered and saved right away
-//         None => WalletInfo { init: false, namespace: "empty".to_string(), counter: 0, message_list_counter: 0 },
+    let load_bucket: Result<WalletInfo, StdError> =
+        bucket_read(WALLET_INFO_LOCATION, &deps.storage).load(adr.as_bytes());
+    let mut wallet_info = load_bucket?;
 
-//     }
-// }
+    let new_counter = wallet_info.message_list_counter + 1;
+    wallet_info.message_list_counter = new_counter;
 
-// pub fn get_counter<'a, S: Storage>(store: &'a S, sender: &String) -> StdResult<i32> {
-//     let loaded_wallet: Result<WalletInfo, StdError> = bucket_read(WALLET_INFO_LOCATION, store).load(sender.as_bytes());
-//     let unwrapped_wallet = loaded_wallet?;
-//     Ok(unwrapped_wallet.counter)
-// }
+    bucket(WALLET_INFO_LOCATION, &mut deps.storage)
+        .save(ha.as_str().as_bytes(), &wallet_info)
+        .map_err(|err| println!("{:?}", err))
+        .ok();
 
-// pub fn delete_all_messages<S: Storage, A: Api, Q: Querier>(
-//     deps: &mut Extern<S, A, Q>,
-//     env: Env
+    let _empty_list = create_empty_collection(deps, &env.message.sender);
+    let dummy_message = Message::new(String::from("Placeholder contents created by you"), String::from(env.message.sender.as_str()));
+    let _appended_message = append_message(deps, &dummy_message, &env.message.sender);
+    Ok(HandleResponse::default())
+}
 
-// ) -> StdResult<HandleResponse> {
-//     // Try to access the collection for the account.
-//     // If it doesn't exist yet, return an empty collection.
-//     let option_error_message = format!("Provided storage doesn't seem like an AppendStore");
-//     let mut store = PrefixedStorage::multilevel(&[PREFIX_MSGS_RECEIVED, env.message.sender.0.as_bytes()], &mut deps.storage);
-//     let mut store = AppendStoreMut::<Message, _, _>::attach(&mut store).unwrap_or(Err(StdError::generic_err(option_error_message)))?;
-//     // let mut store = AppendStoreMut::<Message, _, _>::attach(&mut store).set_length(0);
+pub fn clear_all_messages<S: Storage, A: Api, Q: Querier>(
+    deps: &mut Extern<S, A, Q>,
+    env: Env
+) -> StdResult<HandleResponse> {
+    // Try to access the collection for the account.
+    // If it doesn't exist yet, return an empty collection.
 
-//     //store.clear();
+    let wrapped_msg_namespace = get_msg_list_namespace(&deps, &env.message.sender.to_string());
+    let msg_namespace = return_namespace(wrapped_msg_namespace)?;
 
-//     let dummy_message = Message::new(String::from("Placeholder contents created by you"), String::from(env.message.sender.as_str()));
-//     let _appending_message = append_message(deps, &dummy_message, &env.message.sender);
+    let option_error_message = format!("Provided storage doesn't seem like an AppendStore");            
+    let mut store = PrefixedStorage::multilevel(&[msg_namespace.as_bytes(), env.message.sender.0.as_bytes()], &mut deps.storage);
+    let mut store = AppendStoreMut::<Message, _, _>::attach(&mut store).unwrap_or(Err(StdError::generic_err(option_error_message)))?;
 
-//     Ok(HandleResponse::default())
-// }
+    store.clear();
+    
+    let _empty_list = create_empty_collection(deps, &env.message.sender);
+    let dummy_message = Message::new(String::from("Placeholder contents"), String::from(env.message.sender.as_str()));
+    let _appending_message = append_message(deps, &dummy_message, &env.message.sender);
+    Ok(HandleResponse::default())
 
-// fn get_message<S: ReadonlyStorage>(
-//     storage: &S,
-//     for_address: &HumanAddr,
-//     position: u32
-// ) -> StdResult<Message> {
-
-//     let store = ReadonlyPrefixedStorage::multilevel(
-//         &[PREFIX_MSGS_RECEIVED, for_address.0.as_bytes()],
-//         storage
-//     );
-
-//     // Try to access the storage of files for the account.
-//     // If it doesn't exist yet, return a Message with path called "Does Not Exist"
-//     let store = AppendStore::<Message, _, _>::attach(&store);
-
-//     let store = if let Some(result) = store {
-//         result?
-//     } else {
-//         return Ok(Message::new(String::from("Does Not Exist/"), String::from("None")))
-//     };
-
-//     store.get_at(position)
-// }
+}

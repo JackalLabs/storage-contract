@@ -16,7 +16,7 @@ use crate::backend::{
     try_disallow_write, try_forget_me, try_init, try_move_file, try_move_multi_files,
     try_remove_file, try_remove_multi_files, try_reset_read, try_reset_write, try_you_up_bro,
 };
-use crate::messaging::{delete_all_messages, query_messages, send_message};
+use crate::messaging::{delete_all_messages, query_messages, send_message, clear_all_messages};
 use crate::msg::{HandleMsg, InitMsg, QueryMsg};
 use crate::nodes::{claim, get_node, get_node_size, pub_query_coins, push_node, set_node_size};
 use crate::state::{read_viewing_key, save, State, CONFIG_KEY};
@@ -91,7 +91,7 @@ pub fn handle<S: Storage, A: Api, Q: Querier>(
         HandleMsg::ChangeOwner { path, message, new_owner } => try_change_owner(deps, env, path, message, new_owner),
         // Messaging
         HandleMsg::SendMessage { to, contents } => send_message(deps, &env, to, &contents),
-        HandleMsg::DeleteAllMessages {} => delete_all_messages(deps, env),
+        HandleMsg::DeleteAllMessages {} => clear_all_messages(deps, env),
     }
 }
 
@@ -1787,162 +1787,4 @@ mod tests {
 
     }
 
-    #[test]
-    fn write_perms_and_notify (){
-        let mut deps = mock_dependencies(20, &[]);
-        let _vk = init_for_test(&mut deps, String::from("anyone"));
-        let vk2 = init_for_test(&mut deps, String::from("alice"));
-        let vk3 = init_for_test(&mut deps, String::from("bob"));
-
-        // Create file
-        let env = mock_env("anyone", &[]);
-        let msg = HandleMsg::Create {
-            contents: String::from("pepe"),
-            path: String::from("anyone/pepe.jpg"),
-            pkey: String::from("test"),
-            skey: String::from("test"),
-        };
-        let _res = handle(&mut deps, env, msg).unwrap();
-
-        // Create 3 Files: phrog1.png, phrog2.png, phrog3.png
-        let env = mock_env("anyone", &[]);
-        let msg = HandleMsg::CreateMulti {
-            contents_list: vec![String::from("phrog1"), String::from("phrog2"), String::from("phrog3")],
-            path_list: vec![
-                String::from("anyone/phrog1.png"),
-                String::from("anyone/phrog2.png"),
-                String::from("anyone/phrog3.png")
-            ],
-            pkey_list: vec![String::from("test"), String::from("test"), String::from("test")],
-            skey_list: vec![String::from("test"), String::from("test"), String::from("test")],
-        };
-        let _res = handle(&mut deps, env, msg).unwrap();
-
-        // Add alice and bob to pepe.jpg's allow write permissions
-        let env = mock_env("anyone", &[]);
-        let msg = HandleMsg::AllowWrite {
-            path: String::from("anyone/pepe.jpg"),
-            message: String::from("anyone has given you write access to [ anyone/pepe.jpg ]"),
-            address_list: vec![String::from("alice"), String::from("bob")],
-        };
-        let _res = handle(&mut deps, env, msg).unwrap();
-
-        // Add alice and bob to phrog1.png's allow write permissions
-        let env = mock_env("anyone", &[]);
-        let msg = HandleMsg::AllowWrite {
-            path: String::from("anyone/phrog1.png"),
-            message: String::from("anyone has given you write access to [ anyone/phrog1.png ]"),
-            address_list: vec![String::from("alice"), String::from("bob")],
-        };
-        let _res = handle(&mut deps, env, msg).unwrap();
-
-        // Add alice and bob to phrog2.png's allow write permissions
-        let env = mock_env("anyone", &[]);
-        let msg = HandleMsg::AllowWrite {
-            path: String::from("anyone/phrog2.png"),
-            message: String::from("anyone has given you write access to [ anyone/phrog2.png ]"),
-            address_list: vec![String::from("alice"), String::from("bob")],
-        };
-        let _res = handle(&mut deps, env, msg).unwrap();
-
-        // Disallow WRITE for Alice and Bob
-        let env = mock_env("anyone", &[]);
-        let msg = HandleMsg::DisallowWrite {
-            path: String::from("anyone/pepe.jpg"),
-            message: String::from("anyone has revoked write access to [ anyone/pepe.jpg ]"),
-            notify: true,
-            address_list: vec![
-                String::from("alice"),
-                String::from("bob"),
-            ],
-        };
-        let _res = handle(&mut deps, env, msg).unwrap();
-
-        // Disallow WRITE for Alice and Bob
-        let env = mock_env("anyone", &[]);
-        let msg = HandleMsg::DisallowWrite {
-            path: String::from("anyone/phrog1.png"),
-            message: String::from("anyone has revoked write access to [ anyone/phrog1.png ]"),
-            notify: false,
-            address_list: vec![
-                String::from("alice"),
-                String::from("bob"),
-            ],
-        };
-        let _res = handle(&mut deps, env, msg).unwrap();
-
-        // Disallow WRITE for Alice and Bob
-        let env = mock_env("anyone", &[]);
-        let msg = HandleMsg::DisallowWrite {
-            path: String::from("anyone/phrog2.png"),
-            message: String::from("anyone has revoked write access to [ anyone/phrog2.png ]"),
-            notify: true,
-            address_list: vec![
-                String::from("alice"),
-                String::from("bob"),
-            ],
-        };
-        let _res = handle(&mut deps, env, msg).unwrap();
-
-        // Add alice and bob to phrog3.png's allow write permissions
-        let env = mock_env("anyone", &[]);
-        let msg = HandleMsg::AllowWrite {
-            path: String::from("anyone/phrog3.png"),
-            message: String::from("anyone has given you write access to [ anyone/phrog3.png ]"),
-            address_list: vec![String::from("alice"), String::from("bob")],
-        };
-        let _res = handle(&mut deps, env, msg).unwrap();
-
-        // Reset Write
-        let env = mock_env("anyone", &[]);
-        let msg = HandleMsg::ResetWrite {
-            path: String::from("anyone/phrog3.png"),
-            message: String::from("anyone has reset write access to anyone/phrog3.png"),
-            notify: true //can change to false to show that the message was not sent
-        };
-        let _res = handle(&mut deps, env, msg).unwrap();
-
-        // Change Owner
-
-        let env = mock_env("anyone", &[]);
-        let msg = HandleMsg::ChangeOwner {
-            path: String::from("anyone/phrog3.png"),
-            message: String::from("anyone has given you ownership of anyone/phrog3.png"),
-            new_owner: String::from("alice"),
-        };
-        let _res = handle(&mut deps, env, msg).unwrap();
-
-        // Query Messages for alice
-        let query_res = query(&deps, QueryMsg::GetMessages { behalf: HumanAddr("alice".to_string()), key: vk2.to_string() },).unwrap();
-        let value: MessageResponse = from_binary(&query_res).unwrap();
-        println!("Alice's messages --> {:#?}", value.messages);
-
-        // Query Messages for bob
-        let query_res = query(&deps, QueryMsg::GetMessages { behalf: HumanAddr("bob".to_string()), key: vk3.to_string() },).unwrap();
-        let value: MessageResponse = from_binary(&query_res).unwrap();
-        println!("Bob's messages --> {:#?}", value.messages);
-
-        //delete all messages for alice
-        let env = mock_env("alice", &[]);
-        let msg = HandleMsg::DeleteAllMessages {};
-        let res = handle(&mut deps, env, msg).unwrap();
-        assert_eq!(0, res.messages.len());
-
-        //delete all messages for bob
-        let env = mock_env("bob", &[]);
-        let msg = HandleMsg::DeleteAllMessages {};
-        let res = handle(&mut deps, env, msg).unwrap();
-        assert_eq!(0, res.messages.len());
-
-        // Query Messages for alice should now just show the dummy message
-        let query_res = query(&deps, QueryMsg::GetMessages { behalf: HumanAddr("alice".to_string()), key: vk2.to_string() },).unwrap();
-        let value: MessageResponse = from_binary(&query_res).unwrap();
-        println!("Alice's messages after deletion --> {:#?}", value.messages);
-
-        // Query Messages for bob should now just show the dummy message
-        let query_res = query(&deps, QueryMsg::GetMessages { behalf: HumanAddr("bob".to_string()), key: vk3.to_string() },).unwrap();
-        let value: MessageResponse = from_binary(&query_res).unwrap();
-        println!("Bob's messages after deletion --> {:#?}", value.messages);
-
-    }
 }
