@@ -4,6 +4,7 @@ pub mod state;
 pub mod backend;
 pub mod ordered_set;
 pub mod nodes;
+pub mod more_tests;
 mod viewing_key;
 mod utils;
 mod messaging;
