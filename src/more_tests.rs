@@ -15,7 +15,7 @@ mod tests {
     use crate::backend::make_file;
     use crate::contract::{init, handle, query};
     use crate::messaging::Message;
-    use crate::msg::{FileResponse, HandleAnswer, MessageResponse, WalletInfoResponse};
+    use crate::msg::{FileResponse, HandleAnswer, MessageResponse};
     use crate::viewing_key::ViewingKey;
 
     fn init_for_test<S: Storage, A: Api, Q: Querier>(
