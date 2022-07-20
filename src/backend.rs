@@ -154,14 +154,12 @@ pub fn try_you_up_bro<S: Storage, A: Api, Q: Querier>(
         Ok(wallet_info) => Ok(WalletInfoResponse {
             init: wallet_info.init,
             namespace: wallet_info.namespace,
-            counter: wallet_info.counter,
-            message_list_counter: wallet_info.message_list_counter
+            counter: wallet_info.counter
         }),
         Err(_e) => Ok(WalletInfoResponse {
             init: false,
             namespace: String::from("empty"),
-            counter: 0,
-            message_list_counter: 0
+            counter: 0
         })
     }
 }
@@ -893,7 +891,6 @@ pub fn query_wallet_info<S: Storage, A: Api, Q: Querier>(
             init: wallet_info.init,
             namespace: wallet_info.namespace,
             counter: wallet_info.counter,
-            message_list_counter: wallet_info.message_list_counter
         }),
         Err(_e) => Err(StdError::NotFound { kind: String::from("Wallet not found."), backtrace: None })
     }

@@ -7,7 +7,7 @@ use crate::msg::{HandleMsg, InitMsg, QueryMsg};
 
 #[cfg(test)]
 mod tests {
-    // use std::vec;
+
     use super::*;
     use cosmwasm_std::testing::{mock_dependencies, mock_env};
     use cosmwasm_std::{coins, from_binary, HumanAddr};

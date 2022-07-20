@@ -3,18 +3,14 @@ use std::convert::TryInto;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use cosmwasm_std::{ Storage, HumanAddr, StdResult, StdError, HandleResponse, Api, Querier, Extern, Env, debug_print};
-use cosmwasm_storage::{ PrefixedStorage, ReadonlyPrefixedStorage, bucket, bucket_read};
+use cosmwasm_storage::{ PrefixedStorage, ReadonlyPrefixedStorage};
 
 use secret_toolkit_fork::storage::{AppendStore, AppendStoreMut};
 
 use crate::msg::MessageResponse;
-use crate::backend::WalletInfo;
 
 //Attach to message_list_counter (in wallet info) to help implement delete_all_messages()
 const PREFIX_MSGS_RECEIVED: &[u8] = b"MESSAGES_RECEIVED";
-
-//namespace for every user's wallet info bucket
-static WALLET_INFO_LOCATION: &[u8] = b"WALLET_INFO";
 
 #[derive(Serialize, Deserialize, JsonSchema, PartialEq, Debug, Clone)]
 pub struct Message{

@@ -5,7 +5,7 @@
 
 use cosmwasm_std::{
     debug_print, to_binary, Api, Binary, Env, Extern, HandleResponse, InitResponse, Querier,
-    QueryResult, StdError, StdResult, Storage,
+    QueryResult, StdError, StdResult, Storage, 
 };
 use secret_toolkit::crypto::sha_256;
 use std::cmp;
@@ -218,9 +218,7 @@ mod tests {
     use cosmwasm_std::testing::{mock_dependencies, mock_env};
     use cosmwasm_std::{coins, from_binary, HumanAddr};
 
-    use crate::backend::make_file;
-    use crate::messaging::Message;
-    use crate::msg::{FileResponse, HandleAnswer, MessageResponse, WalletInfoResponse};
+    use crate::msg::{FileResponse, HandleAnswer, WalletInfoResponse};
     use crate::viewing_key::ViewingKey;
 
     fn init_for_test<S: Storage, A: Api, Q: Querier>(
