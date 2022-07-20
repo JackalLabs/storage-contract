@@ -1,4 +1,3 @@
-
 # JACKAL Storage Contract
 - [Introduction](#Introduction)
 - [Sections](#Sections)
@@ -22,6 +21,8 @@
         -  [ClaimReward](#--ClaimReward)
         -  [ForgetMe](#--ForgetMe)
         -  [ChangeOwner](#--ChangeOwner)
+        -  [SendMessage](#--SendMessage)
+        -  [DeleteAllMessages](#--DeleteAllMessages)
      - [Query](#Query))  
         - [YouUpBro](#--YouUpBro)
         - [GetNodeCoins](#--GetNodeCoins)
@@ -31,6 +32,7 @@
         - [Authenticated_Queries](#Authenticated_Queries))
           - [GetContents](#--GetContents)
           - [GetWalletInfo](#--GetWalletInfo)
+          - [GetMessages](#--GetMessages)
 
 
 # Introduction
@@ -207,6 +209,21 @@ Change the owner of a file
 |path  | String  | path of file to be given to new owner
 |new_owner  | String  | address of new owner
 
+### - SendMessage
+Sends a message to another user. This handle message may be removed soon. 
+##### Request
+|Name|Type|Description|                                                                                       
+|--|--|--|
+|to  | String  | recipient
+|contents  | String  | the message
+
+### - DeleteAllMessages
+Delete all your messages
+##### Request
+|Name|Type|Description|                                                                                       
+|--|--|--|
+| N/A |   | 
+
 
 ## Queries
 
@@ -336,3 +353,22 @@ The number at the end of "namespace" is the same as "counter".
   
 }
 ```
+
+#### - GetMessages
+Returns a vector of all messages for a user
+##### Request
+|Name|Type|Description|                                                                                       
+|--|--|--|
+|behalf | String  | user address
+|key    | String  | viewing key
+
+##### Response
+```json
+{
+  "messages": [
+    "alice has given you read access to 'alice_home/memes/pepe.jpg'",
+    "bob has given you read access to 'bob_home/memes/hasbullah.jpg'"
+    ]
+}
+```
+
