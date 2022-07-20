@@ -12,7 +12,7 @@ mod tests {
     use cosmwasm_std::testing::{mock_dependencies, mock_env};
     use cosmwasm_std::{coins, from_binary, HumanAddr};
 
-    use crate::backend::make_file;
+    use crate::backend::File;
     use crate::contract::{init, handle, query};
     use crate::messaging::Message;
     use crate::msg::{FileResponse, HandleAnswer, MessageResponse};
@@ -411,7 +411,7 @@ mod tests {
             },
         );
         let value: FileResponse = from_binary(&query_res.unwrap()).unwrap();
-        let test = make_file("anyone", "<content of test/ folder>");
+        let test = File::new("anyone", "<content of test/ folder>");
         assert_eq!(test, value.file);
         println!("permissions disallowed for anyone/test/:\n {:#?}", value.file);
 

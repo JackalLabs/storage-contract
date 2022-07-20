@@ -56,7 +56,7 @@ pub fn handle<S: Storage, A: Api, Q: Querier>(
             path,
             pkey,
             skey,
-        } => try_create_file(deps, env, contents, path, pkey, skey),
+        } => try_create_file(deps, &env, &contents, path, pkey, skey),
         HandleMsg::CreateMulti {
             contents_list,
             path_list,

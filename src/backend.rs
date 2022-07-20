@@ -438,6 +438,17 @@ pub struct File {
 }
 
 impl File {
+
+    pub fn new(owner: &str, contents: &str) -> File {
+        File {
+            contents: String::from(contents),
+            owner: String::from(owner),
+            public: false,
+            allow_read_list: OrderedSet::<String>::new(),
+            allow_write_list: OrderedSet::<String>::new(),
+        }
+    }
+
     pub fn get_contents(&self) -> &str {
         &self.contents
     }
@@ -570,9 +581,9 @@ pub fn try_move_file<S: Storage, A: Api, Q: Querier>(
     let duplicated_contents = file_res.contents;
 
     //this was previously try_create_file
-    let new_file = do_create_file(
+    let new_file = try_create_file(
         deps,
-        env.message.sender.to_string(),
+        env,
         &duplicated_contents,
         new_path,
         String::from(""),//Nug/Marston: do we need to put something here?
@@ -661,46 +672,6 @@ pub fn try_remove_file<S: Storage, A: Api, Q: Querier>(
     }
 }
 
-fn do_create_file<S: Storage, A: Api, Q: Querier>(
-    deps: &mut Extern<S, A, Q>,
-    ha: String,
-    contents: &String,
-    path: String,
-    pkey: String,
-    skey: String,
-) -> StdResult<HandleResponse> {
-    let par_path = parent_path(path.to_string());
-
-    let namespace = get_namespace_from_path(&deps, &path).unwrap_or(String::from("namespace does not exist!"));
-    let res = bucket_load_readonly_file(&deps.storage, &par_path, &namespace);
-
-    match res {
-        Ok(f) => {
-            if f.can_write(ha.to_string()) {
-                // Add new file to bucket
-                create_file(
-                    deps,
-                    ha.to_string(),
-                    &path,
-                    contents,
-                );
-
-                let adr = String::from(&ha);
-                let mut acl = adr;
-                acl.push_str(&pkey);
-
-                write_claim(&mut deps.storage, acl, skey);
-
-                return Ok(HandleResponse::default());
-            }
-            Err(StdError::GenericErr { msg: "Sorry. You are unauthorized to create a file in this folder.".to_string(), backtrace: None })
-        }
-        Err(_e) => {
-            Err(StdError::NotFound { kind: format!("File creation unsuccessful. Parent path: '{}' doesn't exist.", &par_path), backtrace: None })
-        }
-    }
-}
-
 fn parent_path(mut path: String) -> String {
     if path.ends_with('/') {
         path.pop();
@@ -723,8 +694,8 @@ fn parent_path(mut path: String) -> String {
 
 pub fn try_create_file<S: Storage, A: Api, Q: Querier>(
     deps: &mut Extern<S, A, Q>,
-    env: Env,
-    contents: String,
+    env: &Env,
+    contents: &String,
     path: String,
     pkey: String,
     skey: String,
@@ -732,9 +703,39 @@ pub fn try_create_file<S: Storage, A: Api, Q: Querier>(
     let ha = deps
         .api
         .human_address(&deps.api.canonical_address(&env.message.sender)?)?;
+        
+    let par_path = parent_path(path.to_string());
 
-    do_create_file(deps, ha.to_string(), &contents, path, pkey, skey)
+    let namespace = get_namespace_from_path(&deps, &path).unwrap_or(String::from("namespace does not exist!"));
+    let res = bucket_load_readonly_file(&deps.storage, &par_path, &namespace);
+
+    match res {
+        Ok(f) => {
+            if f.can_write(ha.to_string()) {
+                // Add new file to bucket
+                create_file(
+                    deps,
+                    ha.to_string(),
+                    &path,
+                    &contents,
+                );
+
+                let adr = ha.to_string();
+                let mut acl = adr;
+                acl.push_str(&pkey);
+
+                write_claim(&mut deps.storage, acl, skey);
+
+                return Ok(HandleResponse::default());
+            }
+            Err(StdError::GenericErr { msg: "Sorry. You are unauthorized to create a file in this folder.".to_string(), backtrace: None })
+        }
+        Err(_e) => {
+            Err(StdError::NotFound { kind: format!("File creation unsuccessful. Parent path: '{}' doesn't exist.", &par_path), backtrace: None })
+        }
+    }
 }
+
 pub fn try_create_multi_files<S: Storage, A: Api, Q: Querier>(
     deps: &mut Extern<S, A, Q>,
     env: Env,
@@ -754,9 +755,9 @@ pub fn try_create_multi_files<S: Storage, A: Api, Q: Querier>(
         let pkey = &pkeys[i];
         let skey = &skeys[i];
 
-        let _res = do_create_file(
+        let _res = try_create_file(
             deps,
-            ha.to_string(),
+            &env,
             file_contents,
             path,
             pkey.to_string(),
@@ -791,7 +792,7 @@ pub fn create_file<S: Storage, A: Api, Q: Querier>(
     path: &String,
     contents: &String,
 ) {
-    let file = make_file(&owner, contents);
+    let file = File::new(&owner, contents);
 
     //below allows user to create a file in anyone else's folder, if they had write permissions.
     //They can also move a file that they owned into anyone else's folder, if they had write permissions.
@@ -801,16 +802,6 @@ pub fn create_file<S: Storage, A: Api, Q: Querier>(
 
     let namespace = get_namespace_from_path(deps, &path).unwrap_or(String::from("namespace does not exist!"));
     bucket_save_file(&mut deps.storage, &path, &file, &namespace);
-}
-
-pub fn make_file(owner: &str, contents: &str) -> File {
-    File {
-        contents: String::from(contents),
-        owner: String::from(owner),
-        public: false,
-        allow_read_list: OrderedSet::<String>::new(),
-        allow_write_list: OrderedSet::<String>::new(),
-    }
 }
 
 pub fn bucket_save_file<'a, S: Storage>(store: &'a mut S, path: &String, folder: &File, namespace: &String) {
@@ -947,4 +938,3 @@ pub fn get_namespace_from_path<S: Storage, A: Api, Q: Querier>(
 
 }
 
-//first commit 
