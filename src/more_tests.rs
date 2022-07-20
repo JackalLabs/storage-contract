@@ -1,14 +1,11 @@
-use cosmwasm_std::{
-    debug_print, to_binary, Api, Binary, Env, Extern, HandleResponse, InitResponse, Querier,
-    QueryResult, StdError, StdResult, Storage,
-};
-
-use crate::msg::{HandleMsg, InitMsg, QueryMsg};
-
 #[cfg(test)]
 mod tests {
+    use cosmwasm_std::{
+        Api, Extern, Querier, Storage,
+    };
 
-    use super::*;
+    use crate::msg::{HandleMsg, InitMsg, QueryMsg};
+
     use cosmwasm_std::testing::{mock_dependencies, mock_env};
     use cosmwasm_std::{coins, from_binary, HumanAddr};
 
@@ -256,7 +253,7 @@ mod tests {
         };
         let _res = handle(&mut deps, env, msg).unwrap();
 
-        // Get anyone/junior/ with alice's viewing key to ensure she has write access 
+        // Get anyone/junior/ with alice's viewing key to ensure she has write access
         let query_res = query(
             &deps,
             QueryMsg::GetContents {
