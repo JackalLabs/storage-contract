@@ -1,5 +1,6 @@
 #[cfg(test)]
 mod tests {
+    
     use cosmwasm_std::{
         Api, Extern, Querier, Storage,
     };
