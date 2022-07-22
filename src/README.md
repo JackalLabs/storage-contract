@@ -137,6 +137,7 @@ Input address(es) to give READ access to a certain path
 |Name|Type|Description|                                                                                       
 |--|--|--|
 |path  | String  | path to modify permission
+|message  | String  | notification message
 |address_list  | String[]  | list of address to get access
 
 ### - DisallowRead
@@ -145,6 +146,8 @@ Input address(es) to remove READ access to a certain path
 |Name|Type|Description|                                                                                       
 |--|--|--|
 |path  | String  | path to modify permission
+|message  | String  | notification message
+|notify  | bool  | if true, we notify
 |address_list  | String[]  |  list of address to remove from access list
 
 ### - ResetRead
@@ -153,6 +156,8 @@ Remove ALL READ access to a certain path
 |Name|Type|Description|                                                                                       
 |--|--|--|
 |path  | String  | path to reset READ permission
+|message  | String  | notification message
+|notify  | bool  | if true, we notify
 
 ### - AllowWrite
 Input address(es) to give WRITE access to a certain path
@@ -160,6 +165,7 @@ Input address(es) to give WRITE access to a certain path
 |Name|Type|Description|                                                                                       
 |--|--|--|
 |path  | String  | path to modify permission
+|message  | String  | notification message
 |address_list  | String[]  |  list of address to get access 
 
 ### - DisallowWrite
@@ -168,6 +174,8 @@ Input address(es) to remove WRITE access to a certain path
 |Name|Type|Description|                                                                                       
 |--|--|--|
 |path  | String  | path to modify permission
+|message  | String  | notification message
+|notify  | bool  | if true, we notify
 |address_list  | String[]  |  list of address to remove from access list
 
 ### - ResetWrite
@@ -176,6 +184,8 @@ Remove ALL WRITE access to a certain path
 |Name|Type|Description|                                                                                       
 |--|--|--|
 |path  | String  | path to reset WRITE permission
+|message  | String  | notification message
+|notify  | bool  | if true, we notify
 
 ### - InitNode
 Init a new node
