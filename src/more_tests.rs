@@ -58,17 +58,7 @@ mod tests {
                 String::from("anyone/test/"),
                 String::from("anyone/meme_folder/"),
                 String::from("anyone/junior/"),
-            ],
-            pkey_list: vec![
-                String::from("test"),
-                String::from("test"),
-                String::from("test"),
-            ],
-            skey_list: vec![
-                String::from("test"),
-                String::from("test"),
-                String::from("test"),
-            ],
+            ]
         };
         let _res = handle(&mut deps, env, msg).unwrap();
 
@@ -79,9 +69,7 @@ mod tests {
             path_list: vec![
                 String::from("anyone/test/bunny1.png"),
                 String::from("anyone/test/bunny2.png"),
-            ],
-            pkey_list: vec![String::from("test"), String::from("test")],
-            skey_list: vec![String::from("test"), String::from("test")],
+            ]
         };
         let _res = handle(&mut deps, env, msg).unwrap();
 
@@ -123,9 +111,7 @@ mod tests {
         let env = mock_env("alice", &[]);
         let msg = HandleMsg::Create {
             contents: "bunnys go here".to_string(),
-            path: String::from("alice/bunny_home/"),
-            pkey: "test".to_string(),
-            skey: "test".to_string(),
+            path: String::from("alice/bunny_home/")
         };
         let _res = handle(&mut deps, env, msg).unwrap();
         println!("Successfully created alice/bunny_home/:\n {:#?}", _res);
@@ -197,9 +183,7 @@ mod tests {
                 String::from("<content inside test/>"),
                 String::from("<content inside junior/>"),
             ],
-            path_list: vec![String::from("anyone/test/"), String::from("anyone/junior/")],
-            pkey_list: vec![String::from("test"), String::from("test")],
-            skey_list: vec![String::from("test"), String::from("test")],
+            path_list: vec![String::from("anyone/test/"), String::from("anyone/junior/")]
         };
         let _res = handle(&mut deps, env, msg).unwrap();
 
@@ -207,9 +191,7 @@ mod tests {
         let env = mock_env("anyone", &[]);
         let msg = HandleMsg::Create {
             contents: String::from("bunny"),
-            path: String::from("anyone/test/bunny.png"),
-            pkey: String::from("test"),
-            skey: String::from("test"),
+            path: String::from("anyone/test/bunny.png")
         };
         let _res = handle(&mut deps, env, msg).unwrap();
 
@@ -315,9 +297,7 @@ mod tests {
         let env = mock_env("anyone", &[]);
         let msg = HandleMsg::Create {
             contents: String::from("<content of test/ folder>"),
-            path: String::from("anyone/test/"),
-            pkey: String::from("test"),
-            skey: String::from("test"),
+            path: String::from("anyone/test/")
         };
         let _res = handle(&mut deps, env, msg).unwrap();
 
@@ -325,9 +305,7 @@ mod tests {
         let env = mock_env("anyone", &[]);
         let msg = HandleMsg::Create {
             contents: String::from("I'm sad"),
-            path: String::from("anyone/pepe.jpg"),
-            pkey: String::from("test"),
-            skey: String::from("test"),
+            path: String::from("anyone/pepe.jpg")
         };
         let _res = handle(&mut deps, env, msg).unwrap();
 
@@ -425,9 +403,7 @@ mod tests {
         let env = mock_env("anyone", &[]);
         let msg = HandleMsg::Create {
             contents: String::from("Rainbows"),
-            path: String::from("anyone/test/"),
-            pkey: String::from("public key"),
-            skey: String::from("secret key"),
+            path: String::from("anyone/test/")
         };
         let _res = handle(&mut deps, env, msg).unwrap();
 
@@ -738,9 +714,7 @@ mod tests {
         let env = mock_env("anyone", &[]);
         let msg = HandleMsg::Create {
             contents: String::from("pepe"),
-            path: String::from("anyone/pepe.jpg"),
-            pkey: String::from("test"),
-            skey: String::from("test"),
+            path: String::from("anyone/pepe.jpg")
         };
         let _res = handle(&mut deps, env, msg).unwrap();
 
@@ -752,9 +726,7 @@ mod tests {
                 String::from("anyone/phrog1.png"),
                 String::from("anyone/phrog2.png"),
                 String::from("anyone/phrog3.png")
-            ],
-            pkey_list: vec![String::from("test"), String::from("test"), String::from("test")],
-            skey_list: vec![String::from("test"), String::from("test"), String::from("test")],
+            ]
         };
         let _res = handle(&mut deps, env, msg).unwrap();
 
@@ -897,9 +869,7 @@ mod tests {
         let env = mock_env("anyone", &[]);
         let msg = HandleMsg::Create {
             contents: String::from("pepe"),
-            path: String::from("anyone/pepe.jpg"),
-            pkey: String::from("test"),
-            skey: String::from("test"),
+            path: String::from("anyone/pepe.jpg")
         };
         let _res = handle(&mut deps, env, msg).unwrap();
 
@@ -911,9 +881,7 @@ mod tests {
                 String::from("anyone/phrog1.png"),
                 String::from("anyone/phrog2.png"),
                 String::from("anyone/phrog3.png")
-            ],
-            pkey_list: vec![String::from("test"), String::from("test"), String::from("test")],
-            skey_list: vec![String::from("test"), String::from("test"), String::from("test")],
+            ]
         };
         let _res = handle(&mut deps, env, msg).unwrap();
 

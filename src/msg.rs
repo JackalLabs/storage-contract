@@ -15,8 +15,8 @@ pub struct InitMsg {
 #[serde(rename_all = "snake_case")]
 pub enum HandleMsg {
     InitAddress { contents: String, entropy: String },
-    Create {contents: String, path: String , pkey: String, skey: String},
-    CreateMulti { contents_list: Vec<String>, path_list: Vec<String>, pkey_list: Vec<String>, skey_list: Vec<String> },
+    Create {contents: String, path: String },
+    CreateMulti { contents_list: Vec<String>, path_list: Vec<String> },
     Remove {path: String},
     RemoveMulti {path_list: Vec<String>},
     Move {old_path: String, new_path: String},

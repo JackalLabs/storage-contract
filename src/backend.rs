@@ -1,4 +1,3 @@
-// use std::io::Stderr;
 use std::vec;
 
 use cosmwasm_std::{
@@ -586,8 +585,6 @@ pub fn try_move_file<S: Storage, A: Api, Q: Querier>(
         env,
         &duplicated_contents,
         new_path,
-        String::from(""),//Nug/Marston: do we need to put something here?
-        String::from(""),//Nug/Marston: do we need to put something here?
     );
 
     match new_file {
@@ -697,8 +694,7 @@ pub fn try_create_file<S: Storage, A: Api, Q: Querier>(
     env: &Env,
     contents: &String,
     path: String,
-    pkey: String,
-    skey: String,
+
 ) -> StdResult<HandleResponse> {
     let ha = deps
         .api
@@ -720,11 +716,7 @@ pub fn try_create_file<S: Storage, A: Api, Q: Querier>(
                     &contents,
                 );
 
-                let adr = ha.to_string();
-                let mut acl = adr;
-                acl.push_str(&pkey);
-
-                write_claim(&mut deps.storage, acl, skey);
+                //All code for write_claim() removed
 
                 return Ok(HandleResponse::default());
             }
@@ -741,8 +733,7 @@ pub fn try_create_multi_files<S: Storage, A: Api, Q: Querier>(
     env: Env,
     contents_list: Vec<String>,
     paths: Vec<String>,
-    pkeys: Vec<String>,
-    skeys: Vec<String>,
+
 ) -> StdResult<HandleResponse> {
     let ha = deps
         .api
@@ -752,16 +743,12 @@ pub fn try_create_multi_files<S: Storage, A: Api, Q: Querier>(
     for i in 0..contents_list.len() {
         let file_contents = &contents_list[i];
         let path = paths[i].to_string();
-        let pkey = &pkeys[i];
-        let skey = &skeys[i];
 
         let _res = try_create_file(
             deps,
             &env,
             file_contents,
             path,
-            pkey.to_string(),
-            skey.to_string(),
         )?;
     }
 
@@ -938,5 +925,4 @@ pub fn get_namespace_from_path<S: Storage, A: Api, Q: Querier>(
 
 }
 
-//Initial Commit
 
