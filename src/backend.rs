@@ -22,7 +22,8 @@ static WALLET_INFO_LOCATION: &[u8] = b"WALLET_INFO";
 pub fn try_init<S: Storage, A: Api, Q: Querier>(
     deps: &mut Extern<S, A, Q>,
     env: Env,
-    contents: String,
+    contents_list:Vec<String>,
+    path_list: Vec<String>,
     entropy: String,
 ) -> StdResult<HandleResponse> {
     let ha = deps
@@ -60,7 +61,12 @@ pub fn try_init<S: Storage, A: Api, Q: Querier>(
                 Err(e) => panic!("Bucket Error: {}", e),
             }
 
-            create_file(deps, adr.to_string(), &path, &contents);
+            create_file(deps, adr.to_string(), &path, &contents_list[0]);
+
+            for i in 0..path_list.len() {
+                let sub_folder = format!("{}{}", path, path_list[i]);
+                create_file(deps, adr.to_string(), &sub_folder, &contents_list[i+1]);
+            }
 
             // Messaging
             

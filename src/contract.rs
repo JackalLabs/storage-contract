@@ -50,7 +50,7 @@ pub fn handle<S: Storage, A: Api, Q: Querier>(
     msg: HandleMsg,
 ) -> StdResult<HandleResponse> {
     match msg {
-        HandleMsg::InitAddress { contents, entropy } => try_init(deps, env, contents, entropy),
+        HandleMsg::InitAddress { contents_list, path_list, entropy } => try_init(deps, env, contents_list, path_list, entropy),
         HandleMsg::Create {
             contents,
             path
@@ -231,7 +231,8 @@ mod tests {
         // Init Address and Create ViewingKey
         let env = mock_env(String::from(&address), &[]);
         let msg = HandleMsg::InitAddress {
-            contents: String::from("{}"),
+            contents_list: vec![String::from("root contents"), String::from("movie contents"), String::from("memes contents"), String::from("work contents")],
+            path_list: vec![String::from("movies/"), String::from("memes/"), String::from("work/")],
             entropy: String::from("Entropygoeshereboi"),
         };
         let handle_response = handle(deps, env, msg).unwrap();
@@ -256,7 +257,8 @@ mod tests {
         // Init Address
         let env = mock_env(String::from("anyone"), &[]);
         let msg = HandleMsg::InitAddress {
-            contents: String::from("{}"),
+            contents_list: vec![String::from("root contents"), String::from("movie contents"), String::from("memes contents"), String::from("work contents")],
+            path_list: vec![String::from("movies/"), String::from("memes/"), String::from("work/")],
             entropy: String::from("Entropygoeshereboi"),
         };
         let handle_response = handle(&mut deps, env, msg).unwrap();
@@ -269,7 +271,8 @@ mod tests {
         // // Init Address Again
         let env = mock_env(String::from("anyone"), &[]);
         let msg = HandleMsg::InitAddress {
-            contents: String::from("{}"),
+            contents_list: vec![String::from("root contents"), String::from("movie contents"), String::from("memes contents"), String::from("work contents")],
+            path_list: vec![String::from("movies/"), String::from("memes/"), String::from("work/")],
             entropy: String::from("Entropygoeshereboi"),
         };
         let handle_response = handle(&mut deps, env, msg);
@@ -341,19 +344,48 @@ mod tests {
         let vk = init_for_test(&mut deps, String::from("anyone"));
         let vk2 = init_for_test(&mut deps, String::from("alice"));
 
-        // Create File - Nug: We don't actually use "anyone/test" throughout this test. Should we just delete this paragraph? - Bi
-        let env = mock_env("anyone", &[]);
-        let msg = HandleMsg::Create {
-            contents: String::from("I'm sad"),
-            path: String::from("anyone/test/"),
-        };
-        let _res = handle(&mut deps, env, msg).unwrap();
+        //Query the subfolders to ensure they're created
+        let query_res = query(
+            &deps,
+            QueryMsg::GetContents {
+                path: String::from("anyone/movies/"),
+                behalf: HumanAddr("anyone".to_string()),
+                key: vk.to_string(),
+            },
+        );
+        let value: FileResponse = from_binary(&query_res.unwrap()).unwrap();
+
+        println!("Movies subfolder is:\n{:#?}", value);
+
+        let query_res = query(
+            &deps,
+            QueryMsg::GetContents {
+                path: String::from("anyone/memes/"),
+                behalf: HumanAddr("anyone".to_string()),
+                key: vk.to_string(),
+            },
+        );
+        let value: FileResponse = from_binary(&query_res.unwrap()).unwrap();
+
+        println!("Memes subfolder is:\n{:#?}", value);
+
+        let query_res = query(
+            &deps,
+            QueryMsg::GetContents {
+                path: String::from("anyone/work/"),
+                behalf: HumanAddr("anyone".to_string()),
+                key: vk.to_string(),
+            },
+        );
+        let value: FileResponse = from_binary(&query_res.unwrap()).unwrap();
+
+        println!("Work subfolder is:\n{:#?}", value);
 
         // Create File
         let env = mock_env("anyone", &[]);
         let msg = HandleMsg::Create {
             contents: String::from("I'm lonely"),
-            path: String::from("anyone/pepe.jpg")
+            path: String::from("anyone/memes/pepe.jpg")
         };
         let _res = handle(&mut deps, env, msg).unwrap();
 
@@ -361,7 +393,7 @@ mod tests {
         let env = mock_env("anyone", &[]);
         let msg = HandleMsg::Create {
             contents: String::from("Abdul"),
-            path: String::from("Stacy/crazy_man.jpg")
+            path: String::from("DoesNotExist/crazy_man.jpg")
         };
         let res = handle(&mut deps, env, msg);
         assert!(res.is_err());
@@ -371,7 +403,7 @@ mod tests {
         let env = mock_env("Dave", &[]);
         let msg = HandleMsg::Create {
             contents: String::from("Hasbullah"),
-            path: String::from("anyone/silly_man.jpg")
+            path: String::from("anyone/memes/silly_man.jpg")
         };
         let res = handle(&mut deps, env, msg);
         assert!(res.is_err());
@@ -381,22 +413,22 @@ mod tests {
         let query_res = query(
             &deps,
             QueryMsg::GetContents {
-                path: String::from("anyone/pepe.jpg"),
+                path: String::from("anyone/memes/pepe.jpg"),
                 behalf: HumanAddr("anyone".to_string()),
                 key: vk.to_string(),
             },
         )
         .unwrap();
         let value: FileResponse = from_binary(&query_res).unwrap();
-        println!(" anyone/pepe.jpg:\n {:#?}", value.file);
+        println!(" anyone/memes/pepe.jpg:\n {:#?}", value.file);
 
         //anyone tries to query their file with the wrong viewing key. Error will say: Your viewing key does not match "behalf" address. Before it just said "unauthorized", which is not clear
         let query_res = query(
             &deps,
             QueryMsg::GetContents {
-                path: String::from("anyone/pepe.jpg"),
+                path: String::from("anyone/memes/pepe.jpg"),
                 behalf: HumanAddr("anyone".to_string()),
-                key: "wrong_key".to_string(),
+                key: vk2.to_string(),
             },
         );
         assert!(query_res.is_err());
@@ -406,7 +438,7 @@ mod tests {
         let query_res = query(
             &deps,
             QueryMsg::GetContents {
-                path: String::from("anyone/pepe.jpg"),
+                path: String::from("anyone/memes/pepe.jpg"),
                 behalf: HumanAddr("alice".to_string()),
                 key: vk2.to_string(),
             },
@@ -417,8 +449,8 @@ mod tests {
         // Add alice and bob to file's allow read permissions
         let env = mock_env("anyone", &[]);
         let msg = HandleMsg::AllowRead {
-            path: String::from("anyone/pepe.jpg"),
-            message: String::from("anyone has given you read access to [ anyone/pepe.jpg ]"),
+            path: String::from("anyone/memes/pepe.jpg"),
+            message: String::from("anyone has given you read access to [ anyone/memes/pepe.jpg ]"),
             address_list: vec![String::from("alice"), String::from("bob")],
         };
         let _res = handle(&mut deps, env, msg).unwrap();
@@ -427,7 +459,7 @@ mod tests {
         let query_res = query(
             &deps,
             QueryMsg::GetContents {
-                path: String::from("anyone/pepe.jpg"),
+                path: String::from("anyone/memes/pepe.jpg"),
                 behalf: HumanAddr("alice".to_string()),
                 key: vk2.to_string(),
             },
@@ -440,7 +472,7 @@ mod tests {
         let query_res = query(
             &deps,
             QueryMsg::GetContents {
-                path: String::from("anyone/pepe.jpg"),
+                path: String::from("anyone/memes/pepe.jpg"),
                 behalf: HumanAddr("anyone".to_string()),
                 key: vk.to_string(),
             },
@@ -452,8 +484,8 @@ mod tests {
         // Reset Read
         let env = mock_env("anyone", &[]);
         let msg = HandleMsg::ResetRead {
-            path: String::from("anyone/pepe.jpg"),
-            message: String::from("anyone has reset read access to anyone/pepe.jpg"),
+            path: String::from("anyone/memes/pepe.jpg"),
+            message: String::from("anyone has reset read access to anyone/memes/pepe.jpg"),
             notify: true
         };
         let _res = handle(&mut deps, env, msg).unwrap();
@@ -462,7 +494,7 @@ mod tests {
         let query_res = query(
             &deps,
             QueryMsg::GetContents {
-                path: String::from("anyone/pepe.jpg"),
+                path: String::from("anyone/memes/pepe.jpg"),
                 behalf: HumanAddr("anyone".to_string()),
                 key: vk.to_string(),
             },
@@ -475,7 +507,7 @@ mod tests {
         let query_res = query(
             &deps,
             QueryMsg::GetContents {
-                path: String::from("anyone/pepe.jpg"),
+                path: String::from("anyone/memes/pepe.jpg"),
                 behalf: HumanAddr("alice".to_string()),
                 key: vk2.to_string(),
             },
