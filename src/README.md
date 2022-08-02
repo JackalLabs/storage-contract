@@ -52,7 +52,8 @@ For first time user. Create root folder and viewing_key
 ##### Request
 |Name|Type|Description|                                                                                       
 |--|--|--|
-|content  | String  | 
+|contents_list  | String  | contents for root folder (index 0) and sub folders (index 1..n) 
+|path_list  | String  | path of sub folders
 |entropy  | String  |  "entropy" is a term in physics, originally. In cryptography, it's usually used to talk about "source of randomness". 
 
 ##### Response
@@ -70,9 +71,7 @@ Create a file
 |Name|Type|Description|                                                                                       
 |--|--|--|
 |contents| string  | 
-|path    | string  |   
-|pkey    | string  |  
-|skey    | string  | 
+|path    | string  |    
 
 ### - CreateMulti
 Create file(s)
@@ -81,8 +80,6 @@ Create file(s)
 |--|--|--|
 |content_list | string[]  | 
 |path_list    | string[]  |   
-|pkey_list    | string[]  |  
-|skey_list    | string[]  |  
 
 ### - Remove
 Remove a file
