@@ -5,11 +5,6 @@ JACKAL aims to be the cloud storage provider of the Inter-blockchain communicati
 
 This is the contract implimentation of the file system. 
 
-### TODO
-Create privacy key system to prevent others from peaking into files.
-
-Handle uploads of files larger than 1kb while being gas friendly.
-
 ### Running & Testing
 Following deployment on a local testnet from this doc: https://build.scrt.network/dev/quickstart.html#create-initial-smart-contract
 
